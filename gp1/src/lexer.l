@@ -1,12 +1,23 @@
+%{
+#include "parser.tab.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+%}
 
-// Definition
+%option noyywrap
+%option never-interactive
 
-%noyywrap
 
 %%
 
-// Rules
+[ \t\n\r] {}
+[0-9]+(\.[0-9]*)?([+-]?[eE][0-9]+)? {
+    yylval = atof(yytext);
+    return NUMBER;
+}
+
+. { return yytext[0]; }
 
 %%
 
-// Raw emitted code
