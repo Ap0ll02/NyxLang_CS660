@@ -5,11 +5,11 @@
 #include <unistd.h>
 %}
 
+%option always-interactive
 %option noyywrap
 
 
 %%
-
 [ \t\n\r] {}
 [0-9]+(\.[0-9]*)?([+-]?[eE][0-9]+)? {
     yylval = atof(yytext);

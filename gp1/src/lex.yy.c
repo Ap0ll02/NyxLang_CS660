@@ -1,5 +1,5 @@
 
-#line 2 "lex.yy.c"
+#line 3 "lex.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -452,8 +452,8 @@ char *yytext;
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#line 455 "lex.yy.c"
 #line 456 "lex.yy.c"
+#line 457 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -672,7 +672,6 @@ YY_DECL
 	{
 #line 12 "lexer.l"
 
-
 #line 676 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
@@ -706,12 +705,16 @@ yy_match:
 			yy_current_state = yy_nxt[yy_base[yy_current_state] + yy_c];
 			++yy_cp;
 			}
-		while ( yy_current_state != 14 );
-		yy_cp = (yy_last_accepting_cpos);
-		yy_current_state = (yy_last_accepting_state);
+		while ( yy_base[yy_current_state] != 19 );
 
 yy_find_action:
 		yy_act = yy_accept[yy_current_state];
+		if ( yy_act == 0 )
+			{ /* have to back up */
+			yy_cp = (yy_last_accepting_cpos);
+			yy_current_state = (yy_last_accepting_state);
+			yy_act = yy_accept[yy_current_state];
+			}
 
 		YY_DO_BEFORE_ACTION;
 
@@ -729,12 +732,12 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 14 "lexer.l"
+#line 13 "lexer.l"
 {}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 15 "lexer.l"
+#line 14 "lexer.l"
 {
     yylval = atof(yytext);
     return NUMBER;
@@ -742,15 +745,15 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 20 "lexer.l"
+#line 19 "lexer.l"
 { return yytext[0]; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 22 "lexer.l"
+#line 21 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 753 "lex.yy.c"
+#line 757 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -817,8 +820,7 @@ case YY_STATE_EOF(INITIAL):
 
 			else
 				{
-				yy_cp = (yy_last_accepting_cpos);
-				yy_current_state = (yy_last_accepting_state);
+				yy_cp = (yy_c_buf_p);
 				goto yy_find_action;
 				}
 			}
@@ -1333,8 +1335,8 @@ static void yy_load_buffer_state  (void)
         b->yy_bs_column = 0;
     }
 
-        b->yy_is_interactive = 0;
-    
+	b->yy_is_interactive = 1;
+
 	errno = oerrno;
 }
 
@@ -1756,7 +1758,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 22 "lexer.l"
+#line 21 "lexer.l"
 
 
 
