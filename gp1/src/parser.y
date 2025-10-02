@@ -16,12 +16,12 @@ extern double zig_div(double a, double b);
 
 %define api.value.type {double}
 
-%token NUMBER
+%token NUMBER END
 
 %%
 
 // Grammar Rules
-goal: expr {
+goal: expr END {
     zig_print_result($1);
 };
 expr: 

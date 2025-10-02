@@ -15,6 +15,7 @@
     yylval = atof(yytext);
     return NUMBER;
 }
+; { return END; }
 
 . { return yytext[0]; }
 
