@@ -1,0 +1,3 @@
+0
+66 34484665 1759368842445349911 b9424a893f37473754778b521846cf84 0 /home/wraith/Documents/NyxLang/NyxLang_CS660/test_zig/src/arithmetic.c
+23 34484667 1759368870967526008 b4c2f9aedd4849b59d8627f603fd29a1 0 /home/wraith/Documents/NyxLang/NyxLang_CS660/test_zig/src/arithmetic.h
