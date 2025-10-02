@@ -23,6 +23,7 @@ pub fn build(b: *std.Build) void {
         .flags = &.{"-std=c99"},
     });
     exe.linkLibC();
+    exe.addIncludePath(b.path("src"));
 
     b.installArtifact(exe);
 
