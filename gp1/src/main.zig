@@ -7,6 +7,10 @@ export fn zig_add(a: f64, b: f64) f64 {
     return a + b;
 }
 
+export fn zig_mul(a: f64, b: f64) f64 {
+    return a * b;
+}
+
 export fn zig_minus(a: f64, b:f64) f64{
     return a - b; 
 }
