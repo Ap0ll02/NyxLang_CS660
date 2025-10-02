@@ -68,15 +68,17 @@
 
 /* First part of user prologue.  */
 #line 1 "parser.y"
- #include <stdio.h>
+ 
+#include <stdio.h>
 #include "parser.tab.h"
 int yylex(void);
 void yyerror(const char *s);
 
 // Declare Extern Functions 
 extern double zig_add(double a, double b);
+extern void zig_print_result(double a);
 
-#line 80 "parser.tab.c"
+#line 82 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -500,7 +502,7 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    19,    19,    20,    21,    22,    23
+       0,    21,    21,    24,    26,    27,    28
 };
 #endif
 
@@ -1061,20 +1063,30 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
+  case 2: /* goal: expr  */
+#line 21 "parser.y"
+           {
+    zig_print_result(yyvsp[0]);
+}
+#line 1072 "parser.tab.c"
+    break;
+
   case 3: /* expr: expr '+' factor  */
-#line 20 "parser.y"
-                      {yyval = zig_add(yyvsp[-2], yyvsp[0]); }
-#line 1068 "parser.tab.c"
+#line 24 "parser.y"
+                      {
+    yyval = zig_add(yyvsp[-2], yyvsp[0]);
+}
+#line 1080 "parser.tab.c"
     break;
 
   case 6: /* factor: '(' expr ')'  */
-#line 23 "parser.y"
+#line 28 "parser.y"
                      { yyval = yyvsp[-1]; }
-#line 1074 "parser.tab.c"
+#line 1086 "parser.tab.c"
     break;
 
 
-#line 1078 "parser.tab.c"
+#line 1090 "parser.tab.c"
 
       default: break;
     }
@@ -1267,7 +1279,5 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 25 "parser.y"
+#line 29 "parser.y"
 
-
-// Raw User Code

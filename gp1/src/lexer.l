@@ -6,7 +6,6 @@
 %}
 
 %option noyywrap
-%option never-interactive
 
 
 %%
