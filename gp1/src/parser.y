@@ -10,6 +10,8 @@ extern void zig_print_result(double a);
 extern double zig_minus(double a, double b);
 extern double zig_mul(double a, double b);
 extern double zig_div(double a, double b);
+extern void zig_var_init(const char *name, double val);
+extern double zig_var(const char *name);
 %}
 
 // Definitions

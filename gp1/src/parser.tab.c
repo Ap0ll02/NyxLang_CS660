@@ -80,8 +80,10 @@ extern void zig_print_result(double a);
 extern double zig_minus(double a, double b);
 extern double zig_mul(double a, double b);
 extern double zig_div(double a, double b);
+extern void zig_var_init(const char *name, double val);
+extern double zig_var(const char *name);
 
-#line 85 "parser.tab.c"
+#line 87 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -510,8 +512,8 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    24,    24,    28,    29,    30,    31,    32,    33,    34,
-      35
+       0,    26,    26,    30,    31,    32,    33,    34,    35,    36,
+      37
 };
 #endif
 
@@ -1078,45 +1080,45 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* goal: expr END  */
-#line 24 "parser.y"
+#line 26 "parser.y"
                {
     zig_print_result(yyvsp[-1]);
 }
-#line 1086 "parser.tab.c"
+#line 1088 "parser.tab.c"
     break;
 
   case 3: /* expr: expr '+' factor  */
-#line 28 "parser.y"
+#line 30 "parser.y"
                       { yyval = zig_add(yyvsp[-2], yyvsp[0]); }
-#line 1092 "parser.tab.c"
+#line 1094 "parser.tab.c"
     break;
 
   case 4: /* expr: expr '-' factor  */
-#line 29 "parser.y"
+#line 31 "parser.y"
                      { yyval = zig_minus(yyvsp[-2], yyvsp[0]); }
-#line 1098 "parser.tab.c"
+#line 1100 "parser.tab.c"
     break;
 
   case 6: /* factor: expr '*' term  */
-#line 31 "parser.y"
+#line 33 "parser.y"
                       { yyval = zig_mul(yyvsp[-2], yyvsp[0]); }
-#line 1104 "parser.tab.c"
+#line 1106 "parser.tab.c"
     break;
 
   case 7: /* factor: expr '/' term  */
-#line 32 "parser.y"
+#line 34 "parser.y"
                     { yyval = zig_div(yyvsp[-2], yyvsp[0]); }
-#line 1110 "parser.tab.c"
+#line 1112 "parser.tab.c"
     break;
 
   case 10: /* term: '(' expr ')'  */
-#line 35 "parser.y"
+#line 37 "parser.y"
                      { yyval = yyvsp[-1]; }
-#line 1116 "parser.tab.c"
+#line 1118 "parser.tab.c"
     break;
 
 
-#line 1120 "parser.tab.c"
+#line 1122 "parser.tab.c"
 
       default: break;
     }
@@ -1309,5 +1311,5 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 36 "parser.y"
+#line 38 "parser.y"
 

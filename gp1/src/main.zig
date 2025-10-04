@@ -24,6 +24,26 @@ export fn zig_print_result(a: f64) void {
     std.debug.print("Evaluated To: {d}\n", .{a});
 }
 
+export fn zig_var(name: [*c]const u8) f64 {
+    const name_zig: []const u8 = std.mem.span(name);
+    const value = map.get(name_zig);
+    if (value) |val| return val;
+    return 0.0;
+}
+
+fn insert_var(name: []const u8, val: f64) bool {
+    _ = map.put(name, val) catch return false;
+    return true;
+}
+
+export fn zig_var_init(name: [*c]const u8, val: f64) void {
+    const name_zig: []const u8 = std.mem.span(name);
+    _ = insert_var(name_zig, val);
+}
+
+const allocator = std.heap.page_allocator;
+var map: std.StringHashMap(f64) = std.StringHashMap(f64).init(allocator);
+
 pub fn main() !void {
     // const input = "6 + 7";
     const result = parser.yyparse();
