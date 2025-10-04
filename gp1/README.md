@@ -24,5 +24,29 @@ cd NyxLang_CS660
 
 ```fish 
 cd gp1
-zig run src/main.zig
+zig build run
+```
+
+## Input and Running 
+
+Please note, that the zig library works in a curious way. We have made it so you can use a semicolon to end your line/code. 
+
+An example of input can be seen below
+
+### Examples 
+
+```zig
+45 * 54;
+```
+
+```zig
+53++;
+```
+
+```zig
+var_name = 50;
+```
+
+```zig
+50 + var_name;
 ```
