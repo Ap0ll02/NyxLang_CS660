@@ -1,6 +1,8 @@
 %{ 
 #include <stdio.h>
 #include "parser.tab.h"
+#include <string.h>
+
 int yylex(void);
 void yyerror(const char *s);
 
@@ -16,23 +18,34 @@ extern double zig_var(const char *name);
 
 // Definitions
 
-%define api.value.type {double}
+%union {
+    double num;    /* for numbers */
+    char* id;      /* for variable names (strings) */
+}
 
-%token NUMBER END
+%token <num> NUMBER
+%token <id> VAR
+%type <num> expr factor term statement program
+%token END PROGRAM_END
 
 %%
 
 // Grammar Rules
-goal: expr END {
-    zig_print_result($1);
-};
+goal: program PROGRAM_END // ToDO we need to make some sort of end of program token \\n is not working 
+program: statement END { zig_print_result($1); } // First statement
+       | program statement END { zig_print_result($2); }; // Subsequent statements
+statement: 
+    VAR '=' expr { zig_var_init($1, $3); $$ = $3; }
+    | expr { $$ = $1; };
 expr: 
-      expr '+' factor { $$ = zig_add($1, $3); } 
-    | expr '-' factor{ $$ = zig_minus($1, $3); }
-    | factor;
-factor: expr '*' term { $$ = zig_mul($1, $3); }
-    | expr '/' term { $$ = zig_div($1, $3); }
+      expr '+' term { $$ = zig_add($1, $3); } 
+    | expr '-' term{ $$ = zig_minus($1, $3); }
     | term;
-term: NUMBER 
-      | '(' expr ')' { $$ = $2; }
+term: term '*' factor { $$ = zig_mul($1, $3); }
+    | term '/' factor { $$ = zig_div($1, $3); }
+    | factor;
+factor: 
+    NUMBER { $$ = $1; } 
+    | VAR { $$ = zig_var($1); }
+    | '(' expr ')' { $$ = $2; }
 %%
