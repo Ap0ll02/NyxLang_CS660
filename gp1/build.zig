@@ -15,6 +15,12 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const bison = b.addSystemCommand(&.{"bison", "-d"});
+    bison.addFileArg(b.path("src/parser.y"));
+
+    const flex = b.addSystemCommand(&.{"flex"});
+    flex.addFileArg(b.path("src/lexer.l"));
+
     exe.root_module.addCSourceFiles(.{
         .files = &[_][]const u8{
             "src/parser.tab.c",
@@ -24,6 +30,8 @@ pub fn build(b: *std.Build) void {
     });
     exe.linkLibC();
     exe.addIncludePath(b.path("src"));
+    exe.step.dependOn(&bison.step);
+    exe.step.dependOn(&flex.step);
 
     b.installArtifact(exe);
 
