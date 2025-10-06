@@ -16,6 +16,8 @@
     yylval.num = atof(yytext);
     return NUMBER;
 }
+"++" {return INCREMENT; }
+"--" {return DECREMENT; }
 [a-zA-Z_][a-zA-Z0-9_]* {
     //strdup does not work with c99 so we are going to use manual memory allocation
     yylval.id = malloc(strlen(yytext) + 1);

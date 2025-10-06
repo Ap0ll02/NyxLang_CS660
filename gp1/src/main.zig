@@ -31,6 +31,19 @@ export fn zig_var(name: [*c]const u8) f64 {
     return 0.0;
 }
 
+export fn zig_var_dec(name: [*c]const u8) f64 {
+    const name_zig: []const u8 = std.mem.span(name);
+    const val = zig_var(name) - 1.0;
+    _ = insert_var(name_zig, val);
+    return val;
+}
+export fn zig_var_inc(name: [*c]const u8) f64 {
+    const name_zig: []const u8 = std.mem.span(name);
+    const val = zig_var(name) + 1.0;
+    _ = insert_var(name_zig, val);
+    return val;
+}
+
 fn insert_var(name: []const u8, val: f64) bool {
     _ = map.put(name, val) catch return false;
     return true;
