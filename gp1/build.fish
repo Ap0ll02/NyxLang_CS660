@@ -1,5 +1,7 @@
 #!/usr/bin/env fish
-flex src/lexer.l
-bison -d src/parser.y
+cd src
+flex lexer.l
+bison -d parser.y
+cd ..
 zig build run
 
