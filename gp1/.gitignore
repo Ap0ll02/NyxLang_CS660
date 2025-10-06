@@ -1,0 +1,48 @@
+# --- Zig build directories ---
+zig-cache/
+zig-out/
+
+# --- Common build output ---
+build/
+build-*/
+
+# --- Compiled objects and binaries ---
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# --- Zig test output ---
+test-results/
+*.tmp
+*.log
+
+# --- C build artifacts ---
+*.d       # dependency files
+*.gcno    # coverage data
+*.gcda
+*.gcov
+
+# --- IDE / editor files ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+
+# --- OS-specific files ---
+.DS_Store
+Thumbs.db
+
+# --- Dependency and cache dirs ---
+.cache/
+deps/
+vendor/
+
+# --- Generated documentation ---
+docs/build/
