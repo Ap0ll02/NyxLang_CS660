@@ -12,6 +12,7 @@ extern void zig_print_result(double a);
 extern double zig_minus(double a, double b);
 extern double zig_mul(double a, double b);
 extern double zig_div(double a, double b);
+extern double zig_neg(double a);
 extern void zig_var_init(const char *name, double val);
 extern double zig_var(const char *name);
 extern double zig_var_inc(const char *name);
@@ -29,7 +30,7 @@ extern double zig_var_dec(const char *name);
 %token <id> VAR
 %token INCREMENT
 %token DECREMENT
-%type <num> expr factor term statement program post
+%type <num> expr factor term statement program post unar
 %token END PROGRAM_END
 
 %%
@@ -45,9 +46,13 @@ expr:
       expr '+' term { $$ = zig_add($1, $3); } 
     | expr '-' term{ $$ = zig_minus($1, $3); }
     | term;
-term: term '*' post { $$ = zig_mul($1, $3); }
-    | term '/' post { $$ = zig_div($1, $3); }
-    | post;
+term: term '*' unar { $$ = zig_mul($1, $3); }
+    | term '/' unar { $$ = zig_div($1, $3); }
+    | unar;
+unar: post
+    | INCREMENT VAR  { $$ = zig_var_inc($2); }
+    | DECREMENT VAR { $$ = zig_var_dec($2); }
+    | '-' unar  { $$ = zig_neg($2); }
 post: factor 
     | VAR INCREMENT  { $$ = zig_var_inc($1); }
     | VAR DECREMENT  { $$ = zig_var_dec($1); }

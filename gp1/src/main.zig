@@ -19,6 +19,10 @@ export fn zig_div(a: f64, b:f64) f64{
     return a / b; 
 }
 
+export fn zig_neg(a: f64) f64{
+    return -a; 
+}
+
 export fn zig_print_result(a: f64) void {
     std.debug.print("\n", .{});
     std.debug.print("Evaluated To: {d}\n", .{a});
