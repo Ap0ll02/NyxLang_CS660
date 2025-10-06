@@ -40,13 +40,13 @@ An example of input can be seen below
 ```
 
 ```zig
-53++;
-```
-
-```zig
 var_name = 50;
 ```
 
 ```zig
 50 + var_name;
+```
+
+```zig
+var_name++;
 ```
