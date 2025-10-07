@@ -23,6 +23,13 @@ To confirm the version of your zig compiler is 0.15.1, use (one can assume most 
 which zig
 ```
 
+If your version of zig is not matched, please run the following command (assuming you installed 0.15.1 with the above steps)
+
+```
+zvm use 0.15.1
+```
+
+
 #### Zig Lang Download Page 
 https://ziglang.org/download/
 
