@@ -13,11 +13,15 @@ PLEASE READ AND INSTALL FOR YOUR MACHINE FOR DIRECTIONS LOOK AT WEBSITE BELOW:
 
 #### Step 1.3 – Switch to Development Branch
 
-`zvm install 0.15.1`
+```
+zvm install 0.15.1
+```
 
 To confirm the version of your zig compiler is 0.15.1, use (one can assume most minor versions will be acceptable):
 
-```which zig```
+```
+which zig
+```
 
 #### Zig Lang Download Page 
 https://ziglang.org/download/
