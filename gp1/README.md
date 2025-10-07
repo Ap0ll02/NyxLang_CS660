@@ -6,9 +6,22 @@
 
 ### Step 1: Install Zig 0.15.1
 
-Please ensure you install zig, you can find instructions [here](https://ziglang.org/) at ziglang.org 
+I would personally reccomend ZVM to manage zig versions most effortlessly.
 
-*Note: I use [zvm](https://github.com/tristanisham/zvm) (zig version manager), I find it really helpful for version managing* 
+#### Step 1.2 – Install ZVM
+Install Zig Version Manager:
+PLEASE READ AND INSTALL FOR YOUR MACHINE FOR DIRECTIONS LOOK AT WEBSITE BELOW:   
+[https://www.zvm.app/](https://www.zvm.app/)
+
+#### Step 1.3 – Switch to Development Branch
+
+`zvm install 0.15.1`
+
+To confirm the version of your zig compiler is 0.15.1 (However, one can assume most minor versions will be acceptable)
+```which zig```
+
+### Zig Lang Download Page 
+https://ziglang.org/download/
 
 ### Step 2: Clone the repository
 
