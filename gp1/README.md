@@ -1,6 +1,4 @@
-# GP1
-
-## Bison/Flex Calculator
+# GP1 - Bison/Flex Calculator
 
 ## Installation
 
@@ -17,10 +15,11 @@ PLEASE READ AND INSTALL FOR YOUR MACHINE FOR DIRECTIONS LOOK AT WEBSITE BELOW:
 
 `zvm install 0.15.1`
 
-To confirm the version of your zig compiler is 0.15.1 (However, one can assume most minor versions will be acceptable)
+To confirm the version of your zig compiler is 0.15.1, use (one can assume most minor versions will be acceptable):
+
 ```which zig```
 
-### Zig Lang Download Page 
+#### Zig Lang Download Page 
 https://ziglang.org/download/
 
 ### Step 2: Clone the repository
