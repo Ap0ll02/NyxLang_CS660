@@ -67,7 +67,7 @@
 
 
 /* First part of user prologue.  */
-#line 1 "c11.y"
+#line 1 "/mnt/titans/Olympus/NyxLang_CS660/gp2/src/c11.y"
 
 #include "c11.tab.h"
 int yylex(void);
@@ -2320,6 +2320,6 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 541 "c11.y"
+#line 541 "/mnt/titans/Olympus/NyxLang_CS660/gp2/src/c11.y"
 
 #include <stdio.h>
