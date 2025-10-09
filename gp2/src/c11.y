@@ -1,7 +1,10 @@
 %{
 #include "c11.tab.h"
+// FUNCTION DECLARATIONS: 
 int yylex(void);
 void yyerror(const char *s);
+
+void zig_error();
 %}
 
 %token	IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
@@ -25,9 +28,9 @@ void yyerror(const char *s);
 %%
 
 primary_expression
-	: IDENTIFIER
-	| constant
-	| string
+	: IDENTIFIER 
+	| constant { zig_error(); }
+	| string { zig_error(); }
 	| '(' expression ')'
 	| generic_selection
 	;
