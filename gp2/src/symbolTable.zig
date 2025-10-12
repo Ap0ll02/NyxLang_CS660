@@ -19,31 +19,6 @@ pub const typeKind = struct {
     arraySize: ?usize,
 };
 
-export fn typeFinder(token: c_int) typeKind {
-    return switch (token) {
-        c.INT => blk: {
-            std.debug.print("Type is Int\n", .{});
-            break :blk typeKind{ .type = .Int, .isArray = false, .arraySize = null };
-        },
-        c.FLOAT => blk: {
-            std.debug.print("Type is Float\n", .{});
-            break :blk typeKind{ .type = .Float, .isArray = false, .arraySize = null };
-        },
-        c.BOOL => blk: {
-            std.debug.print("Type is Bool\n", .{});
-            break :blk typeKind{ .type = .Bool, .isArray = false, .arraySize = null };
-        },
-        c.VOID => blk: {
-            std.debug.print("Type is Void\n", .{});
-            break :blk typeKind{ .type = .Void, .isArray = false, .arraySize = null };
-        },
-        else => blk: {
-            std.debug.print("Unknown type token: {}\n", .{token});
-            break :blk typeKind{ .type = .Int, .isArray = false, .arraySize = null };
-        },
-    };
-}
-
 // each scope has a hashmap of symbols
 pub const Symbol = struct {
     name: []const u8,

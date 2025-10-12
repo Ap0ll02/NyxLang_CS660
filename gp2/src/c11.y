@@ -7,7 +7,6 @@ void yyerror(const char *s);
 // External Functions
 
 // Symbol Table Functions
-extern typeKind typeFinder(c_int token);
 
 void zig_error();
 %}
@@ -241,16 +240,16 @@ storage_class_specifier
 	;
 
 type_specifier
-	: VOID {$$ = typeFinder(VOID); }
+	: VOID 
 	| CHAR
 	| SHORT
-	| INT {$$ = typeFinder(INT); }
+	| INT 
 	| LONG
-	| FLOAT {$$ = typeFinder(FLOAT); }
+	| FLOAT 
 	| DOUBLE
 	| SIGNED
 	| UNSIGNED
-	| BOOL {$$ = typeFinder(BOOL); }
+	| BOOL 
 	| COMPLEX
 	| IMAGINARY	  	/* non-mandated extension */
 	| atomic_type_specifier
