@@ -4,6 +4,8 @@
 int yylex(void);
 void yyerror(const char *s);
 
+extern TypeKind typeFinder(token: c_int);
+
 void zig_error();
 %}
 
@@ -236,16 +238,16 @@ storage_class_specifier
 	;
 
 type_specifier
-	: VOID
+	: VOID {$$ = typeFinder(VOID); }
 	| CHAR
 	| SHORT
-	| INT
+	| INT {$$ = typeFinder(INT);}
 	| LONG
-	| FLOAT
+	| FLOAT {$$ = typeFinder(FLOAT);}
 	| DOUBLE
 	| SIGNED
 	| UNSIGNED
-	| BOOL
+	| BOOL {$$ = typeFinder(BOOL); }
 	| COMPLEX
 	| IMAGINARY	  	/* non-mandated extension */
 	| atomic_type_specifier

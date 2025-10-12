@@ -1,5 +1,9 @@
 pub const std = @import("std");
 
+const c = @cImport({
+    @cInclude("c11.tab.h");
+});
+
 // We define a simple enum for type information
 pub const TypeInfo = enum {
     Int,
@@ -14,6 +18,31 @@ pub const TypeKind = struct {
     isArray: bool,
     arraySize: ?usize,
 };
+
+export fn typeFinder(token: c_int) TypeKind {
+    return switch (token) {
+        c.INT => blk: {
+            std.debug.print("Type is Int\n", .{});
+            break :blk TypeKind{ .type = .Int, .isArray = false, .arraySize = null };
+        },
+        c.FLOAT => blk: {
+            std.debug.print("Type is Float\n", .{});
+            break :blk TypeKind{ .type = .Float, .isArray = false, .arraySize = null };
+        },
+        c.BOOL => blk: {
+            std.debug.print("Type is Bool\n", .{});
+            break :blk TypeKind{ .type = .Bool, .isArray = false, .arraySize = null };
+        },
+        c.VOID => blk: {
+            std.debug.print("Type is Void\n", .{});
+            break :blk TypeKind{ .type = .Void, .isArray = false, .arraySize = null };
+        },
+        else => blk: {
+            std.debug.print("Unknown type token: {}\n", .{token});
+            break :blk TypeKind{ .type = .Int, .isArray = false, .arraySize = null };
+        },
+    };
+}
 
 // each scope has a hashmap of symbols
 pub const Symbol = struct {
@@ -66,6 +95,7 @@ pub const SymbolTable = struct {
     }
 
     pub fn popScope(self: *SymbolTable) void {
+        // Just good error checking to avoid popping the global scope
         if (self.current) |cur| {
             if (cur.parent) |parentScope| {
                 self.current = parentScope;
