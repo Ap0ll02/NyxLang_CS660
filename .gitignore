@@ -1,14 +1,40 @@
+# Zig build artifacts
+zig-cache/
+.zig-cache/
+zig-out/
 
-gp2/.zig-cache/o/deafe57ce992652effb7ada840285dc1/build
+# Build output directories
+build/
+build-*/
 
-gp2/.zig-cache/o/a31863e128db6824c21feb3bb8ab4dd7/dependencies.zig
+# Compiled binaries
+*.exe
+*.out
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
 
-gp2/.zig-cache/h/5a535799679f71f41af54cda5c452ec0.txt
+# Temporary files
+*.tmp
+*.log
 
-gp2/.zig-cache/z/3e91730e2683adc28c4bc3822c2b57df
+# Editor / IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
-gp2/.zig-cache/z/414b2a4a317ae7afad6d4fb2d547d500
+# Dependency caches (if using external tools)
+.cache/
+deps/
+vendor/
 
-gp2/.zig-cache/z/6a1f31186ad1abea78464de27a929fac
+# Generated documentation
+docs/build/
 
-gp2/.zig-cache/z/dee4448ddd3dc987db1dd0baed87ecfb
