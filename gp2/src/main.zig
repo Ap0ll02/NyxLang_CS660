@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const parse = @cImport(@cInclude("c11.tab.h"));
+const sym_tab = @import("symbolTable.zig");
 
 extern fn yyparse() c_int;
 

@@ -526,18 +526,18 @@ jump_statement
 	;
 
 translation_unit
-	: external_declaration
-	| translation_unit external_declaration
+	: external_declaration { print_ast($1); }
+	| translation_unit external_declaration { print_ast($2); }
 	;
 
 external_declaration
-	: function_definition
-	| declaration
+	: function_definition { zig_error(); }
+	| declaration { zig_error(); }
 	;
 
 function_definition
-	: declaration_specifiers declarator declaration_list compound_statement
-	| declaration_specifiers declarator compound_statement
+	: declaration_specifiers declarator declaration_list compound_statement { zig_error(); }
+	| declaration_specifiers declarator compound_statement { zig_error(); }
 	;
 
 declaration_list
