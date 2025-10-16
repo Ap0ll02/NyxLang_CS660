@@ -9,6 +9,10 @@ void yyerror(const char *s);
 // Symbol Table Functions
 
 void zig_error();
+
+// So we can return generic node pointers and other values
+void print_ast(void *node);
+
 %}
 
 %token	IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
@@ -30,6 +34,15 @@ void zig_error();
 
 %start translation_unit
 %%
+%union {
+	int intval;
+	float floatval;
+	double doubleval;
+	char *id;
+	void *node;
+}
+%token <id> IDENTIFIER
+
 
 primary_expression
 	: IDENTIFIER 
