@@ -129,7 +129,7 @@ pub fn type_info(token: c_int) TypeInfo {
 
 // Creation Functions
 
-export fn create_identifier(name: []const u8) *Node {
+export fn make_identifier_node(name: []const u8) *Node {
     // We create the identifier node
     const id_node = std.heap.c_allocator.create(IdentifierNode) catch return null;
     // We set the name for the identifier node
@@ -144,11 +144,11 @@ export fn create_identifier(name: []const u8) *Node {
     return node;
 }
 
-export fn create_constant(value: []const u8, typeInfo: TypeInfo) *Node {
+export fn make_constant_node(value: []const u8, typeInfo: TypeInfo) *Node {
     // We create the constant node
-    const const_node = std.heap.c_allocator.create(constantNode) catch return null;
+    const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
-    const_node.* = constantNode{ .value = value, .typeInfo = typeInfo };
+    const_node.* = ConstantNode{ .value = value, .typeInfo = typeInfo };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -162,11 +162,11 @@ export fn create_constant(value: []const u8, typeInfo: TypeInfo) *Node {
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn create_declaration(varName: []const u8, varType: TypeInfo, initializer: ?*Node) *Node {
+export fn make_declaration_node(varName: []const u8, varType: TypeInfo, initializer: ?*Node) *Node {
     // We create the declaration node
-    const decl_node = std.heap.c_allocator.create(declarationNode) catch return null;
+    const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
     // We set the variable name, type, and optional initializer for the declaration node
-    decl_node.* = declarationNode{ .varName = varName, .varType = varType, .initializer = initializer };
+    decl_node.* = DeclarationNode{ .varName = varName, .varType = varType, .initializer = initializer };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;

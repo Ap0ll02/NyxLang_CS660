@@ -9,7 +9,6 @@ extern fn yyparse() c_int;
 pub fn main() !void {
     const result = parse.yyparse();
     std.debug.print("?: {any}", .{result});
-    _= ast.create_identifier("test");
 }
 
 export fn yyerror(msg: [*c]const u8) void {

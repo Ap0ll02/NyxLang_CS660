@@ -9,29 +9,30 @@ void yyerror(const char *s);
 // Symbol Table Functions
 
 void zig_error();
+void print_ast(Node *node);
 
 // So we can return generic node pointers and other values
 struct Node* node;
-void print_ast(void *node);
-
+Node* make_identifier_node(const char *s);
+Node* make_constant_node(const uint_8);
 %}
 
-%token	IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
+%token	SIZEOF
 %token	PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token	AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token	SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token	XOR_ASSIGN OR_ASSIGN
-%token	TYPEDEF_NAME ENUMERATION_CONSTANT
+%token	TYPEDEF_NAME
 
 %token	TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
 %token	CONST RESTRICT VOLATILE
-%token	BOOL CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE VOID
+%token	SHORT LONG SIGNED UNSIGNED VOID
 %token	COMPLEX IMAGINARY 
 %token	STRUCT UNION ENUM ELLIPSIS
 
 %token	CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
-%token	ALIGNAS ALIGNOF ATOMIC GENERIC NORETURN STATIC_ASSERT THREAD_LOCAL
+%token	ALIGNAS ALIGNOF ATOMIC NORETURN STATIC_ASSERT THREAD_LOCAL
 
 %start translation_unit
 %union {
@@ -39,22 +40,29 @@ void print_ast(void *node);
 	float floatval;
 	double doubleval;
 	char *id;
+    bool boolval;
     struct Node* node;
 }
-%type <node> primary_expression constant enumeration_constant string generic_selection generic_assoc_list generic_association postfix_expression argument_expression_list unary_expression cast_expression multiplicative_expression additive_expression shift_expression relational_expression equality_expression and_expression exclusive_or_expression inclusive_or_expression logical_and_expression logical_or_expression conditional_expression assignment_expression expression constant_expression declaration
+%token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
+%token <intval> INT_CONST INT CHAR I_CONSTANT
+%token <floatval> FLOAT_CONST FLOAT F_CONSTANT
+%token <doubleval> DOUBLE_CONST DOUBLE
+%token <boolval> BOOL
+%type <node> primary_expression constant expression string generic_selection
 %%
+
 primary_expression
-	: IDENTIFIER
-	| constant { zig_error(); }
-	| string { zig_error(); }
-	| '(' expression ')'
-	| generic_selection
+	: IDENTIFIER { $$ = make_identifier_node($1) }
+	| constant { $$ = make_constant_node($1) }
+	| string { $$ = make_identifier_node($1) }
+	| '(' expression ')' { $$ = $2 }
+	| generic_selection { $$ = $1 }
 	;
 
 constant
-	: I_CONSTANT		/* includes character_constant */
-	| F_CONSTANT
-	| ENUMERATION_CONSTANT	/* after it has been defined as such */
+	: I_CONSTANT { $$ = make_constant_node($1) }		/* includes character_constant */
+	| F_CONSTANT { $$ = make_constant_node($1) }
+	| ENUMERATION_CONSTANT { $$ = make_identifier_node($1) }	/* after it has been defined as such */
 	;
 
 enumeration_constant		/* before it has been defined as such */
@@ -538,8 +546,8 @@ jump_statement
 	;
 
 translation_unit
-	: external_declaration { print_ast($1); }
-	| translation_unit external_declaration { print_ast($2); }
+	: external_declaration 
+	| translation_unit external_declaration
 	;
 
 external_declaration
