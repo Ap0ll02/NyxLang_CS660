@@ -11,6 +11,7 @@ void yyerror(const char *s);
 void zig_error();
 
 // So we can return generic node pointers and other values
+struct Node* node;
 void print_ast(void *node);
 
 %}
@@ -33,7 +34,6 @@ void print_ast(void *node);
 %token	ALIGNAS ALIGNOF ATOMIC GENERIC NORETURN STATIC_ASSERT THREAD_LOCAL
 
 %start translation_unit
-%%
 %union {
 	int intval;
 	float floatval;
@@ -41,9 +41,9 @@ void print_ast(void *node);
 	char *id;
 	void *node;
 }
-%token <id> IDENTIFIER
+%type expression <node>
 
-
+%%
 primary_expression
 	: IDENTIFIER 
 	| constant { zig_error(); }

@@ -3,12 +3,7 @@ const c = @cImport(@cInclude("c11.tab.h"));
 
 pub const NodeTag = enum {
     Identifier,
-    Constant,
-    Declaration,
-    WhileStmt,
-    IfStmt,
-
-    ReturnStmt,
+    Constant, // Just wraps a literal with extra stuff?
 
     // Unlabeled
     Function,
@@ -22,11 +17,16 @@ pub const NodeTag = enum {
     Cast,
 
     // Variables, Pointers and Arrays
+    Declaration,
 
     // Control Flow (If, Loops)
+    WhileStmt,
+    IfStmt,
+    ReturnStmt,
 
     // Literals
     String,
+    Char,
     Int,
     Float,
 };
@@ -58,9 +58,34 @@ pub const declarationNode = struct {
 // Now when we create a new node, we specify its type and fill in the relevant fields
 // This helps identify what kind of node it is and access its data accordingly alongside of enforcing type safety
 pub const Node = union(NodeTag) {
+    // Const Ident
     Identifier: *IdentifierNode,
     Constant: *constantNode,
+
+    // Blocks and Function
+    Function: *FunctionNode,
+    Block: *BlockNode,
+
+    // Arithmetic and Cast
+    Binary: *BinaryNode,
+    Unary: *UnaryNode,
+    Logic: *LogicNode,
+    Comp: *CompNode,
+    Cast: *CastNode,
+
+    // Vars
     Declaration: *declarationNode,
+
+    // Control Flow 
+    WhileStmt: *WhileNode,
+    IfStmt: *IfNode,
+    ReturnStmt: *ReturnNode,
+
+    // Literals 
+    String: *StringNode,
+    Char: *CharNode,
+    Int: *IntNode,
+    Float: *FloatNode
 };
 
 // Type information structure
