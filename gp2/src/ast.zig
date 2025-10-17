@@ -45,21 +45,57 @@ pub const DeclarationNode = struct {
 pub const FunctionNode = struct {
     funcName: []const u8,
     retType: TypeInfo,
-    body: BlockNode,
+    body: *BlockNode,
 };
 pub const BlockNode = struct {
     stmts: []Node
 };
 pub const BinaryNode = struct {
-    lhs: Node,
+    lhs: *Node,
     op: u8,
-    rhs: Node,
+    rhs: *Node,
 };
 pub const UnaryNode = struct {
     un_op: u8,
-    val: Node
+    val: *Node
 };
-
+pub const LogicNode = struct {
+    log_op: *Node,
+    val: *Node,
+};
+pub const CompNode = struct {
+    comp_op: *Node,
+    val: *Node,
+};
+pub const CastNode = struct {
+    cast: *Node,
+    val: *Node
+};
+pub const WhileNode = struct {
+    init: *Node,
+    cond: *Node,
+    body: *BlockNode,
+};
+pub const IfNode = struct {
+    cond: *Node,
+    if_branch: *Node,
+    el_branch: ?*Node,
+};
+pub const ReturnNode = struct {
+    val: ?*Node
+};
+pub const StringNode = struct {
+    raw_val: []const u8,
+};
+pub const CharNode = struct {
+    char: u8,
+};
+pub const IntNode = struct {
+    val: i32,
+};
+pub const FloatNode = struct {
+    val: f32
+};
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -82,7 +118,7 @@ pub const Node = union(NodeTag) {
     Cast: *CastNode,
 
     // Vars
-    Declaration: *declarationNode,
+    Declaration: *DeclarationNode,
 
     // Control Flow 
     WhileStmt: *WhileNode,
