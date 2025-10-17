@@ -2,54 +2,62 @@ const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
 
 pub const NodeTag = enum {
-    Identifier,
-    Constant, // Just wraps a literal with extra stuff?
+    Identifier, Constant, // Just wraps a literal with extra stuff?
 
     // Unlabeled
-    Function,
-    Block,
+    Function, Block,
 
     // Mathematical: Arith, Logic, Comp, Cast
-    Binary,
-    Unary,
-    Logic,
-    Comp,
-    Cast,
+    Binary, Unary, Logic, Comp, Cast,
 
     // Variables, Pointers and Arrays
     Declaration,
 
     // Control Flow (If, Loops)
-    WhileStmt,
-    IfStmt,
-    ReturnStmt,
+    WhileStmt, IfStmt, ReturnStmt,
 
     // Literals
-    String,
-    Char,
-    Int,
-    Float,
+    String, Char, Int, Float,
 };
+
+// ==============
+// NODE STRUCTS
+// ==============
 
 // Identifier node represents variable/function names
 // It includes the name as a string
 pub const IdentifierNode = struct {
     name: []const u8,
 };
-
 // Constant node represents literal values
 // It includes the value and its type information
-pub const constantNode = struct {
+pub const ConstantNode = struct {
     value: []const u8,
     typeInfo: TypeInfo,
 };
-
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
-pub const declarationNode = struct {
+pub const DeclarationNode = struct {
     varName: []const u8,
     varType: TypeInfo,
     initializer: ?*Node = null,
+};
+pub const FunctionNode = struct {
+    funcName: []const u8,
+    retType: TypeInfo,
+    body: BlockNode,
+};
+pub const BlockNode = struct {
+    stmts: []Node
+};
+pub const BinaryNode = struct {
+    lhs: Node,
+    op: u8,
+    rhs: Node,
+};
+pub const UnaryNode = struct {
+    un_op: u8,
+    val: Node
 };
 
 // This is the main AST node type
@@ -60,7 +68,7 @@ pub const declarationNode = struct {
 pub const Node = union(NodeTag) {
     // Const Ident
     Identifier: *IdentifierNode,
-    Constant: *constantNode,
+    Constant: *ConstantNode,
 
     // Blocks and Function
     Function: *FunctionNode,
