@@ -39,10 +39,9 @@ void print_ast(void *node);
 	float floatval;
 	double doubleval;
 	char *id;
-	void *node;
+    struct Node* node;
 }
-%type expression <node>
-
+%type <node> primary_expression constant enumeration_constant string generic_selection generic_assoc_list generic_association postfix_expression argument_expression_list unary_expression cast_expression multiplicative_expression additive_expression shift_expression relational_expression equality_expression and_expression exclusive_or_expression inclusive_or_expression logical_and_expression logical_or_expression conditional_expression assignment_expression expression constant_expression declaration
 %%
 primary_expression
 	: IDENTIFIER 
