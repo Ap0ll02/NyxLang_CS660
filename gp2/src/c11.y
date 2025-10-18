@@ -1,6 +1,7 @@
 %{
 #include "c11.tab.h"
 #include <stdio.h>
+#include <stdint.h>
 // FUNCTION DECLARATIONS: 
 int yydebug = 1;
 int yylex(void);
@@ -15,7 +16,7 @@ void zig_error();
 // So we can return generic node pointers and other values
 struct Node* node;
 struct Node* make_identifier_node(const char *s);
-struct Node* make_constant_node(const uint_8);
+struct Node* make_constant_node(int s);
 struct Node* make_type_node(int token);
 extern struct Node* root;
 %}
@@ -55,7 +56,7 @@ extern struct Node* root;
 %%
 primary_expression
 	: IDENTIFIER { $$ = make_identifier_node($1); }
-	| constant { $$ = make_constant_node($1); }
+	| constant { $$ = $1; }
 	| string { $$ = make_identifier_node($1); }
 	| '(' expression ')' { $$ = $2; }
 	| generic_selection { zig_error(); }
