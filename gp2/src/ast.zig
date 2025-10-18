@@ -303,12 +303,12 @@ pub fn printNode(node: *Node, indent: usize) void {
         },
         .Declaration => {
             const decl_node = node.Declaration;
-            std.debug.print("Declaration: {any}, Type: {any}\n", .{decl_node.assignNode.?.declarator.Identifier.name, 
-decl_node.varType.type_name});
-            if (decl_node.initializer) |init| {
+            std.debug.print("Declaration: {any}, Type: {any}\n", .{decl_node.assignNode.?.declarator.Identifier.name, decl_node.typeNode.type_name});
+            if (decl_node.assignNode) |init| {
                 for (0..indent) |_| std.debug.print("  ", .{});
                 std.debug.print("Initializer:\n", .{});
-                printNode(init, indent + 1);
+                printNode(init.initializer, indent + 1);
+                printNode(init.declarator, indent + 1);
             } else {
                 for (0..indent) |_| std.debug.print("  ", .{});
                 std.debug.print("No Initializer\n", .{});
