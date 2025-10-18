@@ -142,8 +142,8 @@ pub const Node = union(NodeTag) {
 // This can be expanded to include more type details as needed
 // We can add enums for type kinds (int, float, string, etc.)
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const TypeInfo = struct {
-    type_name: []const u8,
+pub const TypeInfo = extern struct {
+    type_name: [*c]const u8,
     size: usize,
     alignment: usize,
 };
@@ -152,7 +152,7 @@ pub const TypeInfo = struct {
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
 // For now, it handles int, float, and string types
-export fn type_info(token: c_int) *Node {
+export fn type_info(token: c_int) ?*Node {
     const type_info_ptr = std.heap.c_allocator.create(TypeInfo) catch return null;
     
     switch (token) {
@@ -201,7 +201,9 @@ export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
-    const_node.* = ConstantNode{ .value = value, .typeInfo = typeInfo };
+    const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(value)) catch return null;
+
+    const_node.* = ConstantNode{ .value = val_copy, .typeInfo = typeInfo };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -217,6 +219,7 @@ export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) ?*Node {
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
 export fn make_declaration_node(varType: TypeInfo, varName: [*c]const u8, initializer: ?*Node) ?*Node {
+    std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
     const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(varName)) catch return null;
@@ -282,15 +285,15 @@ pub fn printNode(node: *Node, indent: usize) void {
     switch (node.*) {
         .Identifier => {
             const id_node = node.Identifier;
-            std.debug.print("Identifier: {s}\n", .{id_node.name});
+            std.debug.print("Identifier: {any}\n", .{id_node.name});
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}, Type: {s}\n", .{const_node.value, const_node.typeInfo.type_name});
+            std.debug.print("Constant: {any}, Type: {any}\n", .{const_node.value, const_node.typeInfo.type_name});
         },
         .Declaration => {
             const decl_node = node.Declaration;
-            std.debug.print("Declaration: {s}, Type: {s}\n", .{decl_node.varName, 
+            std.debug.print("Declaration: {any}, Type: {any}\n", .{decl_node.varName, 
 decl_node.varType.type_name});
             if (decl_node.initializer) |init| {
                 for (0..indent) |_| std.debug.print("  ", .{});
@@ -303,7 +306,7 @@ decl_node.varType.type_name});
         },
         .Function => {
             const func_node = node.Function;
-            std.debug.print("Function: {s}, Return Type: {s}\n", .{func_node.funcName, func_node.retType.type_name});
+            std.debug.print("Function: {any}, Return Type: {any}\n", .{func_node.funcName, func_node.retType.type_name});
             for (0..indent) |_| std.debug.print("  ", .{});
             std.debug.print("Body:\n", .{});
             printNode(&func_node.body.*, indent + 1); // Assuming body is a Node
@@ -328,7 +331,7 @@ decl_node.varType.type_name});
         },
         .Type => {
             const type_info_node = node.Type;
-            std.debug.print("Type: {s} (size: {}, align: {})\n", .{
+            std.debug.print("Type: {any} (size: {any}, align: {any})\n", .{
                 type_info_node.type_name,
                 type_info_node.size,
                 type_info_node.alignment

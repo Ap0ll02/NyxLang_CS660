@@ -14,7 +14,7 @@ void zig_error();
 struct Node* node;
 Node* make_identifier_node(const char *s);
 Node* make_constant_node(const uint_8);
-struct Node* root = NULL;
+extern struct Node* root;
 %}
 
 %token	SIZEOF
@@ -26,7 +26,7 @@ struct Node* root = NULL;
 
 %token	TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
 %token	CONST RESTRICT VOLATILE
-%token	SHORT LONG SIGNED UNSIGNED VOID
+%token	CHAR FLOAT SHORT LONG SIGNED UNSIGNED VOID
 %token	COMPLEX IMAGINARY 
 %token	STRUCT UNION ENUM ELLIPSIS
 
@@ -44,8 +44,8 @@ struct Node* root = NULL;
     struct Node* node;
 }
 %token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
-%token <intval> INT_CONST INT CHAR I_CONSTANT
-%token <floatval> FLOAT_CONST FLOAT F_CONSTANT
+%token <intval> INT_CONST I_CONSTANT INT
+%token <floatval> FLOAT_CONST F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
 %type <node> primary_expression constant expression string generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration
@@ -222,7 +222,7 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';' 
+	: declaration_specifiers ';' {printf("[DEBUG] Declaration Specifier Closed -> Declaration\n");}
 	| declaration_specifiers init_declarator_list ';' { zig_error(); }
 	| static_assert_declaration { zig_error(); }
 	;
@@ -231,7 +231,7 @@ declaration_specifiers
 	: storage_class_specifier declaration_specifiers { zig_error(); }
 	| storage_class_specifier { zig_error(); }
 	| type_specifier declaration_specifiers { zig_error(); }
-	| type_specifier
+	| type_specifier { printf("[DEBUG] Type Specifier Found and Made -> DeclSpecifier\n"); }
 	| type_qualifier declaration_specifiers { zig_error(); }
 	| type_qualifier { zig_error(); }
 	| function_specifier declaration_specifiers { zig_error(); }
@@ -263,7 +263,10 @@ type_specifier
 	: VOID { zig_error(); }
 	| CHAR { zig_error(); }
 	| SHORT { zig_error(); }
-	| INT { $$ = make_declaration_node($1)}
+	| INT { 
+        printf("[DEBUG] Creating type_specifier node\n");
+        $$ = make_declaration_node($1)
+    }
 	| LONG { zig_error(); }
 	| FLOAT { zig_error(); }
 	| DOUBLE { zig_error(); }
@@ -546,13 +549,16 @@ jump_statement
 	;
 
 translation_unit
-	: external_declaration { root = $1; }
+	: external_declaration { 
+        printf("[DEBUG] Assigning Root External_Declaration\n");
+        root = $1; 
+    }
 	| translation_unit external_declaration
 	;
 
 external_declaration
 	: function_definition { zig_error(); }
-	| declaration
+	| declaration { printf("[DEBUG] Finished Declaration Rule\n"); }
 	;
 
 function_definition
