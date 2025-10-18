@@ -9,12 +9,12 @@ void yyerror(const char *s);
 // Symbol Table Functions
 
 void zig_error();
-void print_ast(Node *node);
 
 // So we can return generic node pointers and other values
 struct Node* node;
 Node* make_identifier_node(const char *s);
 Node* make_constant_node(const uint_8);
+struct Node* root = NULL;
 %}
 
 %token	SIZEOF
@@ -222,7 +222,7 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';' { $$ = make_declaration_node($1, NULL, NULL); }
+	: declaration_specifiers ';' 
 	| declaration_specifiers init_declarator_list ';' { zig_error(); }
 	| static_assert_declaration { zig_error(); }
 	;
@@ -263,7 +263,7 @@ type_specifier
 	: VOID { zig_error(); }
 	| CHAR { zig_error(); }
 	| SHORT { zig_error(); }
-	| INT { $$ = make_int_node($1)}
+	| INT { $$ = make_declaration_node($1)}
 	| LONG { zig_error(); }
 	| FLOAT { zig_error(); }
 	| DOUBLE { zig_error(); }
@@ -546,7 +546,7 @@ jump_statement
 	;
 
 translation_unit
-	: external_declaration { printNode($1); }
+	: external_declaration { root = $1; }
 	| translation_unit external_declaration
 	;
 

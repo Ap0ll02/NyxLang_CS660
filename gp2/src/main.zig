@@ -5,9 +5,11 @@ const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 
 extern fn yyparse() c_int;
+extern var root: ?*ast.Node;
 
 pub fn main() !void {
     const result = parse.yyparse();
+    ast.printNode(root.?, 0);
     std.debug.print("?: {any}", .{result});
 }
 

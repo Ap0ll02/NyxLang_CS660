@@ -165,7 +165,7 @@ pub fn type_info(token: c_int) TypeInfo {
 
 // Creation Functions
 
-export fn make_identifier_node(name: []const u8) *Node {
+export fn make_identifier_node(name: [*c]const u8) *Node {
     // We create the identifier node
     const id_node = std.heap.c_allocator.create(IdentifierNode) catch return null;
     // We set the name for the identifier node
@@ -177,10 +177,11 @@ export fn make_identifier_node(name: []const u8) *Node {
     node.* = Node{ .Identifier = id_node };
 
     // We return the created node
-    return node;
+    const n: *Node = @ptrCast(node);
+    return n;
 }
 
-export fn make_constant_node(value: []const u8, typeInfo: TypeInfo) *Node {
+export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) *Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
@@ -192,13 +193,14 @@ export fn make_constant_node(value: []const u8, typeInfo: TypeInfo) *Node {
     node.* = Node{ .Constant = const_node };
 
     // We return the created node
-    return node;
+    const n: *Node = @ptrCast(node);
+    return n;
 }
 
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(varType: TypeInfo, varName: ?[]const u8, initializer: ?*Node) *Node {
+export fn make_declaration_node(varType: TypeInfo, varName: [*c]const u8, initializer: ?*Node) *Node {
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
     // We set the variable name, type, and optional initializer for the declaration node
@@ -210,7 +212,8 @@ export fn make_declaration_node(varType: TypeInfo, varName: ?[]const u8, initial
     node.* = Node{ .Declaration = decl_node };
 
     // We return the created node
-    return node;
+    const n: *Node = @ptrCast(node);
+    return n;
 }
 
 export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) *Node {
@@ -220,37 +223,40 @@ export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) *Node {
 
     const node = std.heap.c_allocator.create(Node) catch return null;
 
-    node.* = Node{ .Declaration = binary_node };
+    node.* = Node{ .Binary = binary_node };
 
-    return node;
+    const n: *Node = @ptrCast(node);
+    return n;
 }
 
 export fn make_unary_node(un_op: u8, val: *Node) *Node {
     const unary_node = std.heap.c_allocator.create(UnaryNode) catch return null;
     
-    unary_node.* = BinaryNode{ .un_op = un_op, .val = val };
+    unary_node.* = UnaryNode{ .un_op = un_op, .val = val };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
 
-    node.* = Node{ .Declaration = unary_node };
+    node.* = Node{ .Unary = unary_node };
 
-    return node;
+    const n: *Node = @ptrCast(node);
+    return n;
 }
 
 export fn make_int_node(val: i32) *Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
     
-    int_node.* = BinaryNode{ .val = val };
+    int_node.* = IntNode{ .val = val };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
 
-    node.* = Node{ .Declaration = int_node };
+    node.* = Node{ .Int = int_node };
 
-    return node;
+    const n: *Node = @ptrCast(node);
+    return n;
 }
 
 
-export fn printNode(node: *Node, indent: usize) void {
+pub fn printNode(node: *Node, indent: usize) void {
     // Print indentation
     for (0..indent) |_| {
         std.debug.print("  ", .{});
