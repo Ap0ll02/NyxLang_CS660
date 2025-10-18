@@ -271,10 +271,10 @@ type_specifier
 	| CHAR { zig_error(); }
 	| SHORT { zig_error(); }
 	| INT { 
-        $$ = make_type_node($1);
+        $$ = make_type_node(INT);
     }
 	| LONG { zig_error(); }
-	| FLOAT { $$ = make_type_node($1); }
+	| FLOAT { $$ = make_type_node(FLOAT); }
 	| DOUBLE { zig_error(); }
 	| SIGNED { zig_error(); }
 	| UNSIGNED { zig_error(); }
