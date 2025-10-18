@@ -250,30 +250,90 @@ export fn make_int_node(val: i32) *Node { // FOR DEBUGGING
 }
 
 
-export fn printNode(node: *Node) void {
+export fn printNode(node: *Node, indent: usize) void {
+    // Print indentation
+    for (0..indent) |_| {
+        std.debug.print("  ", .{});
+    }
+
     switch (node.*) {
         .Identifier => {
             const id_node = node.Identifier;
             std.debug.print("Identifier: {s}\n", .{id_node.name});
         },
-
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeInfo.type_name });
+            std.debug.print("Constant: {s}, Type: {s}\n", .{const_node.value, const_node.typeInfo.type_name});
         },
-
         .Declaration => {
             const decl_node = node.Declaration;
-            std.debug.print("Declaration: {s}, Type: {s}\n", .{ decl_node.varName, decl_node.varType.type_name });
+            std.debug.print("Declaration: {s}, Type: {s}\n", .{decl_node.varName, 
+decl_node.varType.type_name});
             if (decl_node.initializer) |init| {
-                std.debug.print("  Initializer:\n", .{});
-                printNode(init);
+                for (0..indent) |_| std.debug.print("  ", .{});
+                std.debug.print("Initializer:\n", .{});
+                printNode(init, indent + 1);
             } else {
-                std.debug.print("  No Initializer\n", .{});
+                for (0..indent) |_| std.debug.print("  ", .{});
+                std.debug.print("No Initializer\n", .{});
             }
         },
+        .Function => {
+            const func_node = node.Function;
+            std.debug.print("Function: {s}, Return Type: {s}\n", .{func_node.funcName, func_node.retType.type_name});
+            for (0..indent) |_| std.debug.print("  ", .{});
+            std.debug.print("Body:\n", .{});
+            printNode(&func_node.body.*, indent + 1); // Assuming body is a Node
+        },
+        .Block => {
+            const block_node = node.Block;
+            std.debug.print("Block:\n", .{});
+            for (block_node.stmts) |stmt| {
+                printNode(&stmt, indent + 1);
+            }
+        },
+        // Add cases for Binary, Unary, Logic, Comp, Cast, WhileStmt, IfStmt, ReturnStmt, String, Char, Int, Float
+        .Binary => {
+            const bin_node = node.Binary;
+            std.debug.print("Binary: op='{c}'\n", .{bin_node.op});
+            for (0..indent) |_| std.debug.print("  ", .{});
+            std.debug.print("Left:\n", .{});
+            printNode(bin_node.lhs, indent + 1);
+            for (0..indent) |_| std.debug.print("  ", .{});
+            std.debug.print("Right:\n", .{});
+            printNode(bin_node.rhs, indent + 1);
+        },
+        // Implement other node types similarly
+        else => {
+            std.debug.print("Unhandled node type\n", .{});
+        }
     }
 }
+
+// export fn printNode(node: *Node) void {
+//     switch (node.*) {
+//         .Identifier => {
+//             const id_node = node.Identifier;
+//             std.debug.print("Identifier: {s}\n", .{id_node.name});
+//         },
+
+//         .Constant => {
+//             const const_node = node.Constant;
+//             std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeInfo.type_name });
+//         },
+
+//         .Declaration => {
+//             const decl_node = node.Declaration;
+//             std.debug.print("Declaration: {s}, Type: {s}\n", .{ decl_node.varName, decl_node.varType.type_name });
+//             if (decl_node.initializer) |init| {
+//                 std.debug.print("  Initializer:\n", .{});
+//                 printNode(init);
+//             } else {
+//                 std.debug.print("  No Initializer\n", .{});
+//             }
+//         },
+//     }
+// }
 
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢾⣿⣷⣮⣛⠷⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣿⣿⡷⢦⡈⠑⢤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
