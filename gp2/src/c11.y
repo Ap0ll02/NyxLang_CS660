@@ -1,9 +1,11 @@
 %{
 #include "c11.tab.h"
+#include <stdio.h>
 // FUNCTION DECLARATIONS: 
+int yydebug = 1;
 int yylex(void);
+int yyparse(void);
 void yyerror(const char *s);
-
 // External Functions
 
 // Symbol Table Functions
@@ -12,8 +14,9 @@ void zig_error();
 
 // So we can return generic node pointers and other values
 struct Node* node;
-Node* make_identifier_node(const char *s);
-Node* make_constant_node(const uint_8);
+struct Node* make_identifier_node(const char *s);
+struct Node* make_constant_node(const uint_8);
+struct Node* make_type_node(int token);
 extern struct Node* root;
 %}
 
@@ -40,7 +43,6 @@ extern struct Node* root;
 	float floatval;
 	double doubleval;
 	char *id;
-    bool boolval;
     struct Node* node;
 }
 %token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
@@ -48,21 +50,21 @@ extern struct Node* root;
 %token <floatval> FLOAT_CONST F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
-%type <node> primary_expression constant expression string generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration
+%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration constant
+%type <id> string
 %%
-
 primary_expression
-	: IDENTIFIER { $$ = make_identifier_node($1) }
-	| constant { $$ = make_constant_node($1) }
-	| string { $$ = make_identifier_node($1) }
-	| '(' expression ')' { $$ = $2 }
+	: IDENTIFIER { $$ = make_identifier_node($1); }
+	| constant { $$ = make_constant_node($1); }
+	| string { $$ = make_identifier_node($1); }
+	| '(' expression ')' { $$ = $2; }
 	| generic_selection { zig_error(); }
 	;
 
 constant
-	: I_CONSTANT { $$ = make_constant_node($1) }		/* includes character_constant */
-	| F_CONSTANT { $$ = make_constant_node($1) }
-	| ENUMERATION_CONSTANT { $$ = make_identifier_node($1) }	/* after it has been defined as such */
+	: I_CONSTANT { $$ = make_constant_node($1); }		/* includes character_constant */
+	| F_CONSTANT { $$ = make_constant_node($1); }
+	| ENUMERATION_CONSTANT { $$ = make_identifier_node($1); }	/* after it has been defined as such */
 	;
 
 enumeration_constant		/* before it has been defined as such */
@@ -222,7 +224,7 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';' {printf("[DEBUG] Declaration Specifier Closed -> Declaration\n");}
+	: declaration_specifiers ';' {printf("[DEBUG] Declaration Specifier Closed -> Declaration\n"); fflush(stdout);}
 	| declaration_specifiers init_declarator_list ';' { zig_error(); }
 	| static_assert_declaration { zig_error(); }
 	;
@@ -231,7 +233,7 @@ declaration_specifiers
 	: storage_class_specifier declaration_specifiers { zig_error(); }
 	| storage_class_specifier { zig_error(); }
 	| type_specifier declaration_specifiers { zig_error(); }
-	| type_specifier { printf("[DEBUG] Type Specifier Found and Made -> DeclSpecifier\n"); }
+	| type_specifier { printf("[DEBUG] Type Specifier Found and Made -> DeclSpecifier\n"); fflush(stdout); }
 	| type_qualifier declaration_specifiers { zig_error(); }
 	| type_qualifier { zig_error(); }
 	| function_specifier declaration_specifiers { zig_error(); }
@@ -265,7 +267,8 @@ type_specifier
 	| SHORT { zig_error(); }
 	| INT { 
         printf("[DEBUG] Creating type_specifier node\n");
-        $$ = make_declaration_node($1)
+        fflush(stdout);
+        $$ = make_type_node($1);
     }
 	| LONG { zig_error(); }
 	| FLOAT { zig_error(); }
@@ -551,6 +554,7 @@ jump_statement
 translation_unit
 	: external_declaration { 
         printf("[DEBUG] Assigning Root External_Declaration\n");
+        fflush(stdout);
         root = $1; 
     }
 	| translation_unit external_declaration
@@ -558,7 +562,7 @@ translation_unit
 
 external_declaration
 	: function_definition { zig_error(); }
-	| declaration { printf("[DEBUG] Finished Declaration Rule\n"); }
+	| declaration { printf("[DEBUG] Finished Declaration Rule\n"); fflush(stdout); }
 	;
 
 function_definition
@@ -572,4 +576,3 @@ declaration_list
 	;
 
 %%
-#include <stdio.h>
