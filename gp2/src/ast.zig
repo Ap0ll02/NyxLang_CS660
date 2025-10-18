@@ -219,6 +219,20 @@ export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
     return n;
 }
 
+export fn make_assignment_node(declarator: *Node, initializer: ?*Node) ?*Node {
+    const assignment_node = std.heap.c_allocator.create(AssignmentNode) catch return null;
+
+    if (initializer) |init| {
+        assignment_node.* = .{ .declarator = declarator, .initializer = init };
+    } else {
+        assignment_node.* = .{ .declarator = declarator, .initializer = null };
+    }
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node { .Assignment = assignment_node };
+    return node;
+}
+
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
