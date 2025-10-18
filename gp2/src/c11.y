@@ -277,20 +277,42 @@ storage_class_specifier
 	;
 
 type_specifier
-	: VOID { zig_error(); }
-	| CHAR { zig_error(); }
-	| SHORT { zig_error(); }
+	: VOID { 
+        $$ = make_type_node(VOID);
+    }
+	| CHAR { 
+        $$ = make_type_node(CHAR);
+    }
+	| SHORT { 
+        $$ = make_type_node(SHORT);
+    }
 	| INT { 
         $$ = make_type_node(INT);
     }
-	| LONG { zig_error(); }
-	| FLOAT { $$ = make_type_node(FLOAT); }
-	| DOUBLE { zig_error(); }
-	| SIGNED { zig_error(); }
-	| UNSIGNED { zig_error(); }
-	| BOOL { zig_error(); }
-	| COMPLEX { zig_error(); }
-	| IMAGINARY { zig_error(); }	  	/* non-mandated extension */
+	| LONG { 
+        $$ = make_type_node(LONG);
+    }
+	| FLOAT { 
+        $$ = make_type_node(FLOAT);
+    }
+	| DOUBLE { 
+        $$ = make_type_node(DOUBLE);
+    }
+	| SIGNED { 
+        $$ = make_type_node(SIGNED);
+    }
+	| UNSIGNED { 
+        $$ = make_type_node(UNSIGNED);
+    }
+	| BOOL { 
+        $$ = make_type_node(BOOL);
+    }
+	| COMPLEX { 
+        $$ = make_type_node(COMPLEX);
+    }
+	| IMAGINARY{ 
+        $$ = make_type_node(IMAGINARY);
+    }	/* non-mandated extension */
 	| atomic_type_specifier { zig_error(); }
 	| struct_or_union_specifier { zig_error(); }
 	| enum_specifier { zig_error(); }
