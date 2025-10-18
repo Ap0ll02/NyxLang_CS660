@@ -45,7 +45,7 @@ pub const DeclarationNode = struct {
 pub const FunctionNode = struct {
     funcName: []const u8,
     retType: TypeInfo,
-    body: *BlockNode,
+    body: *Node,
 };
 pub const BlockNode = struct {
     stmts: []Node
@@ -74,7 +74,7 @@ pub const CastNode = struct {
 pub const WhileNode = struct {
     init: *Node,
     cond: *Node,
-    body: *BlockNode,
+    body: *Node,
 };
 pub const IfNode = struct {
     cond: *Node,
@@ -165,11 +165,14 @@ pub fn type_info(token: c_int) TypeInfo {
 
 // Creation Functions
 
-export fn make_identifier_node(name: [*c]const u8) *Node {
+export fn make_identifier_node(name: [*c]const u8) ?*Node {
     // We create the identifier node
     const id_node = std.heap.c_allocator.create(IdentifierNode) catch return null;
+
+    const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(name)) catch return null;
+
     // We set the name for the identifier node
-    id_node.* = IdentifierNode{ .name = name };
+    id_node.* = IdentifierNode{ .name = name_copy };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -181,7 +184,7 @@ export fn make_identifier_node(name: [*c]const u8) *Node {
     return n;
 }
 
-export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) *Node {
+export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
@@ -200,11 +203,12 @@ export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) *Node {
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(varType: TypeInfo, varName: [*c]const u8, initializer: ?*Node) *Node {
+export fn make_declaration_node(varType: TypeInfo, varName: [*c]const u8, initializer: ?*Node) ?*Node {
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
+    const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(varName)) catch return null;
     // We set the variable name, type, and optional initializer for the declaration node
-    decl_node.* = DeclarationNode{ .varName = varName, .varType = varType, .initializer = initializer };
+    decl_node.* = DeclarationNode{ .varName = name_copy, .varType = varType, .initializer = initializer };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -216,7 +220,7 @@ export fn make_declaration_node(varType: TypeInfo, varName: [*c]const u8, initia
     return n;
 }
 
-export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) *Node {
+export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) ?*Node {
     const binary_node = std.heap.c_allocator.create(BinaryNode) catch return null;
     
     binary_node.* = BinaryNode{ .lhs = lhs, .op = op, .rhs = rhs };
@@ -229,7 +233,7 @@ export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) *Node {
     return n;
 }
 
-export fn make_unary_node(un_op: u8, val: *Node) *Node {
+export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
     const unary_node = std.heap.c_allocator.create(UnaryNode) catch return null;
     
     unary_node.* = UnaryNode{ .un_op = un_op, .val = val };
@@ -242,7 +246,7 @@ export fn make_unary_node(un_op: u8, val: *Node) *Node {
     return n;
 }
 
-export fn make_int_node(val: i32) *Node { // FOR DEBUGGING
+export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
     
     int_node.* = IntNode{ .val = val };
@@ -295,7 +299,7 @@ decl_node.varType.type_name});
             const block_node = node.Block;
             std.debug.print("Block:\n", .{});
             for (block_node.stmts) |stmt| {
-                printNode(&stmt, indent + 1);
+                printNode(@constCast(&stmt), indent + 1);
             }
         },
         // Add cases for Binary, Unary, Logic, Comp, Cast, WhileStmt, IfStmt, ReturnStmt, String, Char, Int, Float
