@@ -55,7 +55,7 @@ extern struct Node* root;
 %token <floatval> FLOAT_CONST F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
-%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration constant
+%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <id> string
 %%
 primary_expression
@@ -230,7 +230,7 @@ constant_expression
 
 declaration
 	: declaration_specifiers ';' { $$ = make_declaration_node($1, NULL); }
-	| declaration_specifiers init_declarator_list ';' 
+	| declaration_specifiers init_declarator_list ';' { $$ = make_declaration_node($1, $2); }
 	| static_assert_declaration { zig_error(); }
 	;
 
@@ -248,13 +248,13 @@ declaration_specifiers
 	;
 
 init_declarator_list
-	: init_declarator
+	: init_declarator 
 	| init_declarator_list ',' init_declarator
 	;
 
 init_declarator
-	: declarator '=' initializer 
-	| declarator 
+	: declarator '=' initializer { $$ = make_assignment_node($1, $2); }
+	| declarator {$$ = make_assignment_node($1, NULL); }
 	;
 
 storage_class_specifier
@@ -367,13 +367,13 @@ alignment_specifier
 	;
 
 declarator
-	: pointer direct_declarator
-	| direct_declarator
+	/*: pointer direct_declarator */
+	: direct_declarator
 	;
 
 direct_declarator
-	: IDENTIFIER
-	| '(' declarator ')'
+	: IDENTIFIER { $$ = make_identifier_node($1); }
+	| '(' declarator ')' { $$ = $2; }
 	| direct_declarator '[' ']'
 	| direct_declarator '[' '*' ']'
 	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'
@@ -458,16 +458,16 @@ direct_abstract_declarator
 	;
 
 initializer
-	: '{' initializer_list '}'
-	| '{' initializer_list ',' '}'
+	: '{' initializer_list '}' { $$ = $2; }
+	| '{' initializer_list ',' '}' { $$ = $2; }
 	| assignment_expression
 	;
 
 initializer_list
-	: designation initializer
-	| initializer
-	| initializer_list ',' designation initializer
-	| initializer_list ',' initializer
+	/*: designation initializer*/
+	: initializer
+	/*| initializer_list ',' designation initializer
+	| initializer_list ',' initializer */
 	;
 
 designation
