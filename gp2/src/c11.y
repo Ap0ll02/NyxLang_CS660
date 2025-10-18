@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 // FUNCTION DECLARATIONS: 
+enum yytokentype;
 int yydebug = 1;
 int yylex(void);
 int yyparse(void);
@@ -18,7 +19,7 @@ struct Node* node;
 struct Node* make_identifier_node(const char *s);
 struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
 struct Node* make_constant_node(int s);
-struct Node* make_type_node(int token);
+struct Node* make_type_node(enum yytokentype token);
 extern struct Node* root;
 %}
 
@@ -31,7 +32,7 @@ extern struct Node* root;
 
 %token	TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
 %token	CONST RESTRICT VOLATILE
-%token	CHAR FLOAT SHORT LONG SIGNED UNSIGNED VOID
+%token	CHAR SHORT LONG SIGNED UNSIGNED VOID
 %token	COMPLEX IMAGINARY 
 %token	STRUCT UNION ENUM ELLIPSIS
 
@@ -46,9 +47,11 @@ extern struct Node* root;
 	double doubleval;
 	char *id;
     struct Node* node;
+    enum yytokentype yyt_type;
 }
+%token <yyt_type> INT FLOAT
 %token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
-%token <intval> INT_CONST I_CONSTANT INT
+%token <intval> INT_CONST I_CONSTANT
 %token <floatval> FLOAT_CONST F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
@@ -271,7 +274,7 @@ type_specifier
         $$ = make_type_node($1);
     }
 	| LONG { zig_error(); }
-	| FLOAT { zig_error(); }
+	| FLOAT { $$ = make_type_node($1); }
 	| DOUBLE { zig_error(); }
 	| SIGNED { zig_error(); }
 	| UNSIGNED { zig_error(); }
