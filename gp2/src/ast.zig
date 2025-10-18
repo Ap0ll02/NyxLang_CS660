@@ -36,18 +36,18 @@ pub const IdentifierNode = struct {
 // It includes the value and its type information
 pub const ConstantNode = struct {
     value: []const u8,
-    typeNode: typeNode,
+    typeNode: TypeNode,
 };
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    varType: typeNode,
+    varType: TypeNode,
     varName: ?[]const u8,
     initializer: ?*Node = null,
 };
 pub const FunctionNode = struct {
     funcName: []const u8,
-    retType: typeNode,
+    retType: TypeNode,
     body: *Node,
 };
 pub const BlockNode = struct {
@@ -135,14 +135,14 @@ pub const Node = union(NodeTag) {
     Float: *FloatNode,
 
     // Types
-    Type: *typeNode,
+    Type: *TypeNode,
 };
 
 // Type information structure
 // This can be expanded to include more type details as needed
 // We can add enums for type kinds (int, float, string, etc.)
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const typeNode = extern struct {
+pub const TypeNode = extern struct {
     type_name: [*c]const u8,
     size: usize,
     alignment: usize,
@@ -197,7 +197,7 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     return n;
 }
 
-export fn make_constant_node(value: [*c]const u8, TypeNode: TypeNode) ?*Node {
+export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
@@ -218,7 +218,7 @@ export fn make_constant_node(value: [*c]const u8, TypeNode: TypeNode) ?*Node {
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(varType: typeNode, varName: [*c]const u8, initializer: ?*Node) ?*Node {
+export fn make_declaration_node(varType: TypeNode, varName: [*c]const u8, initializer: ?*Node) ?*Node {
     std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
