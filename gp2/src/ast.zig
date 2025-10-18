@@ -148,7 +148,6 @@ pub const TypeNode = extern struct {
     alignment: usize,
 };
 
-// Make assignment node
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x = 5;
     initializer: *Node, // i.e. 5 in int x = 5;
@@ -245,6 +244,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     const n: *Node = @ptrCast(node);
     return n;
 }
+
 
 export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) ?*Node {
     const binary_node = std.heap.c_allocator.create(BinaryNode) catch return null;
