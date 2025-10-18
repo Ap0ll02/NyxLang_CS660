@@ -18,6 +18,9 @@ pub const NodeTag = enum {
 
     // Literals
     String, Char, Int, Float,
+
+    // Types
+    Type,
 };
 
 // ==============
@@ -129,7 +132,10 @@ pub const Node = union(NodeTag) {
     String: *StringNode,
     Char: *CharNode,
     Int: *IntNode,
-    Float: *FloatNode
+    Float: *FloatNode,
+
+    // Types
+    Type: *TypeInfo,
 };
 
 // Type information structure
@@ -146,21 +152,28 @@ pub const TypeInfo = struct {
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
 // For now, it handles int, float, and string types
-pub fn type_info(token: c_int) TypeInfo {
+export fn type_info(token: c_int) *Node {
+    const type_info_ptr = std.heap.c_allocator.create(TypeInfo) catch return null;
+    
     switch (token) {
         c.FLOAT => {
-            return TypeInfo{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
+            type_info_ptr.* = TypeInfo{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
         },
         c.INT => {
-            return TypeInfo{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
+            type_info_ptr.* = TypeInfo{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
         },
-        c.STRING => {
-            return TypeInfo{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8) };
+        c.STRING_LITERAL => {
+            type_info_ptr.* = TypeInfo{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8) };
         },
         else => {
-            // Error
+            type_info_ptr.* = TypeInfo{ .type_name = "unknown", .size = 0, .alignment = 0 };
         },
     }
+    
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .Type = type_info_ptr };
+    
+    return node;
 }
 
 // Creation Functions
@@ -312,6 +325,14 @@ decl_node.varType.type_name});
             for (0..indent) |_| std.debug.print("  ", .{});
             std.debug.print("Right:\n", .{});
             printNode(bin_node.rhs, indent + 1);
+        },
+        .Type => {
+            const type_info_node = node.Type;
+            std.debug.print("Type: {s} (size: {}, align: {})\n", .{
+                type_info_node.type_name,
+                type_info_node.size,
+                type_info_node.alignment
+            });
         },
         // Implement other node types similarly
         else => {
