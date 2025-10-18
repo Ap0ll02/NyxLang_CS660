@@ -11,7 +11,7 @@ pub const NodeTag = enum {
     Binary, Unary, Logic, Comp, Cast,
 
     // Variables, Pointers and Arrays
-    Declaration,
+    Declaration, Assignment,
 
     // Control Flow (If, Loops)
     WhileStmt, IfStmt, ReturnStmt,
@@ -41,9 +41,8 @@ pub const ConstantNode = struct {
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    varType: TypeNode,
-    varName: ?[]const u8,
-    initializer: ?*Node = null,
+    typeNode: *TypeNode,
+    assignNode: ?*AssignmentNode,
 };
 pub const FunctionNode = struct {
     funcName: []const u8,
@@ -122,6 +121,7 @@ pub const Node = union(NodeTag) {
 
     // Vars
     Declaration: *DeclarationNode,
+    Assignment: *AssignmentNode,
 
     // Control Flow 
     WhileStmt: *WhileNode,
@@ -224,13 +224,17 @@ export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(varType: TypeNode, varName: [*c]const u8, initializer: ?*Node) ?*Node {
+export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
-    const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(varName)) catch return null;
+    if (asgnNode) |n| {
+        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment};
+    }
+    else {
+        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null};
+    }
     // We set the variable name, type, and optional initializer for the declaration node
-    decl_node.* = DeclarationNode{ .varName = name_copy, .varType = varType, .initializer = initializer };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -299,7 +303,7 @@ pub fn printNode(node: *Node, indent: usize) void {
         },
         .Declaration => {
             const decl_node = node.Declaration;
-            std.debug.print("Declaration: {any}, Type: {any}\n", .{decl_node.varName, 
+            std.debug.print("Declaration: {any}, Type: {any}\n", .{decl_node.assignNode.?.declarator.Identifier.name, 
 decl_node.varType.type_name});
             if (decl_node.initializer) |init| {
                 for (0..indent) |_| std.debug.print("  ", .{});
