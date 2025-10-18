@@ -6,3 +6,4 @@ lex.yy.c
 zig-out/
 .zig-cache/
 .vscode/
+c11.output
