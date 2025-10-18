@@ -16,6 +16,7 @@ void zig_error();
 // So we can return generic node pointers and other values
 struct Node* node;
 struct Node* make_identifier_node(const char *s);
+struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
 struct Node* make_constant_node(int s);
 struct Node* make_type_node(int token);
 extern struct Node* root;
@@ -225,16 +226,16 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';' {printf("[DEBUG] Declaration Specifier Closed -> Declaration\n"); fflush(stdout);}
-	| declaration_specifiers init_declarator_list ';' { zig_error(); }
+	: declaration_specifiers ';' { $$ = make_declaration_node($1, NULL); }
+	| declaration_specifiers init_declarator_list ';' 
 	| static_assert_declaration { zig_error(); }
 	;
 
 declaration_specifiers
 	: storage_class_specifier declaration_specifiers { zig_error(); }
 	| storage_class_specifier { zig_error(); }
-	| type_specifier declaration_specifiers { zig_error(); }
-	| type_specifier { printf("[DEBUG] Type Specifier Found and Made -> DeclSpecifier\n"); fflush(stdout); }
+	| type_specifier declaration_specifiers
+	| type_specifier 
 	| type_qualifier declaration_specifiers { zig_error(); }
 	| type_qualifier { zig_error(); }
 	| function_specifier declaration_specifiers { zig_error(); }
@@ -249,8 +250,8 @@ init_declarator_list
 	;
 
 init_declarator
-	: declarator '=' initializer
-	| declarator
+	: declarator '=' initializer 
+	| declarator 
 	;
 
 storage_class_specifier
@@ -267,8 +268,6 @@ type_specifier
 	| CHAR { zig_error(); }
 	| SHORT { zig_error(); }
 	| INT { 
-        printf("[DEBUG] Creating type_specifier node\n");
-        fflush(stdout);
         $$ = make_type_node($1);
     }
 	| LONG { zig_error(); }
