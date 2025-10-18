@@ -41,13 +41,13 @@ pub const ConstantNode = struct {
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    varType: TypeInfo,
+    varType: typeNode,
     varName: ?[]const u8,
     initializer: ?*Node = null,
 };
 pub const FunctionNode = struct {
     funcName: []const u8,
-    retType: TypeInfo,
+    retType: typeNode,
     body: *Node,
 };
 pub const BlockNode = struct {
@@ -135,14 +135,14 @@ pub const Node = union(NodeTag) {
     Float: *FloatNode,
 
     // Types
-    Type: *TypeInfo,
+    Type: *typeNode,
 };
 
 // Type information structure
 // This can be expanded to include more type details as needed
 // We can add enums for type kinds (int, float, string, etc.)
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const TypeInfo = extern struct {
+pub const typeNode = extern struct {
     type_name: [*c]const u8,
     size: usize,
     alignment: usize,
@@ -152,26 +152,26 @@ pub const TypeInfo = extern struct {
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
 // For now, it handles int, float, and string types
-export fn type_info(token: c_int) ?*Node {
-    const type_info_ptr = std.heap.c_allocator.create(TypeInfo) catch return null;
+export fn make_type_node(token: c_int) ?*Node {
+    const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
     
     switch (token) {
         c.FLOAT => {
-            type_info_ptr.* = TypeInfo{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
+            type_node_ptr.* = TypeNode{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
         },
         c.INT => {
-            type_info_ptr.* = TypeInfo{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
+            type_node_ptr.* = TypeNode{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
         },
         c.STRING_LITERAL => {
-            type_info_ptr.* = TypeInfo{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8) };
+            type_node_ptr.* = TypeNode{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8) };
         },
         else => {
-            type_info_ptr.* = TypeInfo{ .type_name = "unknown", .size = 0, .alignment = 0 };
+            type_node_ptr.* = TypeNode{ .type_name = "unknown", .size = 0, .alignment = 0 };
         },
     }
     
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node{ .Type = type_info_ptr };
+    node.* = Node{ .Type = type_node_ptr };
     
     return node;
 }
@@ -197,13 +197,13 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     return n;
 }
 
-export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) ?*Node {
+export fn make_constant_node(value: [*c]const u8, TypeNode: TypeNode) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
     const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(value)) catch return null;
 
-    const_node.* = ConstantNode{ .value = val_copy, .typeInfo = typeInfo };
+    const_node.* = ConstantNode{ .value = val_copy, .typeNode = typeNode };
 
     // We create a *node that wraps a specific node type
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -218,7 +218,7 @@ export fn make_constant_node(value: [*c]const u8, typeInfo: TypeInfo) ?*Node {
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(varType: TypeInfo, varName: [*c]const u8, initializer: ?*Node) ?*Node {
+export fn make_declaration_node(varType: typeNode, varName: [*c]const u8, initializer: ?*Node) ?*Node {
     std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
@@ -289,7 +289,7 @@ pub fn printNode(node: *Node, indent: usize) void {
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {any}, Type: {any}\n", .{const_node.value, const_node.typeInfo.type_name});
+            std.debug.print("Constant: {any}, Type: {any}\n", .{const_node.value, const_node.typeNode.type_name});
         },
         .Declaration => {
             const decl_node = node.Declaration;
@@ -330,11 +330,11 @@ decl_node.varType.type_name});
             printNode(bin_node.rhs, indent + 1);
         },
         .Type => {
-            const type_info_node = node.Type;
+            const type_node_node = node.Type;
             std.debug.print("Type: {any} (size: {any}, align: {any})\n", .{
-                type_info_node.type_name,
-                type_info_node.size,
-                type_info_node.alignment
+                type_node_node.type_name,
+                type_node_node.size,
+                type_node_node.alignment
             });
         },
         // Implement other node types similarly
@@ -353,7 +353,7 @@ decl_node.varType.type_name});
 
 //         .Constant => {
 //             const const_node = node.Constant;
-//             std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeInfo.type_name });
+//             std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeNode.type_name });
 //         },
 
 //         .Declaration => {
