@@ -213,6 +213,43 @@ export fn make_declaration_node(varName: []const u8, varType: TypeInfo, initiali
     return node;
 }
 
+export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) *Node {
+    const binary_node = std.heap.c_allocator.create(BinaryNode) catch return null;
+    
+    binary_node.* = BinaryNode{ .lhs = lhs, .op = op, .rhs = rhs };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+
+    node.* = Node{ .Declaration = binary_node };
+
+    return node;
+}
+
+export fn make_unary_node(un_op: u8, val: *Node) *Node {
+    const unary_node = std.heap.c_allocator.create(UnaryNode) catch return null;
+    
+    unary_node.* = BinaryNode{ .un_op = un_op, .val = val };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+
+    node.* = Node{ .Declaration = unary_node };
+
+    return node;
+}
+
+export fn make_int_node(val: i32) *Node { // FOR DEBUGGING
+    const int_node = std.heap.c_allocator.create(IntNode) catch return null;
+    
+    int_node.* = BinaryNode{ .val = val };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+
+    node.* = Node{ .Declaration = int_node };
+
+    return node;
+}
+
+
 export fn printNode(node: *Node) void {
     switch (node.*) {
         .Identifier => {
