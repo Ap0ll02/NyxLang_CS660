@@ -48,7 +48,7 @@ Node* make_constant_node(const uint_8);
 %token <floatval> FLOAT_CONST FLOAT F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
-%type <node> primary_expression constant expression string generic_selection
+%type <node> primary_expression constant expression string generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration
 %%
 
 primary_expression
@@ -56,7 +56,7 @@ primary_expression
 	| constant { $$ = make_constant_node($1) }
 	| string { $$ = make_identifier_node($1) }
 	| '(' expression ')' { $$ = $2 }
-	| generic_selection { $$ = $1 }
+	| generic_selection { zig_error(); }
 	;
 
 constant
@@ -70,12 +70,12 @@ enumeration_constant		/* before it has been defined as such */
 	;
 
 string
-	: STRING_LITERAL
-	| FUNC_NAME
+	: STRING_LITERAL { zig_error(); }
+	| FUNC_NAME { zig_error(); }
 	;
 
 generic_selection
-	: GENERIC '(' assignment_expression ',' generic_assoc_list ')'
+	: GENERIC '(' assignment_expression ',' generic_assoc_list ')' { zig_error(); }
 	;
 
 generic_assoc_list
@@ -213,8 +213,8 @@ assignment_operator
 	;
 
 expression
-	: assignment_expression
-	| expression ',' assignment_expression
+	: assignment_expression { zig_error(); }
+	| expression ',' assignment_expression { zig_error(); }
 	;
 
 constant_expression
@@ -222,22 +222,22 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';'
-	| declaration_specifiers init_declarator_list ';'
-	| static_assert_declaration
+	: declaration_specifiers ';' { $$ = make_declaration_node($1, NULL, NULL); }
+	| declaration_specifiers init_declarator_list ';' { zig_error(); }
+	| static_assert_declaration { zig_error(); }
 	;
 
 declaration_specifiers
-	: storage_class_specifier declaration_specifiers
-	| storage_class_specifier
-	| type_specifier declaration_specifiers
+	: storage_class_specifier declaration_specifiers { zig_error(); }
+	| storage_class_specifier { zig_error(); }
+	| type_specifier declaration_specifiers { zig_error(); }
 	| type_specifier
-	| type_qualifier declaration_specifiers
-	| type_qualifier
-	| function_specifier declaration_specifiers
-	| function_specifier
-	| alignment_specifier declaration_specifiers
-	| alignment_specifier
+	| type_qualifier declaration_specifiers { zig_error(); }
+	| type_qualifier { zig_error(); }
+	| function_specifier declaration_specifiers { zig_error(); }
+	| function_specifier { zig_error(); }
+	| alignment_specifier declaration_specifiers { zig_error(); }
+	| alignment_specifier { zig_error(); }
 	;
 
 init_declarator_list
@@ -260,22 +260,22 @@ storage_class_specifier
 	;
 
 type_specifier
-	: VOID 
-	| CHAR
-	| SHORT
-	| INT 
-	| LONG
-	| FLOAT 
-	| DOUBLE
-	| SIGNED
-	| UNSIGNED
-	| BOOL 
-	| COMPLEX
-	| IMAGINARY	  	/* non-mandated extension */
-	| atomic_type_specifier
-	| struct_or_union_specifier
-	| enum_specifier
-	| TYPEDEF_NAME		/* after it has been defined as such */
+	: VOID { zig_error(); }
+	| CHAR { zig_error(); }
+	| SHORT { zig_error(); }
+	| INT { $$ = make_int_node($1)}
+	| LONG { zig_error(); }
+	| FLOAT { zig_error(); }
+	| DOUBLE { zig_error(); }
+	| SIGNED { zig_error(); }
+	| UNSIGNED { zig_error(); }
+	| BOOL { zig_error(); }
+	| COMPLEX { zig_error(); }
+	| IMAGINARY { zig_error(); }	  	/* non-mandated extension */
+	| atomic_type_specifier { zig_error(); }
+	| struct_or_union_specifier { zig_error(); }
+	| enum_specifier { zig_error(); }
+	| TYPEDEF_NAME { zig_error(); }		/* after it has been defined as such */
 	;
 
 struct_or_union_specifier
@@ -546,13 +546,13 @@ jump_statement
 	;
 
 translation_unit
-	: external_declaration 
+	: external_declaration { printNode($1); }
 	| translation_unit external_declaration
 	;
 
 external_declaration
 	: function_definition { zig_error(); }
-	| declaration { zig_error(); }
+	| declaration
 	;
 
 function_definition
