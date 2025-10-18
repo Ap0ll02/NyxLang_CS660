@@ -36,7 +36,7 @@ pub const IdentifierNode = struct {
 // It includes the value and its type information
 pub const ConstantNode = struct {
     value: []const u8,
-    typeInfo: TypeInfo,
+    typeNode: typeNode,
 };
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
