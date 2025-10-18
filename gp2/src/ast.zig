@@ -1,6 +1,5 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
-
 pub const NodeTag = enum {
     Identifier, Constant, // Just wraps a literal with extra stuff?
 
@@ -149,17 +148,17 @@ pub const TypeNode = extern struct {
 };
 
 pub const AssignmentNode = struct {
-    declarator: *Node, // i.e. x in int x = 5;
-    initializer: *Node, // i.e. 5 in int x = 5;
+    declarator: *IdentifierNode, // i.e. x in int x;
+    initializer: ?*Node, // i.e. 5 in int x = 5;
 };
 
 // Function to get type information based on token
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
 // For now, it handles int, float, and string types
-export fn make_type_node(token: c_int) ?*Node {
+export fn make_type_node(token: c.yytokentype) ?*Node {
     const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
-    
+    std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.FLOAT => {
             type_node_ptr.* = TypeNode{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
@@ -286,71 +285,124 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 }
 
 
-pub fn printNode(node: *Node, indent: usize) void {
+pub fn printNode(orig_node: ?*Node, indent: usize) void {
     // Print indentation
-    for (0..indent) |_| {
-        std.debug.print("  ", .{});
+    for (0..indent) |_| std.debug.print("  ", .{});
+    if (orig_node == null) {
+        std.debug.print("Null", .{});
+        return;
     }
-
+    const node = orig_node.?;
     switch (node.*) {
         .Identifier => {
             const id_node = node.Identifier;
-            std.debug.print("Identifier: {any}\n", .{id_node.name});
+            std.debug.print("Identifier: {s}\n", .{id_node.name});
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {any}, Type: {any}\n", .{const_node.value, const_node.typeNode.type_name});
+            std.debug.print("Constant: {s}, Type: {s}\n", .{const_node.value, const_node.typeNode.type_name});
         },
         .Declaration => {
             const decl_node = node.Declaration;
-            std.debug.print("Declaration: {any}, Type: {any}\n", .{decl_node.assignNode.?.declarator.Identifier.name, decl_node.typeNode.type_name});
-            if (decl_node.assignNode) |init| {
-                for (0..indent) |_| std.debug.print("  ", .{});
-                std.debug.print("Initializer:\n", .{});
-                printNode(init.initializer, indent + 1);
-                printNode(init.declarator, indent + 1);
+            const new_type_string: []const u8 = std.mem.span(decl_node.typeNode.type_name);
+            std.debug.print("Declaration, Type: {s}\n", .{new_type_string});
+            if (decl_node.assignNode) |asgn| {
+                for (0..indent+1) |_| std.debug.print("  ", .{});
+                std.debug.print("Assignment:\n", .{});
+                printNode(asgn.initializer, indent + 2);
+                const n: *Node = @ptrCast(asgn.declarator);
+                printNode(n, indent + 1);
+            }
+        },
+        .Assignment => {
+            const asgn_node = node.Assignment;
+            std.debug.print("Assignment to: {s}\n", .{asgn_node.declarator.name});
+            if (asgn_node.initializer) |init| {
+                printNode(init, indent + 1);
             } else {
-                for (0..indent) |_| std.debug.print("  ", .{});
-                std.debug.print("No Initializer\n", .{});
+                for (0..indent+1) |_| std.debug.print("  ", .{});
+                std.debug.print("No initializer\n", .{});
             }
         },
         .Function => {
             const func_node = node.Function;
             std.debug.print("Function: {any}, Return Type: {any}\n", .{func_node.funcName, func_node.retType.type_name});
-            for (0..indent) |_| std.debug.print("  ", .{});
+            for (0..indent+1) |_| std.debug.print("  ", .{});
             std.debug.print("Body:\n", .{});
-            printNode(&func_node.body.*, indent + 1); // Assuming body is a Node
+            printNode(&func_node.body.*, indent + 2);
         },
         .Block => {
             const block_node = node.Block;
             std.debug.print("Block:\n", .{});
             for (block_node.stmts) |stmt| {
-                printNode(@constCast(&stmt), indent + 1);
+                const n: *Node = @constCast(&stmt);
+                printNode(n, indent + 1);
             }
         },
-        // Add cases for Binary, Unary, Logic, Comp, Cast, WhileStmt, IfStmt, ReturnStmt, String, Char, Int, Float
         .Binary => {
             const bin_node = node.Binary;
-            std.debug.print("Binary: op='{c}'\n", .{bin_node.op});
-            for (0..indent) |_| std.debug.print("  ", .{});
+            std.debug.print("Binary Op: '{c}'\n", .{bin_node.op});
+            for (0..indent+1) |_| std.debug.print("  ", .{});
             std.debug.print("Left:\n", .{});
-            printNode(bin_node.lhs, indent + 1);
-            for (0..indent) |_| std.debug.print("  ", .{});
+            printNode(bin_node.lhs, indent + 2);
+            for (0..indent+1) |_| std.debug.print("  ", .{});
             std.debug.print("Right:\n", .{});
-            printNode(bin_node.rhs, indent + 1);
+            printNode(bin_node.rhs, indent + 2);
         },
+        .Unary => {
+            const un_node = node.Unary;
+            std.debug.print("Unary Op: '{c}'\n", .{un_node.un_op});
+            printNode(un_node.val, indent + 1);
+        },
+        .Logic => {
+            const log_node = node.Logic;
+            std.debug.print("Logic Node\n", .{});
+            printNode(log_node.log_op, indent + 1);
+            printNode(log_node.val, indent + 1);
+        },
+        .Comp => {
+            const comp_node = node.Comp;
+            std.debug.print("Comparison Node\n", .{});
+            printNode(comp_node.comp_op, indent + 1);
+            printNode(comp_node.val, indent + 1);
+        },
+        .Cast => {
+            const cast_node = node.Cast;
+            std.debug.print("Cast Node\n", .{});
+            printNode(cast_node.cast, indent + 1);
+            printNode(cast_node.val, indent + 1);
+        },
+        .WhileStmt => {
+            const while_node = node.WhileStmt;
+            std.debug.print("While Loop\n", .{});
+            printNode(while_node.init, indent + 1);
+            printNode(while_node.cond, indent + 1);
+            printNode(while_node.body, indent + 1);
+        },
+        .IfStmt => {
+            const if_node = node.IfStmt;
+            std.debug.print("If Statement\n", .{});
+            printNode(if_node.cond, indent + 1);
+            std.debug.print("Then:\n", .{});
+            printNode(if_node.if_branch, indent + 1);
+            if (if_node.el_branch) |else_branch| {
+                std.debug.print("Else:\n", .{});
+                printNode(else_branch, indent + 1);
+            }
+        },
+        .ReturnStmt => {
+            const ret_node = node.ReturnStmt;
+            std.debug.print("Return Statement\n", .{});
+            if (ret_node.val) |val| printNode(val, indent + 1);
+        },
+        .String => std.debug.print("String: {s}\n", .{node.String.raw_val}),
+        .Char => std.debug.print("Char: '{c}'\n", .{node.Char.char}),
+        .Int => std.debug.print("Int: {d}\n", .{node.Int.val}),
+        .Float => std.debug.print("Float: {d}\n", .{node.Float.val}),
         .Type => {
-            const type_node_node = node.Type;
-            std.debug.print("Type: {any} (size: {any}, align: {any})\n", .{
-                type_node_node.type_name,
-                type_node_node.size,
-                type_node_node.alignment
-            });
+            const type_node = node.Type;
+            std.debug.print("Type: {any} (size: {d}, align: {d})\n", .{type_node.type_name, type_node.size, type_node.alignment});
         },
-        // Implement other node types similarly
-        else => {
-            std.debug.print("Unhandled node type\n", .{});
-        }
     }
 }
 
