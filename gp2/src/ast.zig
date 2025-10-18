@@ -148,6 +148,12 @@ pub const TypeNode = extern struct {
     alignment: usize,
 };
 
+// Make assignment node
+pub const AssignmentNode = struct {
+    declarator: *Node, // i.e. x in int x = 5;
+    initializer: *Node, // i.e. 5 in int x = 5;
+};
+
 // Function to get type information based on token
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
