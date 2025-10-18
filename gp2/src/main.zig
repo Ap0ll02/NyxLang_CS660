@@ -5,7 +5,7 @@ const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 
 extern fn yyparse() c_int;
-pub var root: ?*ast.Node = null;
+export var root: ?*ast.Node = null;
 
 
 pub fn main() !void {
