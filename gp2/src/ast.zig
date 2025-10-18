@@ -38,8 +38,8 @@ pub const ConstantNode = struct {
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    varName: []const u8,
     varType: TypeInfo,
+    varName: ?[]const u8,
     initializer: ?*Node = null,
 };
 pub const FunctionNode = struct {
@@ -198,7 +198,7 @@ export fn make_constant_node(value: []const u8, typeInfo: TypeInfo) *Node {
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(varName: []const u8, varType: TypeInfo, initializer: ?*Node) *Node {
+export fn make_declaration_node(varType: TypeInfo, varName: ?[]const u8, initializer: ?*Node) *Node {
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
     // We set the variable name, type, and optional initializer for the declaration node
