@@ -24,6 +24,7 @@ struct Node* make_assignment_node(struct Node* declarator, struct Node* initiali
 struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokentype token, struct Node* expr2);
 struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
 struct Node* make_expr_stmt(struct Node* expr);
+struct Node* append_block_list(struct Node* item, struct Node* items);
 
 extern struct Node* root;
 %}
@@ -67,6 +68,7 @@ extern struct Node* root;
 %type <node> constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression 
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
+%type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
 %type <id> string
 %%
 primary_expression
@@ -542,8 +544,8 @@ compound_statement
 	;
 
 block_item_list
-	: block_item
-	| block_item_list block_item
+	: block_item { $$ = append_block_list($1, NULL)}
+	| block_item_list block_item { $$ = append_block_list($2, $1); }
 	;
 
 block_item
