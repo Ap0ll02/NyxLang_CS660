@@ -25,6 +25,7 @@ struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokenty
 struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
 struct Node* make_expr_stmt(struct Node* expr);
 struct Node* append_block_list(struct Node* item, struct Node* items);
+struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node* else_branch);
 
 extern struct Node* root;
 %}
@@ -559,10 +560,10 @@ expression_statement
 	;
 
 selection_statement
-	: IF '(' expression ')' statement ELSE statement 
-	| IF '(' expression ')' statement
-    | IF expression compound_statement ELSE compound_statement
-    | IF expression compound_statement
+	: IF '(' expression ')' statement ELSE statement { $$ = make_if_stmt($3, $5, $7); }
+	| IF '(' expression ')' statement { $$ = make_if_stmt($3, $5, NULL); }
+    | IF expression compound_statement ELSE compound_statement { $$ = make_if_stmt($2, $3, $5); }
+    | IF expression compound_statement { $$ = make_if_stmt($2, $3, NULL); }
 	| SWITCH '(' expression ')' statement
 	| SWITCH expression compound_statement
 	;

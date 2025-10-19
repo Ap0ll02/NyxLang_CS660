@@ -53,7 +53,7 @@ pub const WhileNode = struct {
     body: *Node,
 };
 pub const IfNode = struct {
-    cond: *Node, //
+    cond: *Node,
     if_branch: *Node, // Block
     el_branch: ?*Node, // Block
 };
@@ -375,7 +375,6 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 // | Stmt Creators |
 // =================
 
-
 export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node or statement node, create a new BlockItemsNode with the item as the first element
     if (items == null) {
@@ -423,6 +422,23 @@ export fn make_expr_stmt(expr: *Node) ?*Node {
    stmt.* = Node { .ExpressionStmt = expr_stmt };
 
    return stmt;
+}
+
+export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node {
+    std.debug.print("make_if_stmt function reached\n", .{});
+
+    const if_node = std.heap.c_allocator.create(IfNode) catch return null;
+
+    if_node.* = IfNode{
+        .cond = cond,
+        .if_branch = if_branch,
+        .el_branch = el_branch,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .IfStmt = if_node };
+
+    return node;
 }
 
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
