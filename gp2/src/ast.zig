@@ -329,10 +329,10 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     return n;
 }
 
-export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) ?*Node {
+export fn make_binary_node(lhs: *Node, op: c_char, rhs: *Node) ?*Node {
     const binary_node = std.heap.c_allocator.create(BinaryNode) catch return null;
-
-    binary_node.* = BinaryNode{ .lhs = lhs, .op = op, .rhs = rhs };
+    const op_val: u8 = @intCast(op);
+    binary_node.* = BinaryNode{ .lhs = lhs, .op = op_val, .rhs = rhs };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
 
@@ -383,7 +383,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeNode.type_name });
+            std.debug.print("Constant: {s}\n", .{ const_node.value});
         },
         .Declaration => {
             const decl_node = node.Declaration;
@@ -496,31 +496,6 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
     }
 }
-
-// export fn printNode(node: *Node) void {
-//     switch (node.*) {
-//         .Identifier => {
-//             const id_node = node.Identifier;
-//             std.debug.print("Identifier: {s}\n", .{id_node.name});
-//         },
-
-//         .Constant => {
-//             const const_node = node.Constant;
-//             std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeNode.type_name });
-//         },
-
-//         .Declaration => {
-//             const decl_node = node.Declaration;
-//             std.debug.print("Declaration: {s}, Type: {s}\n", .{ decl_node.varName, decl_node.varType.type_name });
-//             if (decl_node.initializer) |init| {
-//                 std.debug.print("  Initializer:\n", .{});
-//                 printNode(init);
-//             } else {
-//                 std.debug.print("  No Initializer\n", .{});
-//             }
-//         },
-//     }
-// }
 
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢾⣿⣷⣮⣛⠷⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣿⣿⡷⢦⡈⠑⢤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
