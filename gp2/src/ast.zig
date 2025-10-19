@@ -391,6 +391,18 @@ export fn make_block_node(body: [] *Node) ?*Node {
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Block = blk_ptr };
     return node;
+// =================
+// | Stmt Creators |
+// =================
+
+export fn make_expr_stmt(expr: *Node) ?*Node {
+   const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
+   expr_stmt.* = ExpressionStmtNode { .expr = expr };
+
+   const stmt = std.heap.c_allocator.create(Node) catch return null;
+   stmt.* = expr_stmt;
+
+   return stmt;
 }
 
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
