@@ -544,7 +544,7 @@ compound_statement
 	;
 
 block_item_list
-	: block_item { $$ = append_block_list($1, NULL)}
+	: block_item { $$ = append_block_list($1, NULL); }
 	| block_item_list block_item { $$ = append_block_list($2, $1); }
 	;
 
