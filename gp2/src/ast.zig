@@ -1,39 +1,5 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
-pub const NodeTag = enum {
-    Identifier,
-    Constant, // Just wraps a literal with extra stuff?
-
-    // Unlabeled
-    Function,
-    Block,
-
-    // Mathematical: Arith, Logic, Comp, Cast
-    Binary,
-    Unary,
-    LogicalOperator,
-    ConditionalExpressionNode,
-    Comp,
-    Cast,
-
-    // Variables, Pointers and Arrays
-    Declaration,
-    Assignment,
-
-    // Control Flow (If, Loops)
-    WhileStmt,
-    IfStmt,
-    ReturnStmt,
-
-    // Literals
-    String,
-    Char,
-    Int,
-    Float,
-
-    // Types
-    Type,
-};
 
 // ==============
 // NODE STRUCTS
@@ -111,13 +77,9 @@ pub const AssignmentNode = struct {
 };
 
 pub const ConditionalExpressionNode = struct {
-    logicalOperator: *Node,
+    logicalOperator: [*c]const u8,
     expr1: *Node,
     expr2: *Node,
-};
-
-pub const LogicalOperatorNode = struct {
-    op: [*c]const u8,
 };
 
 // This is the main AST node type
@@ -125,6 +87,40 @@ pub const LogicalOperatorNode = struct {
 // Each node type is a struct with its own fields
 // Now when we create a new node, we specify its type and fill in the relevant fields
 // This helps identify what kind of node it is and access its data accordingly alongside of enforcing type safety
+pub const NodeTag = enum {
+    Identifier,
+    Constant, // Just wraps a literal with extra stuff?
+
+    // Unlabeled
+    Function,
+    Block,
+
+    // Mathematical: Arith, Logic, Comp, Cast
+    Binary,
+    Unary,
+    ConditionalExpressionNode,
+    Comp,
+    Cast,
+
+    // Variables, Pointers and Arrays
+    Declaration,
+    Assignment,
+
+    // Control Flow (If, Loops)
+    WhileStmt,
+    IfStmt,
+    ReturnStmt,
+
+    // Literals
+    String,
+    Char,
+    Int,
+    Float,
+
+    // Types
+    Type,
+};
+
 pub const Node = union(NodeTag) {
     // Const Ident
     Identifier: *IdentifierNode,
@@ -137,7 +133,6 @@ pub const Node = union(NodeTag) {
     // Arithmetic and Cast
     Binary: *BinaryNode,
     Unary: *UnaryNode,
-    LogicalOperator: *LogicalOperatorNode,
     ConditionalExpressionNode: *ConditionalExpressionNode,
     Comp: *CompNode,
     Cast: *CastNode,
@@ -146,12 +141,12 @@ pub const Node = union(NodeTag) {
     Declaration: *DeclarationNode,
     Assignment: *AssignmentNode,
 
-    // Control Flow 
+    // Control Flow
     WhileStmt: *WhileNode,
     IfStmt: *IfNode,
     ReturnStmt: *ReturnNode,
 
-    // Literals 
+    // Literals
     String: *StringNode,
     Char: *CharNode,
     Int: *IntNode,
@@ -173,35 +168,64 @@ pub const Node = union(NodeTag) {
 // For now, it handles int, float, and string types
 
 // expand this function to handle the multicharacter operators
-export fn make_logical_operator_node(token: c.yytokentype) ?*Node {
-    const logOpNodePtr = std.heap.c_allocator.create(LogicalOperatorNode) catch return null;
+export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, expr2: *Node) ?*Node {
+    const CondExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
+
     std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.GE_OP => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = ">= " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = ">= ",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
         c.LE_OP => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = "<= " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = "<= ",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
         c.EQ_OP => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = "== " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = "== ",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
         c.NE_OP => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = "!= " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = "!= ",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
         c.AND_OP => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = "&& " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = "&&",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
         c.OR_OP => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = "|| " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = "||",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
         else => {
-            logOpNodePtr.* = LogicalOperatorNode{ .op = "?? " };
+            CondExpNodePtr.* = ConditionalExpressionNode{
+                .logicalOperator = "Error_Unknown_Op",
+                .expr1 = expr1,
+                .expr2 = expr2,
+            };
         },
     }
 
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node{ .LogicalOperator = logOpNodePtr };
+    node.* = Node{ .ConditionalExpressionNode = CondExpNodePtr };
 
     return node;
 }
@@ -226,21 +250,6 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Type = type_node_ptr };
-
-    return node;
-}
-
-export fn make_conditional_expression_node(logOp: *Node, expr1: *Node, expr2: *Node) ?*Node {
-    const condExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
-
-    condExpNodePtr.* = ConditionalExpressionNode{
-        .logicalOperator = logOp,
-        .expr1 = expr1,
-        .expr2 = expr2,
-    };
-
-    const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node{ .ConditionalExpressionNode = condExpNodePtr };
 
     return node;
 }
@@ -320,10 +329,9 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     return n;
 }
 
-
 export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) ?*Node {
     const binary_node = std.heap.c_allocator.create(BinaryNode) catch return null;
-    
+
     binary_node.* = BinaryNode{ .lhs = lhs, .op = op, .rhs = rhs };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -336,7 +344,7 @@ export fn make_binary_node(lhs: *Node, op: u8, rhs: *Node) ?*Node {
 
 export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
     const unary_node = std.heap.c_allocator.create(UnaryNode) catch return null;
-    
+
     unary_node.* = UnaryNode{ .un_op = un_op, .val = val };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -349,7 +357,7 @@ export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
 
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
-    
+
     int_node.* = IntNode{ .val = val };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -434,10 +442,6 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Unary Op: '{c}'\n", .{un_node.un_op});
             printNode(un_node.val, indent + 1);
         },
-        .LogicalOperator => {
-            const log_node = node.LogicalOperator;
-            std.debug.print("LogicalOperator: {s}\n", .{log_node.op});
-        },
         .Comp => {
             const comp_node = node.Comp;
             std.debug.print("Comparison Node\n", .{});
@@ -484,8 +488,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .ConditionalExpressionNode => {
             const cond_node = node.ConditionalExpressionNode;
             std.debug.print("Conditional Expression\n", .{});
-            std.debug.print("Logical Operator:\n", .{});
-            printNode(cond_node.logicalOperator, indent + 1);
+            std.debug.print("Logical Operator: {s}\n", .{cond_node.logicalOperator});
             std.debug.print("Expression 1:\n", .{});
             printNode(cond_node.expr1, indent + 1);
             std.debug.print("Expression 2:\n", .{});
