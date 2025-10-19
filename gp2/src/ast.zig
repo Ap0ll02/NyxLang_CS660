@@ -1,22 +1,35 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
 pub const NodeTag = enum {
-    Identifier, Constant, // Just wraps a literal with extra stuff?
+    Identifier,
+    Constant, // Just wraps a literal with extra stuff?
 
     // Unlabeled
-    Function, Block,
+    Function,
+    Block,
 
     // Mathematical: Arith, Logic, Comp, Cast
-    Binary, Unary, Logic, Comp, Cast,
+    Binary,
+    Unary,
+    LogicalOperator,
+    ConditionalExpressionNode,
+    Comp,
+    Cast,
 
     // Variables, Pointers and Arrays
-    Declaration, Assignment,
+    Declaration,
+    Assignment,
 
     // Control Flow (If, Loops)
-    WhileStmt, IfStmt, ReturnStmt,
+    WhileStmt,
+    IfStmt,
+    ReturnStmt,
 
     // Literals
-    String, Char, Int, Float,
+    String,
+    Char,
+    Int,
+    Float,
 
     // Types
     Type,
@@ -48,18 +61,13 @@ pub const FunctionNode = struct {
     retType: TypeNode,
     body: *Node,
 };
-pub const BlockNode = struct {
-    stmts: []Node
-};
+pub const BlockNode = struct { stmts: []Node };
 pub const BinaryNode = struct {
     lhs: *Node,
     op: u8,
     rhs: *Node,
 };
-pub const UnaryNode = struct {
-    un_op: u8,
-    val: *Node
-};
+pub const UnaryNode = struct { un_op: u8, val: *Node };
 pub const LogicNode = struct {
     log_op: *Node,
     val: *Node,
@@ -68,10 +76,7 @@ pub const CompNode = struct {
     comp_op: *Node,
     val: *Node,
 };
-pub const CastNode = struct {
-    cast: *Node,
-    val: *Node
-};
+pub const CastNode = struct { cast: *Node, val: *Node };
 pub const WhileNode = struct {
     init: *Node,
     cond: *Node,
@@ -82,9 +87,7 @@ pub const IfNode = struct {
     if_branch: *Node,
     el_branch: ?*Node,
 };
-pub const ReturnNode = struct {
-    val: ?*Node
-};
+pub const ReturnNode = struct { val: ?*Node };
 pub const StringNode = struct {
     raw_val: []const u8,
 };
@@ -94,9 +97,29 @@ pub const CharNode = struct {
 pub const IntNode = struct {
     val: i32,
 };
-pub const FloatNode = struct {
-    val: f32
+pub const FloatNode = struct { val: f32 };
+// and additional fields for complex types (arrays, structs, etc.) in the future
+pub const TypeNode = extern struct {
+    type_name: [*c]const u8,
+    size: usize,
+    alignment: usize,
 };
+
+pub const AssignmentNode = struct {
+    declarator: *Node, // i.e. x in int x;
+    initializer: ?*Node, // i.e. 5 in int x = 5;
+};
+
+pub const ConditionalExpressionNode = struct {
+    logicalOperator: *Node,
+    expr1: *Node,
+    expr2: *Node,
+};
+
+pub const LogicalOperatorNode = struct {
+    op: [*c]const u8,
+};
+
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -114,7 +137,8 @@ pub const Node = union(NodeTag) {
     // Arithmetic and Cast
     Binary: *BinaryNode,
     Unary: *UnaryNode,
-    Logic: *LogicNode,
+    LogicalOperator: *LogicalOperatorNode,
+    ConditionalExpressionNode: *ConditionalExpressionNode,
     Comp: *CompNode,
     Cast: *CastNode,
 
@@ -140,22 +164,48 @@ pub const Node = union(NodeTag) {
 // Type information structure
 // This can be expanded to include more type details as needed
 // We can add enums for type kinds (int, float, string, etc.)
-// and additional fields for complex types (arrays, structs, etc.) in the future
-pub const TypeNode = extern struct {
-    type_name: [*c]const u8,
-    size: usize,
-    alignment: usize,
-};
-
-pub const AssignmentNode = struct {
-    declarator: *IdentifierNode, // i.e. x in int x;
-    initializer: ?*Node, // i.e. 5 in int x = 5;
-};
-
+//=============
+//Functions   =
+//=============
 // Function to get type information based on token
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
 // For now, it handles int, float, and string types
+
+// expand this function to handle the multicharacter operators
+export fn make_logical_operator_node(token: c.yytokentype) ?*Node {
+    const logOpNodePtr = std.heap.c_allocator.create(LogicalOperatorNode) catch return null;
+    std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
+    switch (token) {
+        c.GE_OP => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = ">= " };
+        },
+        c.LE_OP => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = "<= " };
+        },
+        c.EQ_OP => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = "== " };
+        },
+        c.NE_OP => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = "!= " };
+        },
+        c.AND_OP => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = "&& " };
+        },
+        c.OR_OP => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = "|| " };
+        },
+        else => {
+            logOpNodePtr.* = LogicalOperatorNode{ .op = "?? " };
+        },
+    }
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .LogicalOperator = logOpNodePtr };
+
+    return node;
+}
+
 export fn make_type_node(token: c.yytokentype) ?*Node {
     const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
     std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
@@ -173,14 +223,27 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
             type_node_ptr.* = TypeNode{ .type_name = "unknown", .size = 0, .alignment = 0 };
         },
     }
-    
+
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Type = type_node_ptr };
-    
+
     return node;
 }
 
-// Creation Functions
+export fn make_conditional_expression_node(logOp: *Node, expr1: *Node, expr2: *Node) ?*Node {
+    const condExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
+
+    condExpNodePtr.* = ConditionalExpressionNode{
+        .logicalOperator = logOp,
+        .expr1 = expr1,
+        .expr2 = expr2,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .ConditionalExpressionNode = condExpNodePtr };
+
+    return node;
+}
 
 export fn make_identifier_node(name: [*c]const u8) ?*Node {
     // We create the identifier node
@@ -229,7 +292,7 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node) ?*Node {
     }
 
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node { .Assignment = assignment_node };
+    node.* = Node{ .Assignment = assignment_node };
     return node;
 }
 
@@ -241,10 +304,9 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     // We create the declaration node
     const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
     if (asgnNode) |n| {
-        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment};
-    }
-    else {
-        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null};
+        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment };
+    } else {
+        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null };
     }
     // We set the variable name, type, and optional initializer for the declaration node
 
@@ -298,7 +360,6 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     return n;
 }
 
-
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
     // Print indentation
     for (0..indent) |_| std.debug.print("  ", .{});
@@ -314,14 +375,14 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}, Type: {s}\n", .{const_node.value, const_node.typeNode.type_name});
+            std.debug.print("Constant: {s}, Type: {s}\n", .{ const_node.value, const_node.typeNode.type_name });
         },
         .Declaration => {
             const decl_node = node.Declaration;
             const new_type_string: []const u8 = std.mem.span(decl_node.typeNode.type_name);
             std.debug.print("Declaration, Type: {s}\n", .{new_type_string});
             if (decl_node.assignNode) |asgn| {
-                for (0..indent+1) |_| std.debug.print("  ", .{});
+                for (0..indent + 1) |_| std.debug.print("  ", .{});
                 std.debug.print("Assignment:\n", .{});
                 printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
@@ -330,18 +391,23 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Assignment => {
             const asgn_node = node.Assignment;
-            std.debug.print("Assignment to: {s}\n", .{asgn_node.declarator.name});
+            std.debug.print("Assignment:\n", .{});
+            for (0..indent) |_| std.debug.print("  ", .{});
+            std.debug.print("Declarator:\n", .{});
+            printNode(asgn_node.declarator, indent + 1);
             if (asgn_node.initializer) |init| {
+                for (0..indent) |_| std.debug.print("  ", .{});
+                std.debug.print("Initializer:\n", .{});
                 printNode(init, indent + 1);
             } else {
-                for (0..indent+1) |_| std.debug.print("  ", .{});
+                for (0..indent + 1) |_| std.debug.print("  ", .{});
                 std.debug.print("No initializer\n", .{});
             }
         },
         .Function => {
             const func_node = node.Function;
-            std.debug.print("Function: {any}, Return Type: {any}\n", .{func_node.funcName, func_node.retType.type_name});
-            for (0..indent+1) |_| std.debug.print("  ", .{});
+            std.debug.print("Function: {any}, Return Type: {any}\n", .{ func_node.funcName, func_node.retType.type_name });
+            for (0..indent + 1) |_| std.debug.print("  ", .{});
             std.debug.print("Body:\n", .{});
             printNode(&func_node.body.*, indent + 2);
         },
@@ -356,10 +422,10 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Binary => {
             const bin_node = node.Binary;
             std.debug.print("Binary Op: '{c}'\n", .{bin_node.op});
-            for (0..indent+1) |_| std.debug.print("  ", .{});
+            for (0..indent + 1) |_| std.debug.print("  ", .{});
             std.debug.print("Left:\n", .{});
             printNode(bin_node.lhs, indent + 2);
-            for (0..indent+1) |_| std.debug.print("  ", .{});
+            for (0..indent + 1) |_| std.debug.print("  ", .{});
             std.debug.print("Right:\n", .{});
             printNode(bin_node.rhs, indent + 2);
         },
@@ -368,11 +434,9 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Unary Op: '{c}'\n", .{un_node.un_op});
             printNode(un_node.val, indent + 1);
         },
-        .Logic => {
-            const log_node = node.Logic;
-            std.debug.print("Logic Node\n", .{});
-            printNode(log_node.log_op, indent + 1);
-            printNode(log_node.val, indent + 1);
+        .LogicalOperator => {
+            const log_node = node.LogicalOperator;
+            std.debug.print("LogicalOperator: {s}\n", .{log_node.op});
         },
         .Comp => {
             const comp_node = node.Comp;
@@ -415,7 +479,17 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Float => std.debug.print("Float: {d}\n", .{node.Float.val}),
         .Type => {
             const type_node = node.Type;
-            std.debug.print("Type: {any} (size: {d}, align: {d})\n", .{type_node.type_name, type_node.size, type_node.alignment});
+            std.debug.print("Type: {any} (size: {d}, align: {d})\n", .{ type_node.type_name, type_node.size, type_node.alignment });
+        },
+        .ConditionalExpressionNode => {
+            const cond_node = node.ConditionalExpressionNode;
+            std.debug.print("Conditional Expression\n", .{});
+            std.debug.print("Logical Operator:\n", .{});
+            printNode(cond_node.logicalOperator, indent + 1);
+            std.debug.print("Expression 1:\n", .{});
+            printNode(cond_node.expr1, indent + 1);
+            std.debug.print("Expression 2:\n", .{});
+            printNode(cond_node.expr2, indent + 1);
         },
     }
 }

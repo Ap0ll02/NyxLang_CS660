@@ -20,6 +20,11 @@ struct Node* make_identifier_node(const char *s);
 struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
 struct Node* make_constant_node(int s);
 struct Node* make_type_node(enum yytokentype token);
+struct Node* make_assignment_node(struct Node* declarator, struct Node* initializer);
+struct Node* make_logical_operator_node(enum yytokentype token);
+struct Node* make_conditional_expression_node(struct Node* logical_operator, struct Node* expr1, struct Node* expr2);
+struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
+
 extern struct Node* root;
 %}
 
@@ -55,7 +60,11 @@ extern struct Node* root;
 %token <floatval> FLOAT_CONST F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
-%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
+%token <charval> '*' '/' '%' '+' '-' '<' '>' '&' '^' '|' '~' '!' '=' ';' ',' ':' '?' '(' ')' '{' '}' '[' ']'
+%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration 
+%type <node> constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression 
+%type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
+%type <node> multiplicative_expression additive_expression shift_expression LEFT_OP RIGHT_OP constant_expression relational_expression equality_expression
 %type <id> string
 %%
 primary_expression
@@ -96,8 +105,8 @@ generic_association
 	;
 
 postfix_expression
-	: primary_expression
-	| postfix_expression '[' expression ']'
+	: primary_expression 
+	/*| postfix_expression '[' expression ']'
 	| postfix_expression '(' ')'
 	| postfix_expression '(' argument_expression_list ')'
 	| postfix_expression '.' IDENTIFIER
@@ -105,7 +114,7 @@ postfix_expression
 	| postfix_expression INC_OP
 	| postfix_expression DEC_OP
 	| '(' type_name ')' '{' initializer_list '}'
-	| '(' type_name ')' '{' initializer_list ',' '}'
+	| '(' type_name ')' '{' initializer_list ',' '}' */
 	;
 
 argument_expression_list
@@ -115,12 +124,12 @@ argument_expression_list
 
 unary_expression
 	: postfix_expression
-	| INC_OP unary_expression
+/*| INC_OP unary_expression
 	| DEC_OP unary_expression
 	| unary_operator cast_expression
 	| SIZEOF unary_expression
 	| SIZEOF '(' type_name ')'
-	| ALIGNOF '(' type_name ')'
+	| ALIGNOF '(' type_name ')'*/
 	;
 
 unary_operator
@@ -134,75 +143,75 @@ unary_operator
 
 cast_expression
 	: unary_expression
-	| '(' type_name ')' cast_expression
+	//| '(' type_name ')' cast_expression
 	;
 
 multiplicative_expression
 	: cast_expression
-	| multiplicative_expression '*' cast_expression
-	| multiplicative_expression '/' cast_expression
-	| multiplicative_expression '%' cast_expression
+	| multiplicative_expression '*' cast_expression { $$ = make_binary_node($1, $2, $3)};
+	| multiplicative_expression '/' cast_expression { $$ = make_binary_node($1, $2, $3)};
+	| multiplicative_expression '%' cast_expression { $$ = make_binary_node($1, $2, $3)};
 	;
 
 additive_expression
 	: multiplicative_expression
-	| additive_expression '+' multiplicative_expression
-	| additive_expression '-' multiplicative_expression
+	| additive_expression '+' multiplicative_expression { $$ = make_binary_node($1, $2, $3)};
+	| additive_expression '-' multiplicative_expression { $$ = make_binary_node($1, $2, $3)};
 	;
 
 shift_expression
 	: additive_expression
-	| shift_expression LEFT_OP additive_expression
-	| shift_expression RIGHT_OP additive_expression
+	| shift_expression LEFT_OP additive_expression { $$ = make_binary_node($1, $2, $3)};
+	| shift_expression RIGHT_OP additive_expression { $$ = make_binary_node($1, $2, $3)};
 	;
 
 relational_expression
 	: shift_expression
-	| relational_expression '<' shift_expression
-	| relational_expression '>' shift_expression
-	| relational_expression LE_OP shift_expression
-	| relational_expression GE_OP shift_expression
+	| relational_expression '<' shift_expression { $$ = make_binary_node($1, $2, $3)};
+	| relational_expression '>' shift_expression { $$ = make_binary_node($1, $2, $3)};
+	// | relational_expression LE_OP shift_expression
+	// | relational_expression GE_OP shift_expression 
 	;
 
 equality_expression
 	: relational_expression
-	| equality_expression EQ_OP relational_expression
-	| equality_expression NE_OP relational_expression
+	// | equality_expression EQ_OP relational_expression 
+	// | equality_expression NE_OP relational_expression
 	;
 
 and_expression
 	: equality_expression
-	| and_expression '&' equality_expression
+	| and_expression '&' equality_expression { $$ = make_binary_node($1, $2, $3); }
 	;
 
 exclusive_or_expression
 	: and_expression
-	| exclusive_or_expression '^' and_expression
+	| exclusive_or_expression '^' and_expression { $$ = make_binary_node($1, $2, $3)};
 	;
 
 inclusive_or_expression
 	: exclusive_or_expression
-	| inclusive_or_expression '|' exclusive_or_expression
+	| inclusive_or_expression '|' exclusive_or_expression { $$ = make_binary_node($1, $2, $3)};
 	;
 
 logical_and_expression
 	: inclusive_or_expression
-	| logical_and_expression AND_OP inclusive_or_expression
+	// | logical_and_expression AND_OP inclusive_or_expression 
 	;
 
 logical_or_expression
 	: logical_and_expression
-	| logical_or_expression OR_OP logical_and_expression
+	// | logical_or_expression OR_OP logical_and_expression
 	;
 
 conditional_expression
 	: logical_or_expression
-	| logical_or_expression '?' expression ':' conditional_expression
+	// | logical_or_expression '?' expression ':' conditional_expression
 	;
 
 assignment_expression
 	: conditional_expression
-	| unary_expression assignment_operator assignment_expression
+	// | unary_expression assignment_operator assignment_expression
 	;
 
 assignment_operator
