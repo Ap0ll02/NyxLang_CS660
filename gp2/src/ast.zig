@@ -86,6 +86,9 @@ pub const ExpressionStmtNode = struct {
     expr: ?*Node,
 };
 pub const BlockNode = struct { body: [] *Node };
+pub const ExpressionStmtNode = struct {
+    expr: ?*Node,
+};
 
 // This is the main AST node type
 // It is a tagged union of all possible node types
