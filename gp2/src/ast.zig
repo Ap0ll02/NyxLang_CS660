@@ -82,6 +82,8 @@ pub const ConditionalExpressionNode = struct {
     expr2: *Node,
 };
 
+pub const BlockNode = struct { body: [] *Node };
+
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -93,6 +95,7 @@ pub const NodeTag = enum {
 
     // Unlabeled
     Function,
+    Block,
 
     // Mathematical: Arith, Logic, Comp, Cast
     Binary,
@@ -127,6 +130,7 @@ pub const Node = union(NodeTag) {
 
     // Blocks and Function
     Function: *FunctionNode,
+    Block: *BlockNode,
 
     // Arithmetic and Cast
     Binary: *BinaryNode,
@@ -366,6 +370,16 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     return n;
 }
 
+export fn make_block_node(body: [] *Node) ?*Node {
+    // How do we know the depth here? NO! this is semantics
+    const blk_ptr = std.heap.c_allocator.create(BlockNode) catch return null;
+    blk_ptr.* = BlockNode{ .body = body };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .Block = blk_ptr };
+    return node;
+}
+
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
     // Print indentation
     for (0..indent) |_| std.debug.print("  ", .{});
@@ -417,13 +431,13 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Body:\n", .{});
             printNode(&func_node.body.*, indent + 2);
         },
-        // .Block => {
-        //     const block_node = node.Block;
-        //     std.debug.print("Block (depth {d}):\n", .{block_node.depth});
-        //     for (block_node.stmts) |stmt| {
-        //         printNode(stmt, indent + 1);
-        //     }
-        // },
+        .Block => {
+            const block_node = node.Block;
+            std.block.print("Block Node with {d} statements\n", .{block_node.body.len});
+            for (block_node.bdoy) |body| {
+                printNode(body, indent + 1);
+            }
+        },
         .Binary => {
             const bin_node = node.Binary;
             std.debug.print("Binary Op: '{c}'\n", .{bin_node.op});
