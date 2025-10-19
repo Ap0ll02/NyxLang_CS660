@@ -66,7 +66,7 @@ extern struct Node* root;
 %type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration enumeration_constant
 %type <node> constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression 
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
-%type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression
+%type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <id> string
 %%
 primary_expression
