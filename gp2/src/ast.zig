@@ -93,7 +93,6 @@ pub const NodeTag = enum {
 
     // Unlabeled
     Function,
-    Block,
 
     // Mathematical: Arith, Logic, Comp, Cast
     Binary,
@@ -128,7 +127,6 @@ pub const Node = union(NodeTag) {
 
     // Blocks and Function
     Function: *FunctionNode,
-    Block: *BlockNode,
 
     // Arithmetic and Cast
     Binary: *BinaryNode,
@@ -419,14 +417,13 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Body:\n", .{});
             printNode(&func_node.body.*, indent + 2);
         },
-        .Block => {
-            const block_node = node.Block;
-            std.debug.print("Block:\n", .{});
-            for (block_node.stmts) |stmt| {
-                const n: *Node = @constCast(&stmt);
-                printNode(n, indent + 1);
-            }
-        },
+        // .Block => {
+        //     const block_node = node.Block;
+        //     std.debug.print("Block (depth {d}):\n", .{block_node.depth});
+        //     for (block_node.stmts) |stmt| {
+        //         printNode(stmt, indent + 1);
+        //     }
+        // },
         .Binary => {
             const bin_node = node.Binary;
             std.debug.print("Binary Op: '{c}'\n", .{bin_node.op});
