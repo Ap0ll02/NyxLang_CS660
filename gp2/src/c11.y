@@ -23,6 +23,7 @@ struct Node* make_type_node(enum yytokentype token);
 struct Node* make_assignment_node(struct Node* declarator, struct Node* initializer);
 struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokentype token, struct Node* expr2);
 struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
+struct Node* make_expr_stmt(struct Node* expr);
 
 extern struct Node* root;
 %}
@@ -552,7 +553,7 @@ block_item
 
 expression_statement
 	: ';'
-	| expression ';'
+	| expression ';' { $$ = make_expr_stmt($1); }
 	;
 
 selection_statement

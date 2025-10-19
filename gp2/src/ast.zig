@@ -49,9 +49,9 @@ pub const WhileNode = struct {
     body: *Node,
 };
 pub const IfNode = struct {
-    cond: *Node,
-    if_branch: *Node,
-    el_branch: ?*Node,
+    cond: *Node, //
+    if_branch: *Node, // Block
+    el_branch: ?*Node, // Block
 };
 pub const ReturnNode = struct { val: ?*Node };
 pub const StringNode = struct {
@@ -82,7 +82,13 @@ pub const ConditionalExpressionNode = struct {
     expr2: *Node,
 };
 
+pub const ExpressionStmtNode = struct {
+    expr: ?*Node,
+};
 pub const BlockNode = struct { body: [] *Node };
+pub const ExpressionStmtNode = struct {
+    expr: ?*Node,
+};
 
 // This is the main AST node type
 // It is a tagged union of all possible node types
@@ -90,37 +96,29 @@ pub const BlockNode = struct { body: [] *Node };
 // Now when we create a new node, we specify its type and fill in the relevant fields
 // This helps identify what kind of node it is and access its data accordingly alongside of enforcing type safety
 pub const NodeTag = enum {
-    Identifier,
-    Constant, // Just wraps a literal with extra stuff?
+    Identifier, Constant, // Just wraps a literal with extra stuff?
 
     // Unlabeled
     Function,
     Block,
 
     // Mathematical: Arith, Logic, Comp, Cast
-    Binary,
-    Unary,
-    ConditionalExpressionNode,
-    Comp,
-    Cast,
+    Binary, Unary, ConditionalExpressionNode, Comp, Cast,
 
     // Variables, Pointers and Arrays
-    Declaration,
-    Assignment,
+    Declaration, Assignment,
 
     // Control Flow (If, Loops)
-    WhileStmt,
-    IfStmt,
-    ReturnStmt,
+    WhileStmt, IfStmt, ReturnStmt,
 
     // Literals
-    String,
-    Char,
-    Int,
-    Float,
+    String, Char, Int, Float,
 
     // Types
     Type,
+
+    // Statements
+    ExpressionStmt,
 };
 
 pub const Node = union(NodeTag) {
@@ -156,6 +154,9 @@ pub const Node = union(NodeTag) {
 
     // Types
     Type: *TypeNode,
+
+    // Statements 
+    ExpressionStmt: *ExpressionStmtNode
 };
 
 // Type information structure
@@ -370,6 +371,18 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     return n;
 }
 
+// =================
+// | Stmt Creators |
+// =================
+
+export fn make_expr_stmt(expr: *Node) ?*Node {
+   const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
+   expr_stmt.* = ExpressionStmtNode { .expr = expr };
+
+   const stmt = std.heap.c_allocator.create(Node) catch return null;
+   stmt.* = expr_stmt;
+
+   return stmt;
 export fn make_block_node(body: [] *Node) ?*Node {
     // How do we know the depth here? NO! this is semantics
     const blk_ptr = std.heap.c_allocator.create(BlockNode) catch return null;
@@ -378,6 +391,18 @@ export fn make_block_node(body: [] *Node) ?*Node {
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Block = blk_ptr };
     return node;
+// =================
+// | Stmt Creators |
+// =================
+
+export fn make_expr_stmt(expr: *Node) ?*Node {
+   const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
+   expr_stmt.* = ExpressionStmtNode { .expr = expr };
+
+   const stmt = std.heap.c_allocator.create(Node) catch return null;
+   stmt.* = expr_stmt;
+
+   return stmt;
 }
 
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
@@ -505,6 +530,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Expression 2:\n", .{});
             printNode(cond_node.expr2, indent + 1);
         },
+        .ExpressionStmt => {
+            const expr_stmt = node.ExpressionStmt;
+            std.debug.print("Expression Stmt\n", .{});
+            printNode(expr_stmt.expr, indent + 1);
+        }
     }
 }
 
