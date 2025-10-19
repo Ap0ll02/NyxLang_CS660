@@ -390,7 +390,7 @@ export fn make_expr_stmt(expr: *Node) ?*Node {
    expr_stmt.* = ExpressionStmtNode { .expr = expr };
 
    const stmt = std.heap.c_allocator.create(Node) catch return null;
-   stmt.* = expr_stmt;
+   stmt.* = Node { .ExpressionStmt = expr_stmt };
 
    return stmt;
 }
