@@ -504,6 +504,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Expression 2:\n", .{});
             printNode(cond_node.expr2, indent + 1);
         },
+        .ExpressionStmt => {
+            const expr_stmt = node.ExpressionStmt;
+            std.debug.print("Expression Stmt\n", .{});
+            printNode(expr_stmt.expr, indent + 1);
+        }
     }
 }
 
