@@ -83,10 +83,16 @@ static int check_type(void);
 "_Thread_local"                         { return THREAD_LOCAL; }
 "__func__"                              { return FUNC_NAME; }
 
-{L}{A}*					{ return check_type(); }
+{L}{A}* { 
+    yylval.id = strdup(yytext);
+    return check_type(); 
+}
 
-{HP}{H}+{IS}?				{ return I_CONSTANT; }
-{NZ}{D}*{IS}?				{ return I_CONSTANT; }
+{HP}{H}+{IS}? { 
+    yylval.id = strdup(yytext);
+    return I_CONSTANT; 
+}
+{NZ}{D}*{IS}?				{ yylval.id = strdup(yytext); return I_CONSTANT; }
 "0"{O}*{IS}?				{ return I_CONSTANT; }
 {CP}?"'"([^'\\\n]|{ES})+"'"		{ return I_CONSTANT; }
 
