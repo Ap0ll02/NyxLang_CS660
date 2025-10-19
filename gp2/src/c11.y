@@ -49,8 +49,8 @@ extern struct Node* root;
 	int intval;
 	float floatval;
 	double doubleval;
-	char *id;
-	char charval;
+	char *id; // magic that works
+	// char charval;
     struct Node* node;
     enum yytokentype yyt_type;
 }
@@ -60,9 +60,9 @@ extern struct Node* root;
 %token <floatval> FLOAT_CONST F_CONSTANT
 %token <doubleval> DOUBLE_CONST DOUBLE
 %token <boolval> BOOL
-%token <charval> '*' '/' '%' '+' '-' '<' '>' '&' '^' '|' '~' '!' '=' ';' ',' ':' '?' '(' ')' '{' '}' '[' ']'
+// %token <charval> '*' '/' '%' '+' '-' '<' '>' '&' '^' '|' '~' '!' '=' ';' ',' ':' '?' '(' ')' '{' '}' '[' ']'
 %token <intval> LE_OP GE_OP EQ_OP NE_OP AND_OP OR_OP LEFT_OP RIGHT_OP
-%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration 
+%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration enumeration_constant
 %type <node> constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression 
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression
@@ -83,7 +83,7 @@ constant
 	;
 
 enumeration_constant		/* before it has been defined as such */
-	: IDENTIFIER
+	: IDENTIFIER { $$ = make_identifier_node($1); }
 	;
 
 string
@@ -149,15 +149,15 @@ cast_expression
 
 multiplicative_expression
 	: cast_expression
-	| multiplicative_expression '*' cast_expression { $$ = make_binary_node($1, $2, $3);}
-	| multiplicative_expression '/' cast_expression { $$ = make_binary_node($1, $2, $3);}
-	| multiplicative_expression '%' cast_expression { $$ = make_binary_node($1, $2, $3);}
+	| multiplicative_expression '*' cast_expression { $$ = make_binary_node($1, '*', $3);}
+	| multiplicative_expression '/' cast_expression { $$ = make_binary_node($1, '/', $3);}
+	| multiplicative_expression '%' cast_expression { $$ = make_binary_node($1, '%', $3);}
 	;
 
 additive_expression
 	: multiplicative_expression
-	| additive_expression '+' multiplicative_expression { $$ = make_binary_node($1, $2, $3);}
-	| additive_expression '-' multiplicative_expression { $$ = make_binary_node($1, $2, $3);}
+	| additive_expression '+' multiplicative_expression { $$ = make_binary_node($1, '+', $3);}
+	| additive_expression '-' multiplicative_expression { $$ = make_binary_node($1, '-', $3);}
 	;
 
 shift_expression
@@ -168,8 +168,8 @@ shift_expression
 
 relational_expression
 	: shift_expression
-	| relational_expression '<' shift_expression { $$ = make_binary_node($1, $2, $3);}
-	| relational_expression '>' shift_expression { $$ = make_binary_node($1, $2, $3);}
+	| relational_expression '<' shift_expression { $$ = make_binary_node($1, '<', $3);}
+	| relational_expression '>' shift_expression { $$ = make_binary_node($1, '>', $3);}
 	| relational_expression LE_OP shift_expression { $$ = make_conditional_expression_node($1, $2, $3);}
 	| relational_expression GE_OP shift_expression { $$ = make_conditional_expression_node($1, $2, $3);}
 	;
@@ -182,17 +182,17 @@ equality_expression
 
 and_expression
 	: equality_expression
-	| and_expression '&' equality_expression { $$ = make_binary_node($1, $2, $3); }
+	| and_expression '&' equality_expression { $$ = make_binary_node($1, '&', $3); }
 	;
 
 exclusive_or_expression
 	: and_expression
-	| exclusive_or_expression '^' and_expression { $$ = make_binary_node($1, $2, $3);}
+	| exclusive_or_expression '^' and_expression { $$ = make_binary_node($1, '^', $3);}
 	;
 
 inclusive_or_expression
 	: exclusive_or_expression
-	| inclusive_or_expression '|' exclusive_or_expression { $$ = make_binary_node($1, $2, $3);}
+	| inclusive_or_expression '|' exclusive_or_expression { $$ = make_binary_node($1, '|', $3);}
 	;
 
 logical_and_expression
@@ -263,7 +263,7 @@ init_declarator_list
 	;
 
 init_declarator
-	: declarator '=' initializer //{ $$ = make_assignment_node($1, $2); }
+	: declarator '=' initializer { $$ = make_assignment_node($1, $3); }
 	| declarator {$$ = make_assignment_node($1, NULL); }
 	;
 
