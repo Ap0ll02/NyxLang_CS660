@@ -365,6 +365,20 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     return n;
 }
 
+// =================
+// | Stmt Creators |
+// =================
+
+export fn make_expr_stmt(expr: *Node) ?*Node {
+   const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
+   expr_stmt.* = ExpressionStmtNode { .expr = expr };
+
+   const stmt = std.heap.c_allocator.create(Node) catch return null;
+   stmt.* = expr_stmt;
+
+   return stmt;
+}
+
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
     // Print indentation
     for (0..indent) |_| std.debug.print("  ", .{});
