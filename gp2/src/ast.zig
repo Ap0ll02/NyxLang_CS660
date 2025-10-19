@@ -85,10 +85,6 @@ pub const ConditionalExpressionNode = struct {
 pub const ExpressionStmtNode = struct {
     expr: ?*Node,
 };
-pub const BlockNode = struct { body: [] *Node };
-pub const ExpressionStmtNode = struct {
-    expr: ?*Node,
-};
 
 // This is the main AST node type
 // It is a tagged union of all possible node types
@@ -375,14 +371,6 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 // | Stmt Creators |
 // =================
 
-export fn make_expr_stmt(expr: *Node) ?*Node {
-   const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
-   expr_stmt.* = ExpressionStmtNode { .expr = expr };
-
-   const stmt = std.heap.c_allocator.create(Node) catch return null;
-   stmt.* = expr_stmt;
-
-   return stmt;
 export fn make_block_node(body: [] *Node) ?*Node {
     // How do we know the depth here? NO! this is semantics
     const blk_ptr = std.heap.c_allocator.create(BlockNode) catch return null;
@@ -391,6 +379,8 @@ export fn make_block_node(body: [] *Node) ?*Node {
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Block = blk_ptr };
     return node;
+}
+
 // =================
 // | Stmt Creators |
 // =================
