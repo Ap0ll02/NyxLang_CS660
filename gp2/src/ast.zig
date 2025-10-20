@@ -600,7 +600,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // ===============
 // | Pointer     |
 // ===============
-pub fn make_pointer_node(pointee_type: *Node,) ?*Node {
+pub fn make_pointer_node(pointee_type: *Node) ?*Node {
     const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
 
     pointer_node.* = Pointer{ .pointee_type = pointee_type };
