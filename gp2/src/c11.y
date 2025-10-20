@@ -29,7 +29,7 @@ struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node
 struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init);
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
-struct Node* make_function_node(struct Node* retType, struct Node* nameParam, struct Node* body);
+struct Node* make_function_node(struct Node* retType, struct Node* nameParameter, struct Node* body);
 
 extern struct Node* root;
 %}
@@ -425,7 +425,7 @@ direct_declarator
 	| direct_declarator '[' type_qualifier_list ']'
 	| direct_declarator '[' assignment_expression ']'
 	| direct_declarator '(' parameter_type_list ')' {$$ = make_name_parameter_node($1, $3); }
-	| direct_declarator '(' ')'
+	| direct_declarator '(' ')' { $$ = make_name_parameter_node($1, NULL); }
 	| direct_declarator '(' identifier_list ')'
 	;
 
@@ -545,18 +545,18 @@ labeled_statement
 	;
 
 compound_statement
-	: '{' '}'
-	| '{'  block_item_list '}'
+	: '{' '}' { printf("Empty Block Found\n"); }
+	| '{'  block_item_list '}' { $$ = $2; }
 	;
 
 block_item_list
-	: block_item { $$ = append_block_list($1, NULL); }
-	| block_item_list block_item { $$ = append_block_list($2, $1); }
+	: block_item { printf("Matched Block_Item\n"); $$ = append_block_list($1, NULL); }
+	| block_item_list block_item { printf("Matched Block List then Block Item\n"); $$ = append_block_list($2, $1); }
 	;
 
 block_item
-	: declaration
-	| statement
+	: declaration { printf("Declaration Found\n"); }
+	| statement { printf("Statement Found\n"); }
 	;
 
 expression_statement
