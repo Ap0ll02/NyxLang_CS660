@@ -591,7 +591,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
     // Print indentation
     for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
     if (orig_node == null) {
-        std.debug.print("Null", .{});
+        std.debug.print("Null\n", .{});
         return;
     }
     const node = orig_node.?;
@@ -634,9 +634,21 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Function => {
             const func_node = node.Function;
             const new_type_string: []const u8 = std.mem.span(func_node.retType.type_name);
-            std.debug.print("Function: {s}, Return Type: {s}\n", .{ func_node.nameParam.name.name, new_type_string });
+
+            std.debug.print("Function: {s}, Return Type: {s}\n",
+                .{ func_node.nameParam.name.name, new_type_string });
+
             for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
             std.debug.print("Body:\n", .{});
+
+            // Defensive: check for valid items
+            if (func_node.body.items.len == 0) {
+                for (0..indent + 2) |_| std.debug.print("⎯⎯ ", .{});
+                std.debug.print("(empty block)\n", .{});
+                return;
+            }
+
+            // Iterate directly over the items array in BlockItemsNode
             for (func_node.body.items) |item| {
                 printNode(item, indent + 2);
             }
@@ -707,15 +719,21 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Type: {s} (size: {d}, align: {d})\n", .{ new_type_string, type_node.size, type_node.alignment });
         },
         .NameParameterNode => {
-
+            const npNode = node.NameParameterNode;
+            std.debug.print("Parameters:\n", .{});
+            if (npNode.parameterList) |np| {
+                for (np.params) |item| {
+                    printNode(item, indent + 2);
+                }
+            }
         },
-        .ParameterList => {
-
+        .ParameterList => { 
         },
         .ConditionalExpression => {
             const cond_node = node.ConditionalExpression;
+            const new_type_string: []const u8 = std.mem.span(cond_node.logicalOperator);
             std.debug.print("Conditional Expression\n", .{});
-            std.debug.print("Logical Operator: {s}\n", .{cond_node.logicalOperator});
+            std.debug.print("Logical Operator: {s}\n", .{new_type_string});
             std.debug.print("Expression 1:\n", .{});
             printNode(cond_node.expr1, indent + 1);
             std.debug.print("Expression 2:\n", .{});
@@ -724,7 +742,10 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .ExpressionStmt => {
             const expr_stmt = node.ExpressionStmt;
             std.debug.print("Expression Stmt:\n", .{});
-            printNode(expr_stmt.expr, indent + 1);
+            if (expr_stmt.expr) |ep| {
+                printNode(ep, indent + 1);    
+            }
+            return;
         },
     }
 }
