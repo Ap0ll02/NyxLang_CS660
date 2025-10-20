@@ -94,6 +94,11 @@ pub const ExpressionStmtNode = struct {
     expr: ?*Node,
 };
 
+pub const Pointer = struct {
+    pointee_type: *Node, // What it points to
+    // See if we could add depth later for multiple levels of pointers
+};
+
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -138,6 +143,9 @@ pub const NodeTag = enum {
 
     // Statements
     ExpressionStmt,
+
+    // Pointers
+    Pointer,
 };
 
 pub const Node = union(NodeTag) {
@@ -178,6 +186,9 @@ pub const Node = union(NodeTag) {
 
     // Statements
     ExpressionStmt: *ExpressionStmtNode,
+
+    // Pointers
+    Pointer: *Pointer,
 };
 
 // Type information structure
@@ -406,7 +417,7 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
         const new_items = std.heap.c_allocator.alloc(*Node, 1) catch return null;
         new_items[0] = item;
 
-        block_items_node.* = BlockItemsNode{ .items =new_items };
+        block_items_node.* = BlockItemsNode{ .items = new_items };
 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .BlockItems = block_items_node }; // Wrap the BlockItemsNode in a Node
@@ -502,7 +513,7 @@ export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
             .parameterList = pl.ParameterList,
         };
     } else {
-        name_param_node.* = NameParameterNode {
+        name_param_node.* = NameParameterNode{
             .name = name.Identifier,
             .parameterList = null,
         };
@@ -568,7 +579,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
     if (post_expr) |pe| {
         // create expr_stmt for post_expr
         const expr_stmt = make_expr_stmt(pe);
-        if(expr_stmt) |es| {
+        if (expr_stmt) |es| {
             new_body = append_block_list(es, body).?;
         }
     }
@@ -586,6 +597,11 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 
     return node;
 }
+// ===============
+// | Pointer     |
+// ===============
+pub fn make_pointer_node(pointee_type: *Node,) ?*Node {
+    const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
 
 pub fn printIndent(indent: usize) void {
     for (0..indent) |_| {
@@ -593,6 +609,19 @@ pub fn printIndent(indent: usize) void {
     }
 }
 
+    pointer_node.* = Pointer{ .pointee_type = pointee_type };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+
+    node.* = Node{ .Pointer = pointer_node };
+
+    const n: *Node = @ptrCast(node);
+    return n;
+}
+
+// ===============
+// | AST Printer |
+// ===============
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
     if (orig_node == null) {

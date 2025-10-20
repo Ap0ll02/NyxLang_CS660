@@ -30,7 +30,7 @@ struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct No
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 struct Node* make_function_node(struct Node* retType, struct Node* nameParameter, struct Node* body);
-
+struct Node* make_pointer_node(pointee_type: *Node);
 extern struct Node* root;
 %}
 
@@ -74,7 +74,7 @@ extern struct Node* root;
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
-%type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration
+%type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer
 %type <id> string
 %%
 primary_expression
@@ -408,7 +408,7 @@ alignment_specifier
 	;
 
 declarator
-	/*: pointer direct_declarator */
+	: pointer direct_declarator { $$ = make_pointer_node($2); }
 	: direct_declarator
 	;
 
@@ -432,7 +432,7 @@ direct_declarator
 pointer
 	: '*' type_qualifier_list pointer
 	| '*' type_qualifier_list
-	| '*' pointer
+	| '*' pointer { $$ = make_pointer_node($2); }
 	| '*'
 	;
 

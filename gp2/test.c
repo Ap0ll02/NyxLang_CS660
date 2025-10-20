@@ -1,8 +1,12 @@
 #include <stdio.h>
 
 int main() {
-    // print something
-    printf("Hello, World!\n");
-    int;
-    return 0;
+
+    int* x;
+    int** y = &x;
+    int*** z = &y;
 }
+//pointer direct_declarator
+//'*' pointer direct_declarator
+//'*' '*' pointer direct_declarator
+//'*' '*' '*' direct_declarator
