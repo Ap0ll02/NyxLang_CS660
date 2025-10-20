@@ -698,7 +698,9 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .WhileStmt => {
             const wh = node.WhileStmt;
-            std.debug.print("🔁 While Loop\n", .{});
+            if(wh.init) |_| {
+                std.debug.print("🔁 For Loop\n", .{});
+            } else { std.debug.print("🔁 While Loop\n", .{}); }
             printNode(wh.init, indent + 1);
             printNode(wh.cond, indent + 1);
             printNode(wh.body, indent + 1);
