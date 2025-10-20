@@ -29,7 +29,7 @@ struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node
 struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init);
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
-struct Node* make_function_node(struct Node* retType, struct Node* paramName, struct Node* body);
+struct Node* make_function_node(struct Node* retType, struct Node* nameParam, struct Node* body);
 
 extern struct Node* root;
 %}
@@ -605,8 +605,8 @@ translation_unit
 	;
 
 external_declaration
-	: function_definition { printf("[DEBUG] Finished Function Definition Rule\n"); fflush(stdout); }
-	| declaration { printf("[DEBUG] Finished Declaration Rule\n"); fflush(stdout); }
+	: function_definition
+	| declaration
 	;
 
 function_definition
