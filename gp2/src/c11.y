@@ -409,7 +409,7 @@ alignment_specifier
 
 declarator
 	: pointer direct_declarator { $$ = make_pointer_node($2); }
-	: direct_declarator
+	| direct_declarator
 	;
 
 direct_declarator
