@@ -603,12 +603,6 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 pub fn make_pointer_node(pointee_type: *Node,) ?*Node {
     const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
 
-pub fn printIndent(indent: usize) void {
-    for (0..indent) |_| {
-        std.debug.print("│  ", .{});
-    }
-}
-
     pointer_node.* = Pointer{ .pointee_type = pointee_type };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -622,6 +616,12 @@ pub fn printIndent(indent: usize) void {
 // ===============
 // | AST Printer |
 // ===============
+
+pub fn printIndent(indent: usize) void {
+    for (0..indent) |_| {
+        std.debug.print("│  ", .{});
+    }
+}
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
     if (orig_node == null) {
