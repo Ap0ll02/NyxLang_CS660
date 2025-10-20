@@ -23,14 +23,19 @@ pub const DeclarationNode = struct {
     assignNode: ?*AssignmentNode,
 };
 pub const FunctionNode = struct {
-    funcName: []const u8,
-    retType: TypeNode,
+    retType: *TypeNode,
+    funcName: *IdentifierNode,
+    paramaterList: *ParameterListNode,
     body: *Node,
 };
-
-pub const BlockItemsNode = struct { 
-    items: []*Node 
-    }; // A list of statements/declarations in a block
+pub const ParameterListNode = struct {
+    params: []*Node, // a list of parameter nodes
+};
+pub const NameParameterNode = struct {
+    name: *IdentifierNode,
+    parameterList: *ParameterListNode,
+};
+pub const BlockItemsNode = struct { items: []*Node }; // A list of statements/declarations in a block
 
 pub const BinaryNode = struct {
     lhs: *Node,
@@ -96,23 +101,38 @@ pub const ExpressionStmtNode = struct {
 // Now when we create a new node, we specify its type and fill in the relevant fields
 // This helps identify what kind of node it is and access its data accordingly alongside of enforcing type safety
 pub const NodeTag = enum {
-    Identifier, Constant, // Just wraps a literal with extra stuff?
+    Identifier,
+    Constant, // Just wraps a literal with extra stuff?
 
     // Unlabeled
+    // Functions
     Function,
+    ParameterList,
+    NameParameterNode,
+    // Blocks
     BlockItems,
 
     // Mathematical: Arith, Logic, Comp, Cast
-    Binary, Unary, ConditionalExpressionNode, Comp, Cast,
+    Binary,
+    Unary,
+    ConditionalExpression,
+    Comp,
+    Cast,
 
     // Variables, Pointers and Arrays
-    Declaration, Assignment,
+    Declaration,
+    Assignment,
 
     // Control Flow (If, Loops)
-    WhileStmt, IfStmt, ReturnStmt,
+    WhileStmt,
+    IfStmt,
+    ReturnStmt,
 
     // Literals
-    String, Char, Int, Float,
+    String,
+    Char,
+    Int,
+    Float,
 
     // Types
     Type,
@@ -128,12 +148,14 @@ pub const Node = union(NodeTag) {
 
     // Blocks and Function
     Function: *FunctionNode,
+    ParameterList: *ParameterListNode,
+    NameParameterNode: *NameParameterNode,
     BlockItems: *BlockItemsNode,
 
     // Arithmetic and Cast
     Binary: *BinaryNode,
     Unary: *UnaryNode,
-    ConditionalExpressionNode: *ConditionalExpressionNode,
+    ConditionalExpression: *ConditionalExpressionNode,
     Comp: *CompNode,
     Cast: *CastNode,
 
@@ -155,8 +177,8 @@ pub const Node = union(NodeTag) {
     // Types
     Type: *TypeNode,
 
-    // Statements 
-    ExpressionStmt: *ExpressionStmtNode
+    // Statements
+    ExpressionStmt: *ExpressionStmtNode,
 };
 
 // Type information structure
@@ -165,6 +187,7 @@ pub const Node = union(NodeTag) {
 //=============
 //Functions   =
 //=============
+
 // Function to get type information based on token
 // This is based off the c11.tab.h tokens
 // We can expand this function as we add more types
@@ -375,14 +398,13 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 // | Stmt Creators |
 // =================
 
-
 export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node or statement node, create a new BlockItemsNode with the item as the first element
     if (items == null) {
         const block_items_node = std.heap.c_allocator.create(BlockItemsNode) catch return null;
-        block_items_node.* = BlockItemsNode{ .items = @constCast(&[_]*Node{ item }) };
+        block_items_node.* = BlockItemsNode{ .items = @constCast(&[_]*Node{item}) };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .BlockItems = block_items_node }; // Wrap the BlockItemsNode in a Node
 
         return node;
@@ -411,18 +433,101 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     }
 }
 
+// ======================
+// | Functions Creators |
+// ======================
+// We may need to change it to a run time array
+// [_]*Node{item} creates an array literal of pointers to Node with a single element 'item'
+// This size is fixed at compile time to 1
+// &[_]*Node{item} takes the address of this fixed array
+// @constCast removes the const qualifier from the array type but its still a fixed size array
+// With a runtime array alloc(*Node, 1) allocates memory for 1 element at runtime
+// Returns a slice ([]*Node) that can be resized later
+// You can create new slices with different sizes and copy data between them
+export fn append_paramater_list(item: *Node, items: ?*Node) ?*Node {
+    // If items is null, then we have a declaration node so we, create a new ParameterListNode with the item as the first element
+    if (items == null) {
+        // create the ParameterListNode
+        const parameter_items_node = std.heap.c_allocator.create(ParameterListNode) catch return null;
+        // initialize it with the single item which
+
+        // Lets try doing a runtime array with space for one item
+        const new_params = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_params[0] = item;
+
+        // Set the params field
+        parameter_items_node.* = ParameterListNode{ .params = new_params };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .ParameterList = parameter_items_node };
+        return node;
+    } else {
+        // Otherwise, we have an existing BlockItemsNode, append the new item to its items array
+
+        // Unwrap the items from Node
+        const items_block = items.?.ParameterList;
+
+        // Append the new item to the list in items_block
+        const new_len = items_block.params.len + 1;
+        const new_params = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+
+        // Copy existing items
+        @memcpy(new_params[0..items_block.params.len], items_block.params);
+        // std.mem.copy(*Node, new_items[0..items_block.items.len], items_block.items[0..items_block.items.len]);
+        new_params[items_block.params.len] = item;
+
+        // Create a new BlockItemsNode with the updated items
+        const parameter_list_node = std.heap.c_allocator.create(ParameterListNode) catch return null;
+        parameter_list_node.* = ParameterListNode{ .params = new_params };
+        // Wrap the items block in node and return
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .ParameterList = parameter_list_node };
+        return node;
+    }
+}
+
+export fn make_name_parameter_node(name: *Node, parameterList: *Node) ?*Node {
+    const name_param_node = std.heap.c_allocator.create(NameParameterNode) catch return null;
+
+    name_param_node.* = NameParameterNode{
+        .name = name.Identifier,
+        .parameterList = parameterList.ParameterList,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .NameParameterNode = name_param_node };
+
+    return node;
+}
+
+export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) ?*Node {
+    const function_node = std.heap.c_allocator.create(FunctionNode) catch return null;
+
+    function_node.* = FunctionNode{
+        .retType = retType.Type,
+        .funcName = nameParameter.NameParameterNode.name,
+        .paramaterList = nameParameter.NameParameterNode.parameterList,
+        .body = body,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .Function = function_node };
+
+    return node;
+}
+
 // =================
 // | Stmt Creators |
 // =================
 
 export fn make_expr_stmt(expr: *Node) ?*Node {
-   const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
-   expr_stmt.* = ExpressionStmtNode { .expr = expr };
+    const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
+    expr_stmt.* = ExpressionStmtNode{ .expr = expr };
 
-   const stmt = std.heap.c_allocator.create(Node) catch return null;
-   stmt.* = Node { .ExpressionStmt = expr_stmt };
+    const stmt = std.heap.c_allocator.create(Node) catch return null;
+    stmt.* = Node{ .ExpressionStmt = expr_stmt };
 
-   return stmt;
+    return stmt;
 }
 
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
@@ -440,7 +545,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}\n", .{ const_node.value});
+            std.debug.print("Constant: {s}\n", .{const_node.value});
         },
         .Declaration => {
             const decl_node = node.Declaration;
@@ -554,7 +659,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             const expr_stmt = node.ExpressionStmt;
             std.debug.print("Expression Stmt\n", .{});
             printNode(expr_stmt.expr, indent + 1);
-        }
+        },
     }
 }
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢾⣿⣷⣮⣛⠷⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀

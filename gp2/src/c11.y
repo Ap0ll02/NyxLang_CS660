@@ -25,6 +25,8 @@ struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokenty
 struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
 struct Node* make_expr_stmt(struct Node* expr);
 struct Node* append_block_list(struct Node* item, struct Node* items);
+struct Node* make_parameter_list_node(struct Node* item, struct Node* items);
+struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 
 extern struct Node* root;
 %}
@@ -69,6 +71,7 @@ extern struct Node* root;
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
+%type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration
 %type <id> string
 %%
 primary_expression
@@ -418,7 +421,7 @@ direct_declarator
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list ']'
 	| direct_declarator '[' assignment_expression ']'
-	| direct_declarator '(' parameter_type_list ')'
+	| direct_declarator '(' parameter_type_list ')' {$$ = make_name_parameter_node($1, $3); }
 	| direct_declarator '(' ')'
 	| direct_declarator '(' identifier_list ')'
 	;
@@ -442,14 +445,14 @@ parameter_type_list
 	;
 
 parameter_list
-	: parameter_declaration
-	| parameter_list ',' parameter_declaration
+	: parameter_declaration { $$ = make_parameter_list_node($1, NULL); }
+	| parameter_list ',' parameter_declaration { $$ = make_parameter_list_node($3, $1); }
 	;
 
 parameter_declaration
-	: declaration_specifiers declarator
+	: declaration_specifiers declarator { $$ = make_assignment_node($2, NULL); }
 	| declaration_specifiers abstract_declarator
-	| declaration_specifiers
+	| declaration_specifiers { $$ = make_assignment_node($1, NULL); }
 	;
 
 identifier_list
@@ -599,13 +602,13 @@ translation_unit
 	;
 
 external_declaration
-	: function_definition { zig_error(); }
+	: function_definition { printf("[DEBUG] Finished Function Definition Rule\n"); fflush(stdout); }
 	| declaration { printf("[DEBUG] Finished Declaration Rule\n"); fflush(stdout); }
 	;
 
 function_definition
 	: declaration_specifiers declarator declaration_list compound_statement { zig_error(); }
-	| declaration_specifiers declarator compound_statement { zig_error(); }
+	| declaration_specifiers declarator compound_statement {$$ = make_function_node($1, $2, $3); }
 	;
 
 declaration_list
