@@ -179,14 +179,14 @@ relational_expression
 	: shift_expression
 	| relational_expression '<' shift_expression { $$ = make_binary_node($1, '<', $3);}
 	| relational_expression '>' shift_expression { $$ = make_binary_node($1, '>', $3);}
-	| relational_expression LE_OP shift_expression { $$ = make_conditional_expression_node($1, $2, $3);}
-	| relational_expression GE_OP shift_expression { $$ = make_conditional_expression_node($1, $2, $3);}
+	| relational_expression LE_OP shift_expression { $$ = make_conditional_expression_node($1, LE_OP, $3);}
+	| relational_expression GE_OP shift_expression { $$ = make_conditional_expression_node($1, GE_OP, $3);}
 	;
 
 equality_expression
 	: relational_expression
-	| equality_expression EQ_OP relational_expression { $$ = make_conditional_expression_node($1, $2, $3);}
-	| equality_expression NE_OP relational_expression { $$ = make_conditional_expression_node($1, $2, $3);}
+	| equality_expression EQ_OP relational_expression { $$ = make_conditional_expression_node($1, EQ_OP, $3);}
+	| equality_expression NE_OP relational_expression { $$ = make_conditional_expression_node($1, NE_OP, $3);}
 	;
 
 and_expression
