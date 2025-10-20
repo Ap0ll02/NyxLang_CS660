@@ -25,14 +25,14 @@ pub const DeclarationNode = struct {
 pub const FunctionNode = struct {
     retType: *TypeNode,
     nameParam: *NameParameterNode,
-    body: *Node,
+    body: *BlockItemsNode,
 };
 pub const ParameterListNode = struct {
     params: []*Node, // a list of parameter nodes
 };
 pub const NameParameterNode = struct {
     name: *IdentifierNode,
-    parameterList: *ParameterListNode,
+    parameterList: ?*ParameterListNode,
 };
 pub const BlockItemsNode = struct { items: []*Node }; // A list of statements/declarations in a block
 
@@ -400,6 +400,7 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node or statement node, create a new BlockItemsNode with the item as the first element
     if (items == null) {
+        std.debug.print("\nNEW BLOCK LIST CREATED:\n", .{});
         const block_items_node = std.heap.c_allocator.create(BlockItemsNode) catch return null;
 
         const new_items = std.heap.c_allocator.alloc(*Node, 1) catch return null;
@@ -409,11 +410,10 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .BlockItems = block_items_node }; // Wrap the BlockItemsNode in a Node
-
         return node;
     } else {
         // Otherwise, we have an existing BlockItemsNode, append the new item to its items array
-
+        std.debug.print("\nADDING TO OLD LIST\n", .{});
         // Unwrap the items from Node
         const items_block = items.?.BlockItems;
 
@@ -450,6 +450,7 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node so we, create a new ParameterListNode with the item as the first element
     if (items == null) {
+        std.debug.print("\nCREATING PARAM LIST:\n", .{});
         // create the ParameterListNode
         const parameter_items_node = std.heap.c_allocator.create(ParameterListNode) catch return null;
         // initialize it with the single item which
@@ -463,6 +464,7 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .ParameterList = parameter_items_node };
+        std.debug.print("Param: {any}\n", .{item});
         return node;
     } else {
         // Otherwise, we have an existing BlockItemsNode, append the new item to its items array
@@ -485,17 +487,26 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
         // Wrap the items block in node and return
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .ParameterList = parameter_list_node };
+        std.debug.print("\nAdding to OLD LIST\n", .{});
+        std.debug.print("Param: {any}\n", .{item});
         return node;
     }
 }
 
-export fn make_name_parameter_node(name: *Node, parameterList: *Node) ?*Node {
+export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
     const name_param_node = std.heap.c_allocator.create(NameParameterNode) catch return null;
 
-    name_param_node.* = NameParameterNode{
-        .name = name.Identifier,
-        .parameterList = parameterList.ParameterList,
-    };
+    if (parameterList) |pl| {
+        name_param_node.* = NameParameterNode{
+            .name = name.Identifier,
+            .parameterList = pl.ParameterList,
+        };
+    } else {
+        name_param_node.* = NameParameterNode {
+            .name = name.Identifier,
+            .parameterList = null,
+        };
+    }
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .NameParameterNode = name_param_node };
@@ -509,7 +520,7 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
     function_node.* = FunctionNode{
         .retType = retType.Type,
         .nameParam = nameParameter.NameParameterNode,
-        .body = body,
+        .body = body.BlockItems,
     };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -626,11 +637,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("Function: {s}, Return Type: {s}\n", .{ func_node.nameParam.name.name, new_type_string });
             for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
             std.debug.print("Body:\n", .{});
-            printNode(&func_node.body.*, indent + 2);
+            for (func_node.body.items) |item| {
+                printNode(item, indent + 2);
+            }
         },
         .BlockItems => {
             const block_node = node.BlockItems;
-            std.debug.print("Block Node with {d} items:\n", .{block_node.items.len});
             for (block_node.items) |item| {
                 printNode(item, indent + 1);
             }
