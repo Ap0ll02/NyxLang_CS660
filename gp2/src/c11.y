@@ -26,6 +26,7 @@ struct Node* make_binary_node(struct Node* left, char operator, struct Node* rig
 struct Node* make_expr_stmt(struct Node* expr);
 struct Node* append_block_list(struct Node* item, struct Node* items);
 struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node* else_branch);
+struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init);
 
 extern struct Node* root;
 %}
@@ -569,8 +570,8 @@ selection_statement
 	;
 
 iteration_statement
-	: WHILE '(' expression ')' statement
-	: WHILE expression compound_statement
+	: WHILE '(' expression ')' statement { $$ = make_iteration_stmt($3, $5, NULL); }
+	| WHILE expression compound_statement { $$ = make_iteration_stmt($2, $3, NULL); }
 	| DO statement WHILE '(' expression ')' ';'
     | FOR expression_statement expression_statement compound_statement
     | FOR expression_statement expression_statement expression_statement compound_statement

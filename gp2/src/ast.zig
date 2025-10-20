@@ -48,9 +48,9 @@ pub const CompNode = struct {
 };
 pub const CastNode = struct { cast: *Node, val: *Node };
 pub const WhileNode = struct {
-    init: *Node,
     cond: *Node,
     body: *Node,
+    init: ?*Node, //optional initializer to handle for loops
 };
 pub const IfNode = struct {
     cond: *Node,
@@ -437,6 +437,23 @@ export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node 
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .IfStmt = if_node };
+
+    return node;
+}
+
+export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node) ?*Node {
+    std.debug.print("make_iteration_stmt function reached\n", .{});
+
+    const while_node = std.heap.c_allocator.create(WhileNode) catch return null;
+
+    while_node.* = WhileNode{
+        .cond = cond,
+        .body = body,
+        .init = init,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .WhileStmt = while_node };
 
     return node;
 }
