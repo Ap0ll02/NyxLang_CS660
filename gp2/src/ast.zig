@@ -95,7 +95,7 @@ pub const ExpressionStmtNode = struct {
 };
 
 pub const Pointer = struct {
-    pointee: *Node,
+    pointee: ?*Node,
     pointee_type: ?*Node, // What it points to
 
     // See if we could add depth later for multiple levels of pointers
@@ -602,7 +602,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // ===============
 // | Pointer     |
 // ===============
-pub fn make_pointer_node(pointee: *Node, pointeeType: ?*Node) ?*Node {
+export fn make_pointer_node(pointee: ?*Node, pointeeType: ?*Node) ?*Node {
     const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
 
     pointer_node.* = Pointer{
@@ -797,7 +797,18 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Pointer => {
             const p_node = node.Pointer;
             std.debug.print("😈 Pointer:\n", .{}); 
-            printNode(p_node.pointee_type, indent+1);
+            if (p_node.pointee_type) |p| {
+                printNode(p, indent+1);
+            } else {
+                printIndent(indent);
+                std.debug.print("It's just a pointer to a pointer\n", .{});
+            }
+            if (p_node.pointee) |p| {
+                printNode(p, indent+1);
+            } else {
+                printIndent(indent);
+                std.debug.print("It's just a pointer to a pointer\n", .{});
+            }
         },
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
