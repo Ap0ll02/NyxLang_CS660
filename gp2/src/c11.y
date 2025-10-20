@@ -26,7 +26,7 @@ struct Node* make_binary_node(struct Node* left, char operator, struct Node* rig
 struct Node* make_expr_stmt(struct Node* expr);
 struct Node* append_block_list(struct Node* item, struct Node* items);
 struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node* else_branch);
-struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init);
+struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init, struct Node* post);
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 struct Node* make_function_node(struct Node* retType, struct Node* nameParameter, struct Node* body);
@@ -116,7 +116,7 @@ generic_association
 
 postfix_expression
 	: primary_expression 
-	/*| postfix_expression '[' expression ']'
+	| postfix_expression '[' expression ']'
 	| postfix_expression '(' ')'
 	| postfix_expression '(' argument_expression_list ')'
 	| postfix_expression '.' IDENTIFIER
@@ -124,7 +124,7 @@ postfix_expression
 	| postfix_expression INC_OP
 	| postfix_expression DEC_OP
 	| '(' type_name ')' '{' initializer_list '}'
-	| '(' type_name ')' '{' initializer_list ',' '}' */
+	| '(' type_name ')' '{' initializer_list ',' '}'
 	;
 
 argument_expression_list
@@ -134,12 +134,12 @@ argument_expression_list
 
 unary_expression
 	: postfix_expression
-/*| INC_OP unary_expression
+    | INC_OP unary_expression
 	| DEC_OP unary_expression
 	| unary_operator cast_expression
 	| SIZEOF unary_expression
 	| SIZEOF '(' type_name ')'
-	| ALIGNOF '(' type_name ')'*/
+	| ALIGNOF '(' type_name ')'
 	;
 
 unary_operator
@@ -153,7 +153,7 @@ unary_operator
 
 cast_expression
 	: unary_expression
-	//| '(' type_name ')' cast_expression
+	| '(' type_name ')' cast_expression
 	;
 
 multiplicative_expression
@@ -216,12 +216,12 @@ logical_or_expression
 
 conditional_expression
 	: logical_or_expression
-	// | logical_or_expression '?' expression ':' conditional_expression
+	| logical_or_expression '?' expression ':' conditional_expression
 	;
 
-assignment_expression
+assignment_expression /* Reassign Node Boi */
 	: conditional_expression
-	// | unary_expression assignment_operator assignment_expression
+	| unary_expression assignment_operator assignment_expression { $$ = make_assignment_node($1, $3); }
 	;
 
 assignment_operator
@@ -239,7 +239,7 @@ assignment_operator
 	;
 
 expression
-	: assignment_expression { zig_error(); }
+	: assignment_expression
 	| expression ',' assignment_expression { zig_error(); }
 	;
 
@@ -560,7 +560,7 @@ block_item
 	;
 
 expression_statement
-	: ';'
+	: ';' { $$ = make_expr_stmt(NULL); }
 	| expression ';' { $$ = make_expr_stmt($1); }
 	;
 
@@ -574,8 +574,8 @@ selection_statement
 	;
 
 iteration_statement
-	: WHILE '(' expression ')' statement { $$ = make_iteration_stmt($3, $5, NULL); }
-	| WHILE expression compound_statement { $$ = make_iteration_stmt($2, $3, NULL); }
+	: WHILE '(' expression ')' statement { $$ = make_iteration_stmt($3, $5, NULL, NULL); }
+	| WHILE expression compound_statement { $$ = make_iteration_stmt($2, $3, NULL, NULL); }
 	| DO statement WHILE '(' expression ')' ';'
     | FOR expression_statement expression_statement compound_statement
     | FOR expression_statement expression_statement expression_statement compound_statement
@@ -584,7 +584,7 @@ iteration_statement
 	| FOR '(' expression_statement expression_statement ')' statement
 	| FOR '(' expression_statement expression_statement expression ')' statement
 	| FOR '(' declaration expression_statement ')' statement
-	| FOR '(' declaration expression_statement expression ')' statement
+	| FOR '(' declaration expression_statement expression ')' statement {$$ = make_iteration_stmt($4, $7, $3, $5);}
 	;
 
 jump_statement
