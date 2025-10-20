@@ -441,14 +441,24 @@ export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node 
     return node;
 }
 
-export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node) ?*Node {
+export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr: ?*Node) ?*Node {
     std.debug.print("make_iteration_stmt function reached\n", .{});
 
-    const while_node = std.heap.c_allocator.create(WhileNode) catch return null;
+    // make new body with old body and post_expr
+    var new_body: *Node = null;
+    if (post_expr) {
+        // create expr_stmt for post_expr
+        const expr_stmt = make_expr_stmt(post_expr.?) catch return null;
+        new_body = append_block_list(expr_stmt, body) catch return null;
+    } else {
+        new_body = body;
+    }
 
+    // create while node
+    const while_node = std.heap.c_allocator.create(WhileNode) catch return null;
     while_node.* = WhileNode{
         .cond = cond,
-        .body = body,
+        .body = new_body,
         .init = init,
     };
 
