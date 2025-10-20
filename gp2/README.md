@@ -53,9 +53,11 @@ zig build run
 ## Input and Running 
 we currently support functions, arthmetic operations, logical operations, variable assignment. you should see an AST generated at the end of your file use or whatever 
 
-### Examples 
+### Examples and Runtime Notes
 
-make sure to type valid c code for example 
+Please ensure you use `Ctrl + d` to send the end of file (EOF) signal. This is the similar kill command to most REPL style programs. (Including some Scheme interpreters!)
+
+Make sure to type valid c code for example 
 ```int main() { int 5;}```
 ![catgirl](../CatGirl&CatBoyPictures/catgirl1.png)
 ![catboy](../CatGirl&CatBoyPictures/catboy1.jpeg)
