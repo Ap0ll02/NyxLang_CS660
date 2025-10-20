@@ -53,12 +53,12 @@ pub const CompNode = struct {
 };
 pub const CastNode = struct { cast: *Node, val: *Node };
 pub const WhileNode = struct {
-    init: *Node,
     cond: *Node,
     body: *Node,
+    init: ?*Node, //optional initializer to handle for loops
 };
 pub const IfNode = struct {
-    cond: *Node, //
+    cond: *Node,
     if_branch: *Node, // Block
     el_branch: ?*Node, // Block
 };
@@ -530,9 +530,53 @@ export fn make_expr_stmt(expr: *Node) ?*Node {
     return stmt;
 }
 
+export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node {
+    std.debug.print("make_if_stmt function reached\n", .{});
+
+    const if_node = std.heap.c_allocator.create(IfNode) catch return null;
+
+    if_node.* = IfNode{
+        .cond = cond,
+        .if_branch = if_branch,
+        .el_branch = el_branch,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .IfStmt = if_node };
+
+    return node;
+}
+
+export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr: ?*Node) ?*Node {
+    std.debug.print("make_iteration_stmt function reached\n", .{});
+
+    // make new body with old body and post_expr
+    var new_body: *Node = null;
+    if (post_expr) {
+        // create expr_stmt for post_expr
+        const expr_stmt = make_expr_stmt(post_expr.?) catch return null;
+        new_body = append_block_list(expr_stmt, body) catch return null;
+    } else {
+        new_body = body;
+    }
+
+    // create while node
+    const while_node = std.heap.c_allocator.create(WhileNode) catch return null;
+    while_node.* = WhileNode{
+        .cond = cond,
+        .body = new_body,
+        .init = init,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .WhileStmt = while_node };
+
+    return node;
+}
+
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
     // Print indentation
-    for (0..indent) |_| std.debug.print("  ", .{});
+    for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
     if (orig_node == null) {
         std.debug.print("Null", .{});
         return;
@@ -541,61 +585,62 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
     switch (node.*) {
         .Identifier => {
             const id_node = node.Identifier;
-            std.debug.print("Identifier: {s}\n", .{id_node.name});
+            std.debug.print("\x1b[34mIdentifier\x1b[0m: {s}\n", .{id_node.name});
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}\n", .{const_node.value});
+            std.debug.print("\x1b[35mConstant\x1b[0m: {s}\n", .{ const_node.value});
         },
         .Declaration => {
             const decl_node = node.Declaration;
             const new_type_string: []const u8 = std.mem.span(decl_node.typeNode.type_name);
-            std.debug.print("Declaration, Type: {s}\n", .{new_type_string});
+            std.debug.print("\x1b[36mDeclaration\x1b[0m, Type: {s}\n", .{new_type_string});
             if (decl_node.assignNode) |asgn| {
-                for (0..indent + 1) |_| std.debug.print("  ", .{});
-                std.debug.print("Assignment:\n", .{});
+                for (0..indent + 2) |_| std.debug.print("⎯⎯ ", .{});
+                std.debug.print("\x1b[37mAssignment\x1b[0m:\n", .{});
                 printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
-                printNode(n, indent + 1);
+                printNode(n, indent + 2);
             }
         },
         .Assignment => {
             const asgn_node = node.Assignment;
-            std.debug.print("Assignment:\n", .{});
-            for (0..indent) |_| std.debug.print("  ", .{});
-            std.debug.print("Declarator:\n", .{});
+            std.debug.print("\x1b[37mAssignment\x1b[0m:\n", .{});
+            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
+            std.debug.print("\x1b[38mDeclarator\x1b[0m:\n", .{});
             printNode(asgn_node.declarator, indent + 1);
             if (asgn_node.initializer) |init| {
-                for (0..indent) |_| std.debug.print("  ", .{});
-                std.debug.print("Initializer:\n", .{});
+                for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
+                std.debug.print("\x1b[39mInitializer\x1b[0m:\n", .{});
                 printNode(init, indent + 1);
             } else {
-                for (0..indent + 1) |_| std.debug.print("  ", .{});
+                for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
                 std.debug.print("No initializer\n", .{});
             }
         },
         .Function => {
             const func_node = node.Function;
-            std.debug.print("Function: {any}, Return Type: {any}\n", .{ func_node.funcName, func_node.retType.type_name });
-            for (0..indent + 1) |_| std.debug.print("  ", .{});
+            const new_type_string: []const u8 = std.mem.span(func_node.retType.type_name);
+            std.debug.print("Function: {s}, Return Type: {s}\n", .{ func_node.funcName, new_type_string });
+            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
             std.debug.print("Body:\n", .{});
             printNode(&func_node.body.*, indent + 2);
         },
         .BlockItems => {
             const block_node = node.BlockItems;
-            std.debug.print("Block Node with {d} items\n", .{block_node.items.len});
+            std.debug.print("Block Node with {d} items:\n", .{block_node.items.len});
             for (block_node.items) |item| {
                 printNode(item, indent + 1);
             }
         },
         .Binary => {
             const bin_node = node.Binary;
-            std.debug.print("Binary Op: '{c}'\n", .{bin_node.op});
-            for (0..indent + 1) |_| std.debug.print("  ", .{});
-            std.debug.print("Left:\n", .{});
+            std.debug.print("\x1b[39mBinary Op\x1b[0m: '{c}'\n", .{bin_node.op});
+            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
+            std.debug.print("\x1b[31mLeft\x1b[0m:\n", .{});
             printNode(bin_node.lhs, indent + 2);
-            for (0..indent + 1) |_| std.debug.print("  ", .{});
-            std.debug.print("Right:\n", .{});
+            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
+            std.debug.print("\x1b[31mRight\x1b[0m:\n", .{});
             printNode(bin_node.rhs, indent + 2);
         },
         .Unary => {
@@ -644,7 +689,8 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Float => std.debug.print("Float: {d}\n", .{node.Float.val}),
         .Type => {
             const type_node = node.Type;
-            std.debug.print("Type: {any} (size: {d}, align: {d})\n", .{ type_node.type_name, type_node.size, type_node.alignment });
+            const new_type_string: []const u8 = std.mem.span(type_node.type_name);
+            std.debug.print("Type: {s} (size: {d}, align: {d})\n", .{ new_type_string, type_node.size, type_node.alignment });
         },
         .ConditionalExpressionNode => {
             const cond_node = node.ConditionalExpressionNode;
@@ -657,7 +703,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .ExpressionStmt => {
             const expr_stmt = node.ExpressionStmt;
-            std.debug.print("Expression Stmt\n", .{});
+            std.debug.print("Expression Stmt:\n", .{});
             printNode(expr_stmt.expr, indent + 1);
         },
     }

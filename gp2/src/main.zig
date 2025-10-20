@@ -10,7 +10,7 @@ export var root: ?*ast.Node = null;
 
 pub fn main() !void {
     const result = parse.yyparse();
-    std.debug.print("\n\n\n PARSE/AST PRINTOUT Nya Nya Meow Meow\n", .{});
+    std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if(root) |r| {
         ast.printNode(r, 0);
     } else {

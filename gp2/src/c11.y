@@ -25,6 +25,8 @@ struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokenty
 struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
 struct Node* make_expr_stmt(struct Node* expr);
 struct Node* append_block_list(struct Node* item, struct Node* items);
+struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node* else_branch);
+struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init);
 struct Node* make_parameter_list_node(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 
@@ -203,12 +205,12 @@ inclusive_or_expression
 
 logical_and_expression
 	: inclusive_or_expression
-	| logical_and_expression AND_OP inclusive_or_expression { $$ = make_conditional_expression_node($1, $2, $3);}
+	| logical_and_expression AND_OP inclusive_or_expression { $$ = make_conditional_expression_node($1, AND_OP, $3);}
 	;
 
 logical_or_expression
 	: logical_and_expression
-	| logical_or_expression OR_OP logical_and_expression { $$ = make_conditional_expression_node($1, $2, $3);}
+	| logical_or_expression OR_OP logical_and_expression { $$ = make_conditional_expression_node($1, OR_OP, $3);}
 	;
 
 conditional_expression
@@ -562,17 +564,17 @@ expression_statement
 	;
 
 selection_statement
-	: IF '(' expression ')' statement ELSE statement 
-	| IF '(' expression ')' statement
-    | IF expression compound_statement ELSE compound_statement
-    | IF expression compound_statement
+	: IF '(' expression ')' statement ELSE statement { $$ = make_if_stmt($3, $5, $7); }
+	| IF '(' expression ')' statement { $$ = make_if_stmt($3, $5, NULL); }
+    | IF expression compound_statement ELSE compound_statement { $$ = make_if_stmt($2, $3, $5); }
+    | IF expression compound_statement { $$ = make_if_stmt($2, $3, NULL); }
 	| SWITCH '(' expression ')' statement
 	| SWITCH expression compound_statement
 	;
 
 iteration_statement
-	: WHILE '(' expression ')' statement
-	: WHILE expression compound_statement
+	: WHILE '(' expression ')' statement { $$ = make_iteration_stmt($3, $5, NULL); }
+	| WHILE expression compound_statement { $$ = make_iteration_stmt($2, $3, NULL); }
 	| DO statement WHILE '(' expression ')' ';'
     | FOR expression_statement expression_statement compound_statement
     | FOR expression_statement expression_statement expression_statement compound_statement
