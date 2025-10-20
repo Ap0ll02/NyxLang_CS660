@@ -401,7 +401,11 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node or statement node, create a new BlockItemsNode with the item as the first element
     if (items == null) {
         const block_items_node = std.heap.c_allocator.create(BlockItemsNode) catch return null;
-        block_items_node.* = BlockItemsNode{ .items = @constCast(&[_]*Node{item}) };
+
+        const new_items = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_items[0] = item;
+
+        block_items_node.* = BlockItemsNode{ .items =new_items };
 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .BlockItems = block_items_node }; // Wrap the BlockItemsNode in a Node
