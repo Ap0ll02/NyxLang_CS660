@@ -27,8 +27,9 @@ struct Node* make_expr_stmt(struct Node* expr);
 struct Node* append_block_list(struct Node* item, struct Node* items);
 struct Node* make_if_stmt(struct Node* cond, struct Node* if_branch, struct Node* else_branch);
 struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct Node* init);
-struct Node* make_parameter_list_node(struct Node* item, struct Node* items);
+struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
+struct Node* make_function_node(struct Node* retType, struct Node* paramName, struct Node* body);
 
 extern struct Node* root;
 %}
@@ -447,8 +448,8 @@ parameter_type_list
 	;
 
 parameter_list
-	: parameter_declaration { $$ = make_parameter_list_node($1, NULL); }
-	| parameter_list ',' parameter_declaration { $$ = make_parameter_list_node($3, $1); }
+	: parameter_declaration { $$ = append_parameter_list($1, NULL); }
+	| parameter_list ',' parameter_declaration { $$ = append_parameter_list($3, $1); }
 	;
 
 parameter_declaration

@@ -24,8 +24,7 @@ pub const DeclarationNode = struct {
 };
 pub const FunctionNode = struct {
     retType: *TypeNode,
-    funcName: *IdentifierNode,
-    paramaterList: *ParameterListNode,
+    nameParam: *NameParameterNode,
     body: *Node,
 };
 pub const ParameterListNode = struct {
@@ -251,7 +250,7 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
     }
 
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node{ .ConditionalExpressionNode = CondExpNodePtr };
+    node.* = Node{ .ConditionalExpression = CondExpNodePtr };
 
     return node;
 }
@@ -444,7 +443,7 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 // With a runtime array alloc(*Node, 1) allocates memory for 1 element at runtime
 // Returns a slice ([]*Node) that can be resized later
 // You can create new slices with different sizes and copy data between them
-export fn append_paramater_list(item: *Node, items: ?*Node) ?*Node {
+export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node so we, create a new ParameterListNode with the item as the first element
     if (items == null) {
         // create the ParameterListNode
@@ -505,8 +504,7 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
 
     function_node.* = FunctionNode{
         .retType = retType.Type,
-        .funcName = nameParameter.NameParameterNode.name,
-        .paramaterList = nameParameter.NameParameterNode.parameterList,
+        .nameParam = nameParameter.NameParameterNode,
         .body = body,
     };
 
@@ -551,13 +549,13 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
     std.debug.print("make_iteration_stmt function reached\n", .{});
 
     // make new body with old body and post_expr
-    var new_body: *Node = null;
-    if (post_expr) {
+    var new_body: *Node = body;
+    if (post_expr) |pe| {
         // create expr_stmt for post_expr
-        const expr_stmt = make_expr_stmt(post_expr.?) catch return null;
-        new_body = append_block_list(expr_stmt, body) catch return null;
-    } else {
-        new_body = body;
+        const expr_stmt = make_expr_stmt(pe);
+        if(expr_stmt) |es| {
+            new_body = append_block_list(es, body).?;
+        }
     }
 
     // create while node
@@ -621,7 +619,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Function => {
             const func_node = node.Function;
             const new_type_string: []const u8 = std.mem.span(func_node.retType.type_name);
-            std.debug.print("Function: {s}, Return Type: {s}\n", .{ func_node.funcName, new_type_string });
+            std.debug.print("Function: {s}, Return Type: {s}\n", .{ func_node.nameParam.name.name, new_type_string });
             for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
             std.debug.print("Body:\n", .{});
             printNode(&func_node.body.*, indent + 2);
@@ -692,8 +690,14 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             const new_type_string: []const u8 = std.mem.span(type_node.type_name);
             std.debug.print("Type: {s} (size: {d}, align: {d})\n", .{ new_type_string, type_node.size, type_node.alignment });
         },
-        .ConditionalExpressionNode => {
-            const cond_node = node.ConditionalExpressionNode;
+        .NameParameterNode => {
+
+        },
+        .ParameterList => {
+
+        },
+        .ConditionalExpression => {
+            const cond_node = node.ConditionalExpression;
             std.debug.print("Conditional Expression\n", .{});
             std.debug.print("Logical Operator: {s}\n", .{cond_node.logicalOperator});
             std.debug.print("Expression 1:\n", .{});
