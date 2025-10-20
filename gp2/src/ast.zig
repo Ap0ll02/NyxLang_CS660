@@ -600,7 +600,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // ===============
 // | Pointer     |
 // ===============
-pub fn make_pointer_node(pointee_type: *Node) ?*Node {
+export fn make_pointer_node(pointee_type: *Node) ?*Node {
     const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
 
     pointer_node.* = Pointer{ .pointee_type = pointee_type };
@@ -789,6 +789,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             printNode(cond.expr2, indent + 2);
         },
         .ExpressionStmt =>  {},
+        .Pointer => {
+            const p_node = node.Pointer;
+            std.debug.print("😈 Pointer:\n", .{}); 
+            printNode(p_node.pointee_type, indent+1);
+        },
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
         },
