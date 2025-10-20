@@ -30,7 +30,7 @@ struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct No
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 struct Node* make_function_node(struct Node* retType, struct Node* nameParameter, struct Node* body);
-struct Node* make_pointer_node(struct Node* pointee_type);
+struct Node* make_pointer_node(struct Node* pointee, struct Node* pointeeType);
 extern struct Node* root;
 %}
 
@@ -408,7 +408,7 @@ alignment_specifier
 	;
 
 declarator
-	: pointer direct_declarator { $$ = make_pointer_node($2); }
+	: pointer direct_declarator { $$ = make_pointer_node($1, $2); }
 	| direct_declarator
 	;
 
@@ -432,8 +432,8 @@ direct_declarator
 pointer
 	: '*' type_qualifier_list pointer
 	| '*' type_qualifier_list
-	| '*' pointer { $$ = make_pointer_node($2); }
-	| '*'
+	| '*' pointer { $$ = make_pointer_node($2, NULL); }
+	| '*' 
 	;
 
 type_qualifier_list

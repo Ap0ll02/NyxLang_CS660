@@ -95,7 +95,9 @@ pub const ExpressionStmtNode = struct {
 };
 
 pub const Pointer = struct {
-    pointee_type: *Node, // What it points to
+    pointee: *Node,
+    pointee_type: ?*Node, // What it points to
+
     // See if we could add depth later for multiple levels of pointers
 };
 
@@ -195,7 +197,7 @@ pub const Node = union(NodeTag) {
 // This can be expanded to include more type details as needed
 // We can add enums for type kinds (int, float, string, etc.)
 //=============
-//Functions   =
+//Functions   |
 //=============
 
 // Function to get type information based on token
@@ -600,11 +602,13 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // ===============
 // | Pointer     |
 // ===============
-pub fn make_pointer_node(pointee_type: *Node,) ?*Node {
+pub fn make_pointer_node(pointee: *Node, pointeeType: ?*Node) ?*Node {
     const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
 
-    pointer_node.* = Pointer{ .pointee_type = pointee_type };
-
+    pointer_node.* = Pointer{
+        .pointee = pointee,
+        .pointee_type = pointeeType,
+    };
     const node = std.heap.c_allocator.create(Node) catch return null;
 
     node.* = Node{ .Pointer = pointer_node };
@@ -623,7 +627,6 @@ pub fn printIndent(indent: usize) void {
     }
 }
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
-
     if (orig_node == null) {
         printIndent(indent);
         std.debug.print("Null\n", .{});
@@ -727,9 +730,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .WhileStmt => {
             const wh = node.WhileStmt;
-            if(wh.init) |_| {
+            if (wh.init) |_| {
                 std.debug.print("🔁 For Loop\n", .{});
-            } else { std.debug.print("🔁 While Loop\n", .{}); }
+            } else {
+                std.debug.print("🔁 While Loop\n", .{});
+            }
             printNode(wh.init, indent + 1);
             printNode(wh.cond, indent + 1);
             printNode(wh.body, indent + 1);
@@ -788,7 +793,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("↳ Expression 2:\n", .{});
             printNode(cond.expr2, indent + 2);
         },
-        .ExpressionStmt =>  {},
+        .ExpressionStmt => {},
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
         },
