@@ -664,6 +664,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .BlockItems => {
             const blk = node.BlockItems;
+            std.debug.print("Block: \n", .{});
             for (blk.items) |item| printNode(item, indent + 1);
         },
         .Binary => {
@@ -756,11 +757,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("↳ Expression 2:\n", .{});
             printNode(cond.expr2, indent + 2);
         },
-        .ExpressionStmt => {
-            const expr_stmt = node.ExpressionStmt;
-            std.debug.print("Expression Statement\n", .{});
-            if (expr_stmt.expr) |ep| printNode(ep, indent + 1);
-        },
+        .ExpressionStmt =>  {},
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
         },
