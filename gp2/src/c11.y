@@ -433,7 +433,7 @@ pointer
 	: '*' type_qualifier_list pointer
 	| '*' type_qualifier_list
 	| '*' pointer { $$ = make_pointer_node($2, NULL); }
-	| '*' 
+	| '*' { $$ = make_pointer_node(NULL, NULL); }
 	;
 
 type_qualifier_list
