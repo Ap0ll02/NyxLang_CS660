@@ -793,7 +793,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("↳ Expression 2:\n", .{});
             printNode(cond.expr2, indent + 2);
         },
-        .ExpressionStmt => {},
+        .ExpressionStmt =>  {},
+        .Pointer => {
+            const p_node = node.Pointer;
+            std.debug.print("😈 Pointer:\n", .{}); 
+            printNode(p_node.pointee_type, indent+1);
+        },
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
         },
