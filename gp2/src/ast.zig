@@ -200,28 +200,28 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
     switch (token) {
         c.GE_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = ">= ",
+                .logicalOperator = ">=",
                 .expr1 = expr1,
                 .expr2 = expr2,
             };
         },
         c.LE_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "<= ",
+                .logicalOperator = "<=",
                 .expr1 = expr1,
                 .expr2 = expr2,
             };
         },
         c.EQ_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "== ",
+                .logicalOperator = "==",
                 .expr1 = expr1,
                 .expr2 = expr2,
             };
         },
         c.NE_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "!= ",
+                .logicalOperator = "!=",
                 .expr1 = expr1,
                 .expr2 = expr2,
             };
@@ -587,168 +587,186 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
     return node;
 }
 
+pub fn printIndent(indent: usize) void {
+    for (0..indent) |_| {
+        std.debug.print("│  ", .{});
+    }
+}
+
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
-    // Print indentation
-    for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
+
     if (orig_node == null) {
+        printIndent(indent);
         std.debug.print("Null\n", .{});
         return;
     }
+
     const node = orig_node.?;
+
+    printIndent(indent);
     switch (node.*) {
         .Identifier => {
             const id_node = node.Identifier;
-            std.debug.print("\x1b[34mIdentifier\x1b[0m: {s}\n", .{id_node.name});
+            std.debug.print("🟦 Identifier: {s}\n", .{id_node.name});
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("\x1b[35mConstant\x1b[0m: {s}\n", .{ const_node.value});
+            std.debug.print("🟪 Constant: {s}\n", .{const_node.value});
         },
         .Declaration => {
             const decl_node = node.Declaration;
-            const new_type_string: []const u8 = std.mem.span(decl_node.typeNode.type_name);
-            std.debug.print("\x1b[36mDeclaration\x1b[0m, Type: {s}\n", .{new_type_string});
+            const type_str = std.mem.span(decl_node.typeNode.type_name);
+            std.debug.print("🌊 Declaration (Type: {s})\n", .{type_str});
+
             if (decl_node.assignNode) |asgn| {
-                for (0..indent + 2) |_| std.debug.print("⎯⎯ ", .{});
-                std.debug.print("\x1b[37mAssignment\x1b[0m:\n", .{});
+                printIndent(indent + 1);
+                std.debug.print("↳ Assignment:\n", .{});
                 printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
                 printNode(n, indent + 2);
             }
         },
         .Assignment => {
-            const asgn_node = node.Assignment;
-            std.debug.print("\x1b[37mAssignment\x1b[0m:\n", .{});
-            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("\x1b[38mDeclarator\x1b[0m:\n", .{});
-            printNode(asgn_node.declarator, indent + 1);
-            if (asgn_node.initializer) |init| {
-                for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-                std.debug.print("\x1b[39mInitializer\x1b[0m:\n", .{});
-                printNode(init, indent + 1);
+            const asgn = node.Assignment;
+            std.debug.print("⬜ Assignment\n", .{});
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Declarator:\n", .{});
+            printNode(asgn.declarator, indent + 2);
+
+            if (asgn.initializer) |init| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Initializer:\n", .{});
+                printNode(init, indent + 2);
             } else {
-                for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-                std.debug.print("No initializer\n", .{});
+                printIndent(indent + 1);
+                std.debug.print("(no initializer)\n", .{});
             }
         },
         .Function => {
-            const func_node = node.Function;
-            const new_type_string: []const u8 = std.mem.span(func_node.retType.type_name);
+            const func = node.Function;
+            const type_str = std.mem.span(func.retType.type_name);
 
-            std.debug.print("Function: {s}, Return Type: {s}\n",
-                .{ func_node.nameParam.name.name, new_type_string });
+            std.debug.print("🟩 Function: {s} (returns {s})\n", .{
+                func.nameParam.name.name, type_str,
+            });
 
-            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("Body:\n", .{});
+            printIndent(indent + 1);
+            std.debug.print("↳ Body:\n", .{});
 
-            // Defensive: check for valid items
-            if (func_node.body.items.len == 0) {
-                for (0..indent + 2) |_| std.debug.print("⎯⎯ ", .{});
+            if (func.body.items.len == 0) {
+                printIndent(indent + 2);
                 std.debug.print("(empty block)\n", .{});
                 return;
             }
 
-            // Iterate directly over the items array in BlockItemsNode
-            for (func_node.body.items) |item| {
-                printNode(item, indent + 2);
-            }
+            for (func.body.items) |item| printNode(item, indent + 2);
         },
         .BlockItems => {
-            const block_node = node.BlockItems;
-            for (block_node.items) |item| {
-                printNode(item, indent + 1);
-            }
+            const blk = node.BlockItems;
+            for (blk.items) |item| printNode(item, indent + 1);
         },
         .Binary => {
-            const bin_node = node.Binary;
-            std.debug.print("\x1b[39mBinary Op\x1b[0m: '{c}'\n", .{bin_node.op});
-            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("\x1b[31mLeft\x1b[0m:\n", .{});
-            printNode(bin_node.lhs, indent + 2);
-            for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("\x1b[31mRight\x1b[0m:\n", .{});
-            printNode(bin_node.rhs, indent + 2);
+            const bin = node.Binary;
+            std.debug.print("🔸 Binary Op: '{c}'\n", .{bin.op});
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Left:\n", .{});
+            printNode(bin.lhs, indent + 2);
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Right:\n", .{});
+            printNode(bin.rhs, indent + 2);
         },
         .Unary => {
-            const un_node = node.Unary;
-            std.debug.print("Unary Op: '{c}'\n", .{un_node.un_op});
-            printNode(un_node.val, indent + 1);
+            const un = node.Unary;
+            std.debug.print("🔹 Unary Op: '{c}'\n", .{un.un_op});
+            printNode(un.val, indent + 1);
         },
         .Comp => {
-            const comp_node = node.Comp;
-            std.debug.print("Comparison Node\n", .{});
-            printNode(comp_node.comp_op, indent + 1);
-            printNode(comp_node.val, indent + 1);
+            const cmp = node.Comp;
+            std.debug.print("⚖️ Comparison\n", .{});
+            printNode(cmp.comp_op, indent + 1);
+            printNode(cmp.val, indent + 1);
         },
         .Cast => {
-            const cast_node = node.Cast;
-            std.debug.print("Cast Node\n", .{});
-            printNode(cast_node.cast, indent + 1);
-            printNode(cast_node.val, indent + 1);
+            const cast = node.Cast;
+            std.debug.print("🌀 Cast\n", .{});
+            printNode(cast.cast, indent + 1);
+            printNode(cast.val, indent + 1);
         },
         .WhileStmt => {
-            const while_node = node.WhileStmt;
-            std.debug.print("While Loop\n", .{});
-            printNode(while_node.init, indent + 1);
-            printNode(while_node.cond, indent + 1);
-            printNode(while_node.body, indent + 1);
+            const wh = node.WhileStmt;
+            std.debug.print("🔁 While Loop\n", .{});
+            printNode(wh.init, indent + 1);
+            printNode(wh.cond, indent + 1);
+            printNode(wh.body, indent + 1);
         },
         .IfStmt => {
-            const if_node = node.IfStmt;
-            std.debug.print("If Statement\n", .{});
-            printNode(if_node.cond, indent + 1);
-            std.debug.print("Then:\n", .{});
-            printNode(if_node.if_branch, indent + 1);
-            if (if_node.el_branch) |else_branch| {
-                std.debug.print("Else:\n", .{});
-                printNode(else_branch, indent + 1);
+            const ifn = node.IfStmt;
+            std.debug.print("🧩 If Statement\n", .{});
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Condition:\n", .{});
+            printNode(ifn.cond, indent + 2);
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Then:\n", .{});
+            printNode(ifn.if_branch, indent);
+
+            if (ifn.el_branch) |elseb| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Else:\n", .{});
+                printNode(elseb, indent + 2);
             }
         },
         .ReturnStmt => {
-            const ret_node = node.ReturnStmt;
-            std.debug.print("Return Statement\n", .{});
-            if (ret_node.val) |val| printNode(val, indent + 1);
+            const ret = node.ReturnStmt;
+            std.debug.print("🔙 Return\n", .{});
+            if (ret.val) |v| printNode(v, indent + 1);
         },
-        .String => std.debug.print("String: {s}\n", .{node.String.raw_val}),
-        .Char => std.debug.print("Char: '{c}'\n", .{node.Char.char}),
+        .String => std.debug.print("\"{s}\"\n", .{node.String.raw_val}),
+        .Char => std.debug.print("'{c}'\n", .{node.Char.char}),
         .Int => std.debug.print("Int: {d}\n", .{node.Int.val}),
         .Float => std.debug.print("Float: {d}\n", .{node.Float.val}),
         .Type => {
-            const type_node = node.Type;
-            const new_type_string: []const u8 = std.mem.span(type_node.type_name);
-            std.debug.print("Type: {s} (size: {d}, align: {d})\n", .{ new_type_string, type_node.size, type_node.alignment });
+            const t = node.Type;
+            const s = std.mem.span(t.type_name);
+            std.debug.print("Type: {s} (size={d}, align={d})\n", .{
+                s, t.size, t.alignment,
+            });
         },
         .NameParameterNode => {
-            const npNode = node.NameParameterNode;
+            const np = node.NameParameterNode;
             std.debug.print("Parameters:\n", .{});
-            if (npNode.parameterList) |np| {
-                for (np.params) |item| {
-                    printNode(item, indent + 2);
-                }
+            if (np.parameterList) |plist| {
+                for (plist.params) |item| printNode(item, indent + 2);
             }
         },
-        .ParameterList => { 
-        },
         .ConditionalExpression => {
-            const cond_node = node.ConditionalExpression;
-            const new_type_string: []const u8 = std.mem.span(cond_node.logicalOperator);
-            std.debug.print("Conditional Expression\n", .{});
-            std.debug.print("Logical Operator: {s}\n", .{new_type_string});
-            std.debug.print("Expression 1:\n", .{});
-            printNode(cond_node.expr1, indent + 1);
-            std.debug.print("Expression 2:\n", .{});
-            printNode(cond_node.expr2, indent + 1);
+            const cond = node.ConditionalExpression;
+            const op = std.mem.span(cond.logicalOperator);
+            std.debug.print("❓ Conditional Expression ({s})\n", .{op});
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Expression 1:\n", .{});
+            printNode(cond.expr1, indent + 2);
+
+            printIndent(indent + 1);
+            std.debug.print("↳ Expression 2:\n", .{});
+            printNode(cond.expr2, indent + 2);
         },
         .ExpressionStmt => {
             const expr_stmt = node.ExpressionStmt;
-            std.debug.print("Expression Stmt:\n", .{});
-            if (expr_stmt.expr) |ep| {
-                printNode(ep, indent + 1);    
-            }
-            return;
+            std.debug.print("Expression Statement\n", .{});
+            if (expr_stmt.expr) |ep| printNode(ep, indent + 1);
+        },
+        else => |tag| {
+            std.debug.print("Unknown node type: {}\n", .{tag});
         },
     }
 }
+
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢾⣿⣷⣮⣛⠷⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣿⣿⡷⢦⡈⠑⢤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⡥⠖⠀⠈⠲⣄⠙⢦⣀⡠⠤⠤⠤⢄⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⠄
