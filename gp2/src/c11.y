@@ -30,7 +30,7 @@ struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct No
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 struct Node* make_function_node(struct Node* retType, struct Node* nameParameter, struct Node* body);
-struct Node* make_pointer_node(pointee_type: *Node);
+struct Node* make_pointer_node(struct Node* pointee_type);
 extern struct Node* root;
 %}
 
