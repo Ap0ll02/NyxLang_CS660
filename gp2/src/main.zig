@@ -16,7 +16,7 @@ pub fn main() !void {
     } else {
         std.debug.print("Completed, but NULL.", .{});
     }
-    std.debug.print("?: {any}", .{result});
+    std.debug.print("\nValid C?: {s}\n", .{if(result == 1) "No" else "Yes"});
 }
 
 export fn yyerror(msg: [*c]const u8) void {
