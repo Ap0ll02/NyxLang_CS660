@@ -469,19 +469,19 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
     switch (node.*) {
         .Identifier => {
             const id_node = node.Identifier;
-            std.debug.print("Identifier: {s}\n", .{id_node.name});
+            std.debug.print("\x1b[34mIdentifier\x1b[0m: {s}\n", .{id_node.name});
         },
         .Constant => {
             const const_node = node.Constant;
-            std.debug.print("Constant: {s}\n", .{ const_node.value});
+            std.debug.print("\x1b[35mConstant\x1b[0m: {s}\n", .{ const_node.value});
         },
         .Declaration => {
             const decl_node = node.Declaration;
             const new_type_string: []const u8 = std.mem.span(decl_node.typeNode.type_name);
-            std.debug.print("Declaration, Type: {s}\n", .{new_type_string});
+            std.debug.print("\x1b[36mDeclaration\x1b[0m, Type: {s}\n", .{new_type_string});
             if (decl_node.assignNode) |asgn| {
                 for (0..indent + 2) |_| std.debug.print("⎯⎯ ", .{});
-                std.debug.print("Assignment:\n", .{});
+                std.debug.print("\x1b[37mAssignment\x1b[0m:\n", .{});
                 printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
                 printNode(n, indent + 2);
@@ -489,13 +489,13 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Assignment => {
             const asgn_node = node.Assignment;
-            std.debug.print("Assignment:\n", .{});
+            std.debug.print("\x1b[37mAssignment\x1b[0m:\n", .{});
             for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("Declarator:\n", .{});
+            std.debug.print("\x1b[38mDeclarator\x1b[0m:\n", .{});
             printNode(asgn_node.declarator, indent + 1);
             if (asgn_node.initializer) |init| {
                 for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-                std.debug.print("Initializer:\n", .{});
+                std.debug.print("\x1b[39mInitializer\x1b[0m:\n", .{});
                 printNode(init, indent + 1);
             } else {
                 for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
@@ -519,12 +519,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Binary => {
             const bin_node = node.Binary;
-            std.debug.print("Binary Op: '{c}'\n", .{bin_node.op});
+            std.debug.print("\x1b[39mBinary Op\x1b[0m: '{c}'\n", .{bin_node.op});
             for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("Left:\n", .{});
+            std.debug.print("\x1b[31mLeft\x1b[0m:\n", .{});
             printNode(bin_node.lhs, indent + 2);
             for (0..indent + 1) |_| std.debug.print("⎯⎯ ", .{});
-            std.debug.print("Right:\n", .{});
+            std.debug.print("\x1b[31mRight\x1b[0m:\n", .{});
             printNode(bin_node.rhs, indent + 2);
         },
         .Unary => {
