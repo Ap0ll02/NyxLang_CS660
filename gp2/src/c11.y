@@ -202,12 +202,12 @@ inclusive_or_expression
 
 logical_and_expression
 	: inclusive_or_expression
-	| logical_and_expression AND_OP inclusive_or_expression { $$ = make_conditional_expression_node($1, $2, $3);}
+	| logical_and_expression AND_OP inclusive_or_expression { $$ = make_conditional_expression_node($1, AND_OP, $3);}
 	;
 
 logical_or_expression
 	: logical_and_expression
-	| logical_or_expression OR_OP logical_and_expression { $$ = make_conditional_expression_node($1, $2, $3);}
+	| logical_or_expression OR_OP logical_and_expression { $$ = make_conditional_expression_node($1, OR_OP, $3);}
 	;
 
 conditional_expression
