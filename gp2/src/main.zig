@@ -5,21 +5,23 @@ const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 
 extern fn yyparse() c_int;
+extern fn yylex() c_int;
 export var root: ?*ast.Node = null;
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    if (args.len < 2) {
-        std.debug.print("Usage: {s} <filename>\n", .{args[0]});
+    if (args.len < 1) {
+        std.debug.print("Usage: {s} <filename>. Found {d} args\n", .{args[0], args.len});
         return;
     }
-    const filename = args[1];
+    const filename = args[0];
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
     const contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(contents);
+    const buf = yylex(contents);
     const result = parse.yyparse();
     std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
