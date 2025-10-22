@@ -4,8 +4,8 @@ const parse = @cImport(@cInclude("c11.tab.h"));
 const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 
+extern fn yy_scan_string([*c]const u8) c_int;
 extern fn yyparse() c_int;
-extern fn yylex() c_int;
 export var root: ?*ast.Node = null;
 
 pub fn main() !void {
@@ -21,8 +21,10 @@ pub fn main() !void {
     defer file.close();
     const contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(contents);
-    const buf = yylex(contents);
+    const buf = yy_scan_string(contents);
+
     const result = parse.yyparse();
+
     std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
         ast.printNode(r, 0);
