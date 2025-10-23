@@ -4,7 +4,9 @@ const parse = @cImport(@cInclude("c11.tab.h"));
 const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 
-extern fn yy_scan_string([*c]const u8) c_int;
+pub const YY_BUFFER_STATE = *opaque {};
+extern fn yylex() c_int;   // from your lexer
+extern fn yy_scan_bytes(bytes: [*c]const u8, len: c_int) YY_BUFFER_STATE;
 extern fn yyparse() c_int;
 export var root: ?*ast.Node = null;
 
@@ -12,18 +14,26 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    if (args.len < 1) {
+
+    if (args.len < 2) {
         std.debug.print("Usage: {s} <filename>. Found {d} args\n", .{args[0], args.len});
         return;
     }
-    const filename = args[0];
+    const cwd = try std.fs.cwd().realpathAlloc(allocator, ".");
+    std.debug.print("CWD: {s}\n", .{cwd});
+    defer allocator.free(cwd);
+    const filename = args[1];
+    std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
+
     const contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(contents);
-    const buf = yy_scan_string(contents);
 
-    const result = parse.yyparse();
+    const length: c_int = @intCast(contents.len);
+    _ = yy_scan_bytes(contents.ptr, length);
+
+    const result = yyparse();
 
     std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
