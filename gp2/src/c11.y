@@ -30,7 +30,10 @@ struct Node* make_iteration_stmt(struct Node* cond, struct Node* body, struct No
 struct Node* append_parameter_list(struct Node* item, struct Node* items);
 struct Node* make_name_parameter_node(struct Node* identifier, struct Node* parameterList);
 struct Node* make_function_node(struct Node* retType, struct Node* nameParameter, struct Node* body);
-struct Node* make_pointer_node(struct Node* pointee, struct Node* pointeeType);
+struct Node* make_pointer_node(struct Node* pointee);
+struct Node* make_idpointer_node(struct Node* pointer, struct Node* id);
+struct Node* make_function_call_node(struct Node* name, struct Node* args);
+struct Node* append_argument_list(struct Node* item, struct Node* items);
 extern struct Node* root;
 %}
 
@@ -74,7 +77,7 @@ extern struct Node* root;
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
-%type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer
+%type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
 %type <id> string
 %%
 primary_expression
@@ -117,8 +120,8 @@ generic_association
 postfix_expression
 	: primary_expression 
 	| postfix_expression '[' expression ']'
-	| postfix_expression '(' ')'
-	| postfix_expression '(' argument_expression_list ')'
+	| postfix_expression '(' ')' { $$ = make_function_call_node($1, NULL); }
+	| postfix_expression '(' argument_expression_list ')' { $$ = make_function_call_node($1, $3); }
 	| postfix_expression '.' IDENTIFIER
 	| postfix_expression PTR_OP IDENTIFIER
 	| postfix_expression INC_OP
@@ -128,8 +131,8 @@ postfix_expression
 	;
 
 argument_expression_list
-	: assignment_expression
-	| argument_expression_list ',' assignment_expression
+	: assignment_expression { $$ = append_argument_list($1, NULL); }
+	| argument_expression_list ',' assignment_expression { $$ = append_argument_list($3, $1); }
 	;
 
 unary_expression
@@ -408,7 +411,7 @@ alignment_specifier
 	;
 
 declarator
-	: pointer direct_declarator { $$ = make_pointer_node($1, $2); }
+	: pointer direct_declarator { $$ = make_idpointer_node($1, $2); }
 	| direct_declarator
 	;
 
@@ -432,8 +435,8 @@ direct_declarator
 pointer
 	: '*' type_qualifier_list pointer
 	| '*' type_qualifier_list
-	| '*' pointer { $$ = make_pointer_node($2, NULL); }
-	| '*' { $$ = make_pointer_node(NULL, NULL); }
+	| '*' pointer { $$ = make_pointer_node($2); }
+	| '*' { $$ = make_pointer_node(NULL); }
 	;
 
 type_qualifier_list
