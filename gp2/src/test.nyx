@@ -1,3 +1,9 @@
+int hello(int x) {
+    int;
+}
+
 int main() {
-    int x = 0;
+    int *x = 0;
+    int ***cat;
+    hello(x);
 }
