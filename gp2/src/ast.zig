@@ -27,6 +27,13 @@ pub const FunctionNode = struct {
     nameParam: *NameParameterNode,
     body: *BlockItemsNode,
 };
+pub const FunctionCallNode = struct {
+    name: *Node,
+    args: ?*Node,
+};
+pub const ArgumentListNode = struct {
+    args: []*Node,
+};
 pub const ParameterListNode = struct {
     params: []*Node, // a list of parameter nodes
 };
@@ -94,11 +101,13 @@ pub const ExpressionStmtNode = struct {
     expr: ?*Node,
 };
 
-pub const Pointer = struct {
+pub const PointerNode = struct {
     pointee: ?*Node,
-    pointee_type: ?*Node, // What it points to
+};
 
-    // See if we could add depth later for multiple levels of pointers
+pub const IdPointerNode = struct {
+    pointer: *Node,
+    identifier: *Node
 };
 
 // This is the main AST node type
@@ -113,6 +122,8 @@ pub const NodeTag = enum {
     // Unlabeled
     // Functions
     Function,
+    FunctionCall,
+    ArgumentList,
     ParameterList,
     NameParameterNode,
     // Blocks
@@ -148,6 +159,7 @@ pub const NodeTag = enum {
 
     // Pointers
     Pointer,
+    IdPointer,
 };
 
 pub const Node = union(NodeTag) {
@@ -157,6 +169,8 @@ pub const Node = union(NodeTag) {
 
     // Blocks and Function
     Function: *FunctionNode,
+    FunctionCall: *FunctionCallNode,
+    ArgumentList: *ArgumentListNode,
     ParameterList: *ParameterListNode,
     NameParameterNode: *NameParameterNode,
     BlockItems: *BlockItemsNode,
@@ -190,7 +204,8 @@ pub const Node = union(NodeTag) {
     ExpressionStmt: *ExpressionStmtNode,
 
     // Pointers
-    Pointer: *Pointer,
+    Pointer: *PointerNode,
+    IdPointer: *IdPointerNode,
 };
 
 // Type information structure
@@ -274,6 +289,9 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
     switch (token) {
         c.FLOAT => {
             type_node_ptr.* = TypeNode{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
+        },
+        c.UNSIGNED => {
+            type_node_ptr.* = TypeNode { .type_name = "Unsigned Int", .size = @sizeOf(u64), .alignment = @alignOf(u64)};
         },
         c.INT => {
             type_node_ptr.* = TypeNode{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
@@ -541,6 +559,52 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
 
     return node;
 }
+export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
+    if (items == null) {
+        const arg_list_node = std.heap.c_allocator.create(ArgumentListNode) catch return null;
+
+        const new_args = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_args[0] = item;
+
+        // Set the params field
+        arg_list_node.* = ArgumentListNode{ .args = new_args };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .ArgumentList = arg_list_node };
+        return node;
+    } else {
+        const items_block = items.?.ArgumentList;
+
+        const new_len = items_block.args.len + 1;
+        const new_args = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+
+        // Copy existing items
+        @memcpy(new_args[0..items_block.args.len], items_block.args);
+        new_args[items_block.args.len] = item;
+
+        // Create a new BlockItemsNode with the updated items
+        const args_list_node = std.heap.c_allocator.create(ArgumentListNode) catch return null;
+        args_list_node.* = ArgumentListNode{ .args = new_args };
+        // Wrap the items block in node and return
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .ArgumentList = args_list_node };
+        return node;
+    }
+}
+
+export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
+    const fc_node = std.heap.c_allocator.create(FunctionCallNode) catch return null;
+
+    fc_node.* = FunctionCallNode {
+        .name = name,
+        .args = args,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{.FunctionCall = fc_node};
+
+    return node;
+}
 
 // =================
 // | Stmt Creators |
@@ -602,17 +666,30 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // ===============
 // | Pointer     |
 // ===============
-export fn make_pointer_node(pointee: ?*Node, pointeeType: ?*Node) ?*Node {
-    const pointer_node = std.heap.c_allocator.create(Pointer) catch return null;
+export fn make_pointer_node(pointee: ?*Node) ?*Node {
+    const pointer_node = std.heap.c_allocator.create(PointerNode) catch return null;
 
-    pointer_node.* = Pointer{
+    pointer_node.* = PointerNode {
         .pointee = pointee,
-        .pointee_type = pointeeType,
     };
+
     const node = std.heap.c_allocator.create(Node) catch return null;
 
     node.* = Node{ .Pointer = pointer_node };
 
+    const n: *Node = @ptrCast(node);
+    return n;
+}
+
+export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
+    const pointer_node = std.heap.c_allocator.create(IdPointerNode) catch return null;
+    pointer_node.* = IdPointerNode {
+        .pointer = pointer,
+        .identifier = id,
+    };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .IdPointer = pointer_node };
     const n: *Node = @ptrCast(node);
     return n;
 }
@@ -629,7 +706,7 @@ pub fn printIndent(indent: usize) void {
 pub fn printNode(orig_node: ?*Node, indent: usize) void {
     if (orig_node == null) {
         printIndent(indent);
-        std.debug.print("Null\n", .{});
+        std.debug.print("Null/Uninitialized\n", .{});
         return;
     }
 
@@ -655,7 +732,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
                 std.debug.print("↳ Assignment:\n", .{});
                 printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
-                printNode(n, indent + 2);
+                printNode(n, indent);
             }
         },
         .Assignment => {
@@ -664,12 +741,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
             printIndent(indent + 1);
             std.debug.print("↳ Declarator:\n", .{});
-            printNode(asgn.declarator, indent + 2);
+            printNode(asgn.declarator, indent + 1);
 
             if (asgn.initializer) |init| {
                 printIndent(indent + 1);
                 std.debug.print("↳ Initializer:\n", .{});
-                printNode(init, indent + 2);
+                printNode(init, indent + 1);
             } else {
                 printIndent(indent + 1);
                 std.debug.print("(no initializer)\n", .{});
@@ -687,12 +764,22 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("↳ Body:\n", .{});
 
             if (func.body.items.len == 0) {
-                printIndent(indent + 2);
+                printIndent(indent + 1);
                 std.debug.print("(empty block)\n", .{});
                 return;
             }
 
-            for (func.body.items) |item| printNode(item, indent + 2);
+            for (func.body.items) |item| printNode(item, indent + 1);
+        },
+        .FunctionCall => {
+            std.debug.print("WE FOUND FUNCTION CALL\n", .{});
+            const fc = node.FunctionCall;
+            printNode(fc.name, indent);
+            if (fc.args) |args| {
+                for (args.ArgumentList.args) |arg| {
+                    printNode(arg, indent);
+                }
+            }
         },
         .BlockItems => {
             const blk = node.BlockItems;
@@ -794,20 +881,20 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             printNode(cond.expr2, indent + 2);
         },
         .ExpressionStmt =>  {},
+        .IdPointer => {
+            printNode(node.IdPointer.pointer, indent+1);
+            printNode(node.IdPointer.identifier, indent+2);
+        },
         .Pointer => {
             const p_node = node.Pointer;
             std.debug.print("😈 Pointer:\n", .{}); 
-            if (p_node.pointee_type) |p| {
-                printNode(p, indent+1);
-            } else {
-                printIndent(indent);
-                std.debug.print("It's just a pointer to a pointer\n", .{});
-            }
             if (p_node.pointee) |p| {
-                printNode(p, indent+1);
-            } else {
-                printIndent(indent);
+                printIndent(indent+2);
                 std.debug.print("It's just a pointer to a pointer\n", .{});
+                printNode(p, indent + 1);
+            } else {
+                printIndent(indent+1);
+                std.debug.print("Base\n", .{});
             }
         },
         else => |tag| {
