@@ -85,7 +85,6 @@ pub const TypeNode = extern struct {
     size: usize,
     alignment: usize,
 };
-
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
     initializer: ?*Node, // i.e. 5 in int x = 5;
@@ -423,6 +422,15 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const n: *Node = @ptrCast(node);
     return n;
 }
+export fn make_string_node(raw_val: [*c]const u8) ?*Node {
+    const string_node = std.heap.c_allocator.create(StringNode) catch return null;
+    const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(raw_val)) catch return null;
+    string_node.* = StringNode {.raw_val = val_copy};
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node {.String = string_node};
+    return node;
+}
 
 // =================
 // | Stmt Creators |
@@ -541,6 +549,16 @@ export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .NameParameterNode = name_param_node };
+
+    return node;
+}
+
+export fn make_return_node(ret_val: ?*Node) ?*Node {
+    const ret_node = std.heap.c_allocator.create(ReturnNode) catch return null;
+    ret_node.* = ReturnNode{ .val = ret_val };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node { .ReturnStmt = ret_node };
 
     return node;
 }
@@ -772,19 +790,26 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             for (func.body.items) |item| printNode(item, indent + 1);
         },
         .FunctionCall => {
-            std.debug.print("WE FOUND FUNCTION CALL\n", .{});
+            std.debug.print("📞 Function Call\n", .{});
             const fc = node.FunctionCall;
-            printNode(fc.name, indent);
+            printNode(fc.name, indent + 1);
             if (fc.args) |args| {
-                for (args.ArgumentList.args) |arg| {
-                    printNode(arg, indent);
-                }
+                printIndent(indent + 2);
+                std.debug.print("↳ 📋 Argument List\n", .{});
+                printNode(args, indent + 1);
+            }
+        },
+        .ArgumentList => {
+            const args = node.ArgumentList;
+            for (args.args) |arg| {
+                // std.debug.print("Argument DEBUG: {any}\n", .{arg});
+                printNode(arg, indent + 1);
             }
         },
         .BlockItems => {
             const blk = node.BlockItems;
             std.debug.print("Block: \n", .{});
-            for (blk.items) |item| printNode(item, indent + 1);
+            for (blk.items) |item| printNode(item, indent);
         },
         .Binary => {
             const bin = node.Binary;
@@ -849,7 +874,10 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("🔙 Return\n", .{});
             if (ret.val) |v| printNode(v, indent + 1);
         },
-        .String => std.debug.print("\"{s}\"\n", .{node.String.raw_val}),
+        .String => {
+            const str = node.String;
+            std.debug.print("{s}\n", .{str.raw_val});
+        },
         .Char => std.debug.print("'{c}'\n", .{node.Char.char}),
         .Int => std.debug.print("Int: {d}\n", .{node.Int.val}),
         .Float => std.debug.print("Float: {d}\n", .{node.Float.val}),
@@ -880,7 +908,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("↳ Expression 2:\n", .{});
             printNode(cond.expr2, indent + 2);
         },
-        .ExpressionStmt =>  {},
+        .ExpressionStmt =>  {
+            if(node.ExpressionStmt.expr) |expr| {
+                printNode(expr, indent);
+            }
+        },
         .IdPointer => {
             printNode(node.IdPointer.pointer, indent+1);
             printNode(node.IdPointer.identifier, indent+2);
