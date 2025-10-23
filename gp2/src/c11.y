@@ -34,6 +34,8 @@ struct Node* make_pointer_node(struct Node* pointee);
 struct Node* make_idpointer_node(struct Node* pointer, struct Node* id);
 struct Node* make_function_call_node(struct Node* name, struct Node* args);
 struct Node* append_argument_list(struct Node* item, struct Node* items);
+struct Node* make_string_node(const char* s);
+struct Node* make_return_node(struct Node* ret_val);
 extern struct Node* root;
 %}
 
@@ -82,8 +84,8 @@ extern struct Node* root;
 %%
 primary_expression
 	: IDENTIFIER { $$ = make_identifier_node($1); }
-	| constant { $$ = $1; }
-	| string { $$ = make_identifier_node($1); }
+	| constant
+	| string
 	| '(' expression ')' { $$ = $2; }
 	| generic_selection 
 	;
@@ -99,8 +101,8 @@ enumeration_constant		/* before it has been defined as such */
 	;
 
 string
-	: STRING_LITERAL { zig_error(); }
-	| FUNC_NAME { zig_error(); }
+	: STRING_LITERAL { $$ = make_string_node($1); }
+	| FUNC_NAME { $$ = make_string_node($1); }
 	;
 
 generic_selection
@@ -594,8 +596,8 @@ jump_statement
 	: GOTO IDENTIFIER ';'
 	| CONTINUE ';'
 	| BREAK ';'
-	| RETURN ';'
-	| RETURN expression ';'
+	| RETURN ';' { $$ = make_return_node(NULL); }
+	| RETURN expression ';' { $$ = make_return_node($2); }
 	;
 
 translation_unit
