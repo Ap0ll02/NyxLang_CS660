@@ -85,7 +85,22 @@ pub const IntNode = struct {
 };
 pub const FloatNode = struct { val: f32 };
 // and additional fields for complex types (arrays, structs, etc.) in the future
+pub const BaseType = enum {
+    INT,
+    FLOAT,
+    STRING,
+    CHAR,
+    LONG,
+    SHORT,
+    DOUBLE,
+    BOOL,
+    VOID
+};
 pub const TypeNode = extern struct {
+    is_unsigned: bool,
+    is_const: bool,
+    qualifier: usize, // 0 none, 1 long, 2 long long
+    base: BaseType,
     type_name: [*c]const u8,
     size: usize,
     alignment: usize,
@@ -285,25 +300,45 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
 
     return node;
 }
-
+export fn make_type_const(type_node: ?*Node) ?*Node {
+    if (type_node) |tn| {
+        tn.Type.is_const = true;
+    }
+    return type_node;
+}
+export fn make_type_unsigned(type_node: ?*Node) ?*Node {
+    if (type_node) |tn| {
+        tn.Type.is_unsigned = true;
+    }
+    return type_node;
+}
+export fn make_type_long(type_node: ?*Node) ?*Node {
+    if (type_node) |tn| {
+        tn.Type.qualifier += 1;
+    }
+    return type_node;
+}
 export fn make_type_node(token: c.yytokentype) ?*Node {
     const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
     std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.FLOAT => {
-            type_node_ptr.* = TypeNode{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
+            type_node_ptr.* = TypeNode{ .base = .FLOAT, .type_name = "float", .size = @sizeOf(f32), .alignment = @alignOf(f32), .is_unsigned = false, .qualifier = 0, .is_const = false };
         },
-        c.UNSIGNED => {
-            type_node_ptr.* = TypeNode{ .type_name = "Unsigned Int", .size = @sizeOf(u64), .alignment = @alignOf(u64) };
+        c.DOUBLE => {
+            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = "double", .size = @sizeOf(f64), .alignment = @alignOf(f64), .is_unsigned = false, .qualifier = 0, .is_const = false };
         },
         c.INT => {
-            type_node_ptr.* = TypeNode{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
+            type_node_ptr.* = TypeNode{ .type_name = "int", .size = @sizeOf(i32), .alignment = @alignOf(i32), .is_unsigned = false, .qualifier = 0, .is_const = false };
+        },
+        c.LONG => {
+            type_node_ptr.* = TypeNode{ .base = .LONG, .type_name = "long", .size = @sizeOf(i32), .alignment = @alignOf(i32), .is_unsigned = false, .qualifier = 0, .is_const = false };
         },
         c.STRING_LITERAL => {
-            type_node_ptr.* = TypeNode{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8) };
+            type_node_ptr.* = TypeNode{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8), .is_unsigned = false, .qualifier = 0, .is_const = false };
         },
         else => {
-            type_node_ptr.* = TypeNode{ .type_name = "unknown", .size = 0, .alignment = 0 };
+            type_node_ptr.* = TypeNode{ .type_name = "unknown", .size = 0, .alignment = 0, .is_unsigned = false, .qualifier = 0, .is_const = false };
         },
     }
 
