@@ -49,6 +49,11 @@ pub const BinaryNode = struct {
     rhs: *Node,
 };
 pub const UnaryNode = struct { un_op: u8, val: *Node };
+// Should combind this with UnaryNode and just make them both strings at one point
+pub const PostFixNode = struct {
+    post_op: []const u8,
+    val: *Node,
+};
 pub const LogicNode = struct {
     log_op: *Node,
     val: *Node,
@@ -104,10 +109,7 @@ pub const PointerNode = struct {
     pointee: ?*Node,
 };
 
-pub const IdPointerNode = struct {
-    pointer: *Node,
-    identifier: *Node
-};
+pub const IdPointerNode = struct { pointer: *Node, identifier: *Node };
 
 // This is the main AST node type
 // It is a tagged union of all possible node types
@@ -131,6 +133,7 @@ pub const NodeTag = enum {
     // Mathematical: Arith, Logic, Comp, Cast
     Binary,
     Unary,
+    PostFix,
     ConditionalExpression,
     Comp,
     Cast,
@@ -177,6 +180,7 @@ pub const Node = union(NodeTag) {
     // Arithmetic and Cast
     Binary: *BinaryNode,
     Unary: *UnaryNode,
+    PostFix: *PostFixNode,
     ConditionalExpression: *ConditionalExpressionNode,
     Comp: *CompNode,
     Cast: *CastNode,
@@ -290,7 +294,7 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
             type_node_ptr.* = TypeNode{ .type_name = "float", .size = @sizeOf(f64), .alignment = @alignOf(f64) };
         },
         c.UNSIGNED => {
-            type_node_ptr.* = TypeNode { .type_name = "Unsigned Int", .size = @sizeOf(u64), .alignment = @alignOf(u64)};
+            type_node_ptr.* = TypeNode{ .type_name = "Unsigned Int", .size = @sizeOf(u64), .alignment = @alignOf(u64) };
         },
         c.INT => {
             type_node_ptr.* = TypeNode{ .type_name = "int", .size = @sizeOf(i64), .alignment = @alignOf(i64) };
@@ -410,6 +414,36 @@ export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
     return n;
 }
 
+export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
+    const postfix_node = std.heap.c_allocator.create(PostFixNode) catch return null;
+
+    switch (token) {
+        c.INC_OP => {
+            postfix_node.* = PostFixNode{
+                .post_op = "++",
+                .val = val,
+            };
+        },
+        c.DEC_OP => {
+            postfix_node.* = PostFixNode{
+                .post_op = "--",
+                .val = val,
+            };
+        },
+        else => {
+            postfix_node.* = PostFixNode{
+                .post_op = "Error_Unknown_Op",
+                .val = val,
+            };
+        },
+    }
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .PostFix = postfix_node };
+    const n: *Node = @ptrCast(node);
+    return n;
+}
+
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
 
@@ -425,10 +459,10 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 export fn make_string_node(raw_val: [*c]const u8) ?*Node {
     const string_node = std.heap.c_allocator.create(StringNode) catch return null;
     const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(raw_val)) catch return null;
-    string_node.* = StringNode {.raw_val = val_copy};
+    string_node.* = StringNode{ .raw_val = val_copy };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node {.String = string_node};
+    node.* = Node{ .String = string_node };
     return node;
 }
 
@@ -558,7 +592,7 @@ export fn make_return_node(ret_val: ?*Node) ?*Node {
     ret_node.* = ReturnNode{ .val = ret_val };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node { .ReturnStmt = ret_node };
+    node.* = Node{ .ReturnStmt = ret_node };
 
     return node;
 }
@@ -613,13 +647,13 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
 export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
     const fc_node = std.heap.c_allocator.create(FunctionCallNode) catch return null;
 
-    fc_node.* = FunctionCallNode {
+    fc_node.* = FunctionCallNode{
         .name = name,
         .args = args,
     };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node{.FunctionCall = fc_node};
+    node.* = Node{ .FunctionCall = fc_node };
 
     return node;
 }
@@ -687,7 +721,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 export fn make_pointer_node(pointee: ?*Node) ?*Node {
     const pointer_node = std.heap.c_allocator.create(PointerNode) catch return null;
 
-    pointer_node.* = PointerNode {
+    pointer_node.* = PointerNode{
         .pointee = pointee,
     };
 
@@ -701,7 +735,7 @@ export fn make_pointer_node(pointee: ?*Node) ?*Node {
 
 export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
     const pointer_node = std.heap.c_allocator.create(IdPointerNode) catch return null;
-    pointer_node.* = IdPointerNode {
+    pointer_node.* = IdPointerNode{
         .pointer = pointer,
         .identifier = id,
     };
@@ -828,6 +862,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("🔹 Unary Op: '{c}'\n", .{un.un_op});
             printNode(un.val, indent + 1);
         },
+        .PostFix => {
+            const pf = node.PostFix;
+            std.debug.print("🔻 Postfix Op: {s}\n", .{pf.post_op});
+            printNode(pf.val, indent + 1);
+        },
         .Comp => {
             const cmp = node.Comp;
             std.debug.print("⚖️ Comparison\n", .{});
@@ -908,24 +947,24 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             std.debug.print("↳ Expression 2:\n", .{});
             printNode(cond.expr2, indent + 2);
         },
-        .ExpressionStmt =>  {
-            if(node.ExpressionStmt.expr) |expr| {
+        .ExpressionStmt => {
+            if (node.ExpressionStmt.expr) |expr| {
                 printNode(expr, indent);
             }
         },
         .IdPointer => {
-            printNode(node.IdPointer.pointer, indent+1);
-            printNode(node.IdPointer.identifier, indent+2);
+            printNode(node.IdPointer.pointer, indent + 1);
+            printNode(node.IdPointer.identifier, indent + 2);
         },
         .Pointer => {
             const p_node = node.Pointer;
-            std.debug.print("😈 Pointer:\n", .{}); 
+            std.debug.print("😈 Pointer:\n", .{});
             if (p_node.pointee) |p| {
-                printIndent(indent+2);
+                printIndent(indent + 2);
                 std.debug.print("It's just a pointer to a pointer\n", .{});
                 printNode(p, indent + 1);
             } else {
-                printIndent(indent+1);
+                printIndent(indent + 1);
                 std.debug.print("Base\n", .{});
             }
         },

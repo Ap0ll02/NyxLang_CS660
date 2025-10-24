@@ -5,7 +5,7 @@ const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 
 pub const YY_BUFFER_STATE = *opaque {};
-extern fn yylex() c_int;   // from your lexer
+extern fn yylex() c_int; // from your lexer
 extern fn yy_scan_bytes(bytes: [*c]const u8, len: c_int) YY_BUFFER_STATE;
 extern fn yyparse() c_int;
 export var root: ?*ast.Node = null;
@@ -16,7 +16,7 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, args);
 
     if (args.len < 2) {
-        std.debug.print("Usage: {s} <filename>. Found {d} args\n", .{args[0], args.len});
+        std.debug.print("Usage: {s} <filename>. Found {d} args\n", .{ args[0], args.len });
         return;
     }
     const cwd = try std.fs.cwd().realpathAlloc(allocator, ".");
