@@ -37,6 +37,7 @@ struct Node* append_argument_list(struct Node* item, struct Node* items);
 struct Node* make_string_node(const char* s);
 struct Node* make_return_node(struct Node* ret_val);
 struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
+struct Node* combine_type_node(struct Node* left, struct Node* right);
 extern struct Node* root;
 %}
 
@@ -292,7 +293,7 @@ storage_class_specifier
 	;
 
 type_specifier_list
-    : type_specifier_list type_specifier
+    : type_specifier_list type_specifier { $$ = combine_type_node($1, $2); }
     | type_specifier
     ;
 
