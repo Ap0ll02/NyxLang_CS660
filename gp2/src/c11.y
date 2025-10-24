@@ -75,7 +75,7 @@ extern struct Node* root;
 %token <boolval> BOOL
 // %token <charval> '*' '/' '%' '+' '-' '<' '>' '&' '^' '|' '~' '!' '=' ';' ',' ':' '?' '(' ')' '{' '}' '[' ']'
 %token <intval> LE_OP GE_OP EQ_OP NE_OP AND_OP OR_OP LEFT_OP RIGHT_OP
-%type <node> primary_expression expression generic_selection type_specifier declaration_specifiers declaration translation_unit external_declaration enumeration_constant
+%type <node> primary_expression expression generic_selection type_specifier type_specifier_list declaration_specifiers declaration translation_unit external_declaration enumeration_constant
 %type <node> constant init_declarator init_declarator_list direct_declarator declarator initializer initializer_list assignment_expression conditional_expression 
 %type <node> unary_expression postfix_expression cast_expression logical_or_expression logical_and_expression exclusive_or_expression inclusive_or_expression and_expression
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
@@ -262,8 +262,8 @@ declaration
 declaration_specifiers
 	: storage_class_specifier declaration_specifiers { zig_error(); }
 	| storage_class_specifier { zig_error(); }
-	| type_specifier declaration_specifiers
-	| type_specifier 
+	| type_specifier_list declaration_specifiers
+	| type_specifier_list
 	| type_qualifier declaration_specifiers { zig_error(); }
 	| type_qualifier { zig_error(); }
 	| function_specifier declaration_specifiers { zig_error(); }
@@ -290,6 +290,11 @@ storage_class_specifier
 	| AUTO
 	| REGISTER
 	;
+
+type_specifier_list
+    : type_specifier_list type_specifier
+    | type_specifier
+    ;
 
 type_specifier
 	: VOID { 
