@@ -36,6 +36,7 @@ struct Node* make_function_call_node(struct Node* name, struct Node* args);
 struct Node* append_argument_list(struct Node* item, struct Node* items);
 struct Node* make_string_node(const char* s);
 struct Node* make_return_node(struct Node* ret_val);
+struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
 extern struct Node* root;
 %}
 
@@ -126,8 +127,8 @@ postfix_expression
 	| postfix_expression '(' argument_expression_list ')' { $$ = make_function_call_node($1, $3); }
 	| postfix_expression '.' IDENTIFIER
 	| postfix_expression PTR_OP IDENTIFIER
-	| postfix_expression INC_OP
-	| postfix_expression DEC_OP
+	| postfix_expression INC_OP { $$ = make_post_fix_node($1, INC_OP); }
+	| postfix_expression DEC_OP	{ $$ = make_post_fix_node($1, DEC_OP); }  
 	| '(' type_name ')' '{' initializer_list '}'
 	| '(' type_name ')' '{' initializer_list ',' '}'
 	;
