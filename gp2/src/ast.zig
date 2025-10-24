@@ -85,7 +85,7 @@ pub const IntNode = struct {
 };
 pub const FloatNode = struct { val: f32 };
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const BaseType = enum {
+pub const BaseType = enum(u8) {
     INT,
     FLOAT,
     STRING,
@@ -97,13 +97,13 @@ pub const BaseType = enum {
     VOID
 };
 pub const TypeNode = extern struct {
-    is_unsigned: bool,
-    is_const: bool,
-    qualifier: usize, // 0 none, 1 long, 2 long long
-    base: BaseType,
-    type_name: [*c]const u8,
-    size: usize,
-    alignment: usize,
+    is_unsigned: bool = false,
+    is_const: bool = false,
+    qualifier: usize = 0, // 0 none, 1 long, 2 long long
+    base: BaseType = .INT,
+    type_name: [*c]const u8 = "INT\n",
+    size: usize = @sizeOf(i32),
+    alignment: usize = @alignOf(i32),
 };
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
@@ -300,45 +300,87 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
 
     return node;
 }
-export fn make_type_const(type_node: ?*Node) ?*Node {
-    if (type_node) |tn| {
-        tn.Type.is_const = true;
+export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
+    // null check
+    if (left_type == null) return right_type;
+    if (right_type == null) return left_type;
+
+    const new_type = std.heap.c_allocator.create(TypeNode) catch return null;
+    if(left_type != null and right_type != null) {
+        const rt = right_type.?;
+        const lt = left_type.?;
+        const new_base = rt.Type.base;
+        const new_sign = lt.Type.is_unsigned or rt.Type.is_unsigned;
+        const new_const = lt.Type.is_const or rt.Type.is_const;
+        var alignment: usize = 0;
+        var size: usize = 0;
+        switch(new_base) {
+            .BOOL => { alignment = @alignOf(bool); size = @sizeOf(bool); },
+            .DOUBLE => { alignment = @alignOf(f64); size = @sizeOf(f64); },
+            .FLOAT => { alignment = @alignOf(f32); size = @sizeOf(f32); },
+            .INT => { alignment = @alignOf(i32); size = @sizeOf(i32); },
+            .LONG => { alignment = @alignOf(i64); size = @sizeOf(i64); },
+            .CHAR => { alignment = @alignOf(u8); size = @sizeOf(u8); },
+            .SHORT => { alignment = @alignOf(i32); size = @sizeOf(i32); },
+            else => { alignment = @alignOf(void); size = @sizeOf(void); }
+        }
+        const new_qual = rt.Type.qualifier + lt.Type.qualifier;
+
+        const alloc = std.heap.c_allocator;
+        var name_parts: std.ArrayList([]const u8) = .empty;
+        if(new_const) _ = name_parts.append(alloc, "const") catch {};
+        if(new_sign) _ = name_parts.append(alloc, "unsigned") catch {};
+        if(new_qual == 1) _ = name_parts.append(alloc, "long") catch {};
+        if(new_qual >= 2) _ = name_parts.append(alloc, "long long") catch {};
+        const base_name = switch (new_base) {
+            .BOOL => "bool",
+            .CHAR => "char",
+            .SHORT => "short",
+            .INT => "int",
+            .LONG => "long",
+            .FLOAT => "float",
+            .DOUBLE => "double",
+            .VOID => "void",
+            else => "unknown",
+        };
+        if (!(new_base == .INT or new_base == .LONG) or new_qual == 0) {
+            _ = name_parts.append(alloc, base_name) catch {};
+        }
+        const new_name = std.mem.join(alloc, " ", name_parts.items) catch "unknown";
+        new_type.* = TypeNode {
+            .base = new_base, .is_const = new_const, .is_unsigned = new_sign, 
+            .alignment = alignment, .size = size, 
+            .type_name = new_name.ptr, .qualifier = new_qual
+        };
     }
-    return type_node;
-}
-export fn make_type_unsigned(type_node: ?*Node) ?*Node {
-    if (type_node) |tn| {
-        tn.Type.is_unsigned = true;
-    }
-    return type_node;
-}
-export fn make_type_long(type_node: ?*Node) ?*Node {
-    if (type_node) |tn| {
-        tn.Type.qualifier += 1;
-    }
-    return type_node;
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node {.Type = new_type};
+    return node;
 }
 export fn make_type_node(token: c.yytokentype) ?*Node {
     const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
     std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.FLOAT => {
-            type_node_ptr.* = TypeNode{ .base = .FLOAT, .type_name = "float", .size = @sizeOf(f32), .alignment = @alignOf(f32), .is_unsigned = false, .qualifier = 0, .is_const = false };
+            type_node_ptr.* = TypeNode{ .base = .FLOAT };
         },
         c.DOUBLE => {
-            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = "double", .size = @sizeOf(f64), .alignment = @alignOf(f64), .is_unsigned = false, .qualifier = 0, .is_const = false };
+            type_node_ptr.* = TypeNode{ .base = .DOUBLE };
         },
         c.INT => {
-            type_node_ptr.* = TypeNode{ .type_name = "int", .size = @sizeOf(i32), .alignment = @alignOf(i32), .is_unsigned = false, .qualifier = 0, .is_const = false };
+            type_node_ptr.* = TypeNode{ .base = .INT };
         },
         c.LONG => {
-            type_node_ptr.* = TypeNode{ .base = .LONG, .type_name = "long", .size = @sizeOf(i32), .alignment = @alignOf(i32), .is_unsigned = false, .qualifier = 0, .is_const = false };
+            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1 };
         },
         c.STRING_LITERAL => {
-            type_node_ptr.* = TypeNode{ .type_name = "string", .size = @sizeOf([]const u8), .alignment = @alignOf([]const u8), .is_unsigned = false, .qualifier = 0, .is_const = false };
+            type_node_ptr.* = TypeNode{ .base = .STRING };
+        },
+        c.UNSIGNED => {
+            type_node_ptr.* = TypeNode { .base = .INT, .is_unsigned = true };
         },
         else => {
-            type_node_ptr.* = TypeNode{ .type_name = "unknown", .size = 0, .alignment = 0, .is_unsigned = false, .qualifier = 0, .is_const = false };
+            type_node_ptr.* = TypeNode{ .base = .VOID };
         },
     }
 
