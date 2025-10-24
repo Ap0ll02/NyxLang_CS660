@@ -1,9 +1,5 @@
-int hello(int x) {
-    int;
-}
-
 int main() {
     int *x = 0;
     int ***cat;
-    hello(x);
+    unsigned long int hello = 400;
 }
