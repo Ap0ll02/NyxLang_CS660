@@ -101,7 +101,7 @@ pub const TypeNode = extern struct {
     is_const: bool = false,
     qualifier: usize = 0, // 0 none, 1 long, 2 long long
     base: BaseType = .INT,
-    type_name: [*c]const u8 = "INT\n",
+    type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
 };
