@@ -20,7 +20,7 @@ struct Node* make_identifier_node(const char *s);
 struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
 struct Node* make_constant_node(int s);
 struct Node* make_type_node(enum yytokentype token);
-struct Node* make_assignment_node(struct Node* declarator, struct Node* initializer);
+struct Node* make_assignment_node(struct Node* declarator, struct Node* initializer, struct Node* ass_op);
 struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokentype token, struct Node* expr2);
 struct Node* make_binary_node(struct Node* left, char operator, struct Node* right);
 struct Node* make_expr_stmt(struct Node* expr);
@@ -44,14 +44,14 @@ struct Node* append_struct_declarator_list(struct Node* declarator, struct Node*
 struct Node* make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
 struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
 struct Node* make_structunion_node(enum yytokentype t);
+
+struct Node* make_assignment_op_node(enum yytokentype token);
+
 extern struct Node* root;
 %}
 
 %token	SIZEOF
 %token	PTR_OP INC_OP DEC_OP 
-%token	MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
-%token	SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
-%token	XOR_ASSIGN OR_ASSIGN
 %token	TYPEDEF_NAME
 
 %token	TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
@@ -74,7 +74,8 @@ extern struct Node* root;
     struct Node* node;
     enum yytokentype yyt_type;
 }
-%token <yyt_type> INT FLOAT STRUCT UNION
+
+%token <yyt_type> INT FLOAT STRUCT UNION MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
 %token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
 %token <intval> INT_CONST I_CONSTANT
 %token <floatval> FLOAT_CONST F_CONSTANT
@@ -89,6 +90,7 @@ extern struct Node* root;
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
 %type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list 
+%type <node> assignment_operator
 %type <id> string
 %%
 primary_expression
@@ -235,21 +237,21 @@ conditional_expression
 
 assignment_expression /* Reassign Node Boi */
 	: conditional_expression
-	| unary_expression assignment_operator assignment_expression { $$ = make_assignment_node($1, $3); }
+	| unary_expression assignment_operator assignment_expression { $$ = make_assignment_node($1, $3, $2); }
 	;
 
 assignment_operator
 	: '='
-	| MUL_ASSIGN
-	| DIV_ASSIGN
-	| MOD_ASSIGN
-	| ADD_ASSIGN
-	| SUB_ASSIGN
-	| LEFT_ASSIGN
-	| RIGHT_ASSIGN
-	| AND_ASSIGN
-	| XOR_ASSIGN
-	| OR_ASSIGN
+	| MUL_ASSIGN { make_assignment_op_node($1); }
+	| DIV_ASSIGN { make_assignment_op_node($1); }
+	| MOD_ASSIGN { make_assignment_op_node($1); }
+	| ADD_ASSIGN { make_assignment_op_node($1); }
+	| SUB_ASSIGN { make_assignment_op_node($1); }
+	| LEFT_ASSIGN { make_assignment_op_node($1); }
+	| RIGHT_ASSIGN { make_assignment_op_node($1); }
+	| AND_ASSIGN { make_assignment_op_node($1); }
+	| XOR_ASSIGN { make_assignment_op_node($1); }
+	| OR_ASSIGN { make_assignment_op_node($1); }
 	;
 
 expression
@@ -286,8 +288,8 @@ init_declarator_list
 	;
 
 init_declarator
-	: declarator '=' initializer { $$ = make_assignment_node($1, $3); }
-	| declarator {$$ = make_assignment_node($1, NULL); }
+	: declarator '=' initializer { $$ = make_assignment_node($1, $3, NULL); }
+	| declarator {$$ = make_assignment_node($1, NULL, NULL); }
 	;
 
 storage_class_specifier
@@ -472,9 +474,9 @@ parameter_list
 	;
 
 parameter_declaration
-	: declaration_specifiers declarator { $$ = make_assignment_node($2, NULL); }
+	: declaration_specifiers declarator { $$ = make_assignment_node($2, NULL, NULL); }
 	| declaration_specifiers abstract_declarator
-	| declaration_specifiers { $$ = make_assignment_node($1, NULL); }
+	| declaration_specifiers { $$ = make_assignment_node($1, NULL, NULL); }
 	;
 
 identifier_list
@@ -639,3 +641,62 @@ declaration_list
 	;
 
 %%
+
+/*
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡿⣳⣻⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡴⣏⣷⡿⢹⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⡻⣡⣷⠟⡀⢼⣷⠧⡶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⣯⣽⣿⡓⢄⡐⠠⣀⣶⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⢇⡘⢄⠒⣥⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⡴⢯⡇⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⡠⣾⣿⣯⣟⡲⣬⣜⣮⣙⡾⢿⣿⣟⡿⣛⠷⣦⣄⡤⢔⣶⣶⣟⡾⣍⢯⣙⣧⢽⣯⡇⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡶⠼⣗⣮⣾⣿⡿⠿⢿⣟⣟⣻⡽⣏⡿⣟⡿⣏⣷⢫⡟⣶⣹⢻⣿⣿⣻⣾⣽⣾⣟⣿⠞⢫⣿⠃⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣇⠇⣀⣼⣿⣿⣁⣀⢀⣼⠿⣼⣳⡽⣯⢿⣹⣷⣻⡼⣣⣟⡲⣭⠳⡽⣿⣯⣷⣿⠟⡻⠁⠚⣿⡏⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡸⠀⣴⣿⣷⡀⠉⢠⣾⣏⡿⣫⢷⣻⣽⣟⡿⣾⢟⣽⣻⣬⢳⣧⢻⡵⣏⣿⣿⣣⢋⢄⣠⢐⣨⡭⠇⠀⠀⠀⠀⠀⠀
+⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡵⠟⣿⡿⠹⣿⣶⣿⣷⢞⣽⢯⡿⣷⣿⡽⣿⣻⣿⣷⣟⣾⠿⣜⣣⣞⡧⣿⢿⣷⣩⣾⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣀⣤⣼⣯⣅⣤⣼⣿⣧⣶⢿⣿⣿⣼⣿⣧⣿⣾⣿⣿⣿⣽⣿⣿⣿⣿⣿⣿⣾⣵⣿⣷⣿⣿⣿⣿⣿⢱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⡟⣯⣿⣿⣿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⡝⠻⣿⡟⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡄⣃⢘⡀⡛⡘⢃⢃⡘⣀⠛⡘⠛⣃⠘⠛⡇⢿⣿⣿⣿⣿⣿⣧⣿⣿⣿⣿⡿⣿⣿⣿⢏⣧⣿⣿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣿⣩⣿⣸⠘⡛⡇⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⡔⢠⠂⢡⠐⣁⢂⠰⠀⡌⠄⡡⢀⠜⡐⠰⡘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⡜⣿⣻⣽⣾⣧⢓⢃⠐⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠆⡂⢅⠢⢈⠄⢂⠄⢃⠐⠰⢀⠂⠔⡀⢃⡣⢿⢿⣿⣿⣿⣿⣾⢿⣿⣿⣿⣿⣿⣾⢰⣛⢣⢭⡾⠈⠻⣿⣷⢿⣿⣿⣿⣿⣽⣿⣿⣿⣿⣿⡓⠓⠌⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⡱⠈⡄⠢⢁⠌⠂⡌⠄⢊⠐⠤⢈⡐⠄⢂⠁⠾⣿⣿⣿⣿⣷⣿⣿⡿⣯⣿⣿⣿⣿⣇⠌⠣⠎⠬⠢⣢⠀⠀⣼⣟⣫⠋⣻⣿⣿⣿⣿⡿⢿⣿⣦⠽⡂⠀⠀⠀⠀⠀⠀⠀
+⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡗⡠⠑⡠⠑⡈⠄⢃⠰⢈⡐⠌⡐⠄⡐⡈⠤⢈⠴⡙⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣾⢿⣧⡐⢀⠂⠄⢀⠂⠁⣹⡖⡍⣦⣿⣿⣿⣿⣽⢣⢁⡀⠉⡄⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⡅⢊⠤⠑⡈⢌⡐⢂⠂⠔⡐⠠⢊⠐⠠⠌⣀⠢⠘⢌⠻⣿⣿⣿⡿⣿⣿⣿⣿⣿⡿⢆⡈⠉⠣⢌⡐⣀⠌⠰⡉⢁⠙⣻⣿⣿⣿⡿⢃⠇⢤⣴⣡⢀⢃⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡗⠌⡐⠂⠥⡈⠤⠐⢂⢉⠰⢀⠃⢄⠊⡁⢂⠄⠂⠍⠢⠑⠢⠝⡿⡝⣿⣿⣿⣿⡿⢻⣯⣞⢢⠁⠠⠡⡤⡑⠣⡐⢀⣲⣿⣿⣿⡟⠔⠡⡈⠄⣻⡛⢦⡟⢳⡶⠓⡆⠀⣰⠆
+⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠎⡐⡉⠰⠐⣂⠉⡄⢊⠐⡈⠔⠂⠤⢁⠂⠌⠌⡐⠡⢈⠤⠁⢅⠰⢼⣿⣽⣾⣙⣧⢞⡽⣷⣾⣄⡐⢠⢐⣡⣴⣿⣿⣿⠏⣛⠿⠿⠐⡠⠑⡨⢉⠍⡋⠉⠁⠀⣇⣠⡓⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⢣⠐⡡⢁⠣⢀⠎⡐⠨⠄⡡⢘⠈⠔⢂⠉⡰⠈⠤⠑⣀⠂⣁⢂⣄⣾⠿⡿⠽⠿⠿⣿⣿⠷⢓⠚⡉⠛⠻⣟⢛⣹⣟⠯⠊⡄⠂⡔⠡⠄⢃⠔⡁⠆⡇⠀⠀⠀⠉⠈⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⣂⠱⣀⠃⡌⠢⡐⠌⡁⠆⣁⠢⢉⠰⢈⠰⢀⠱⢈⠡⡀⡲⠚⣹⣿⡯⠟⠋⠍⡐⠠⠀⠄⡐⠂⠡⠀⠄⡁⠈⢯⣢⢀⠂⠥⠐⠡⠄⡑⡈⠆⡰⢈⠔⡁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡗⡠⢡⠐⡌⡐⠡⢄⠃⡌⠰⡀⠆⣁⠒⡈⠔⣈⠰⢈⢢⢊⠔⣫⢻⡽⡱⣈⢂⠡⠐⠀⠀⠀⠀⢈⠐⢀⠀⠠⠁⠈⢷⠢⠜⣨⣭⡭⣗⡔⡁⢢⠁⠆⡌⠄⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣇⠡⢂⠥⡐⠌⡡⢂⠜⠠⡑⢠⠑⡠⠂⠥⠘⡀⠆⣡⢃⢏⣺⢋⡷⢗⡱⠨⡆⡑⢂⠐⢈⠀⢂⠀⠄⠠⠀⠄⡐⠈⠨⡷⣾⣽⡟⣡⡗⣞⡤⢁⠎⡰⣈⠜⣠⠤⠴⢦⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠣⢌⠂⡔⢡⠂⡅⢊⡁⢆⠡⢂⠅⡱⢈⠡⢂⡑⡆⣎⠟⡁⣮⣼⢳⠂⢁⠘⠢⢆⡈⠢⡘⠤⠘⡀⢂⠈⡐⠀⠌⡀⢿⢾⣿⡟⣟⡼⣸⡘⠆⣊⠥⠞⠋⠉⠀⣿⡯⣧⠄⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⡱⢈⠒⢌⡐⢢⠘⢄⠒⡨⢐⠡⢌⠰⢈⠢⢡⢰⢰⡸⢂⢡⢣⣇⡟⠀⠀⠌⠑⠢⢌⡑⢢⡘⠤⢁⠂⡐⠀⠡⢀⡁⢾⡻⢞⣿⣯⡷⡣⣳⠟⠁⠠⢀⠂⠌⡐⠤⢿⣿⡦⠀
+⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⢅⠊⡌⢢⠘⢄⠊⡄⢣⠐⡡⢊⠰⡈⠆⡑⠢⢼⢸⡇⢢⢸⣽⢲⡀⠄⠀⠀⢈⠐⢠⢉⣾⡴⢃⢎⡐⠠⢁⠂⠄⠠⠸⡿⠭⢒⠭⡍⣱⡟⢀⠡⠂⢤⣜⣤⣣⣯⢗⡾⠃⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⢆⡱⢈⠆⡉⢆⠱⡈⠆⡱⢀⠃⢆⠱⡈⠔⡡⢊⢸⢁⠂⣯⢾⡙⢦⠐⡈⠠⢀⠌⡰⢎⡧⢻⣌⠒⡌⡑⢢⠈⠤⠁⠄⣧⠹⡡⡞⢠⡋⠄⢂⠡⢎⡿⡄⠀⠉⠉⠉⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡗⢢⠐⡡⢊⠔⡈⢆⠱⡈⠔⡡⢊⠔⣂⠱⠘⠤⠡⡼⣼⠘⡧⢾⡝⣪⢣⢔⡡⢎⡜⡱⢎⡜⣣⢯⡘⠤⡑⠠⠑⠂⡁⠂⢸⡆⢷⢡⡟⠀⠌⣂⠱⣺⡰⡇⠀⠀⠀⠀⠀⠀⠀
+⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣙⣂⠃⠴⡁⢎⠰⡈⢆⠱⡈⠔⡡⢊⠰⣈⠱⡈⠥⡇⡇⡎⢵⣣⢻⢖⣍⢲⡘⢦⡘⡱⢊⠜⡤⣛⣧⠱⠠⡁⠌⠐⡀⠐⠀⣳⢠⡗⢀⡘⠠⢢⣙⢇⠇⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⢤⢶⡲⣖⠾⣹⢏⣟⡻⣭⢳⢯⣟⣿⡧⡓⢌⠢⡑⢌⠢⡑⢌⠰⣁⠒⡄⢣⠘⡐⠇⢷⣻⡌⢶⢣⠞⣣⡧⡙⠦⡑⠃⡌⢸⢐⢣⢾⣝⣧⠐⡈⠐⡀⠄⠁⠘⡏⢠⠂⠄⡡⢓⡾⢸⠌⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⢶⢫⣏⡳⣬⢏⣶⣳⣞⣻⢷⣻⣞⣷⣯⣿⣻⣾⠟⡡⢋⠄⢣⠘⡄⢣⠘⡄⠣⢄⠣⡘⢄⠣⡘⠼⡸⡵⢧⢊⡯⢞⡡⠞⠃⠆⠡⠂⠌⠄⠊⡜⡧⢿⣞⣆⠄⠡⢐⠠⠈⠄⢻⣃⠌⠰⢡⢯⠇⡇⡌⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⢯⣛⣮⣷⣾⠽⠛⠛⠉⠉⠉⠉⠉⠉⠉⠉⠈⠀⡖⢒⠩⣐⠡⢊⠆⡱⢈⠆⡱⢈⠱⡈⢆⠱⡈⢆⡑⢢⢣⠹⣟⡆⢺⡗⣸⢡⠍⠢⢁⠂⠌⡈⠂⢄⢹⢏⣿⡼⣆⢁⠂⡐⠈⡄⢃⣯⠰⣡⢋⡞⢸⠰⡐⡇⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⣰⢯⡷⣯⣿⡿⠚⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣏⠢⡑⡄⠣⢌⠢⡑⢌⠢⡑⢌⠢⡑⢌⠢⡑⢢⠘⡄⠦⠱⡙⣽⡄⢿⡥⠳⣌⠱⡀⠌⡐⠠⢉⠀⡂⢯⣚⢿⡼⣆⠱⡀⢡⠘⡠⢺⡱⣌⡿⢡⢃⠣⡐⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢀⣼⢯⣿⣽⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠣⡔⢡⠃⡌⢒⢡⠊⡔⢡⠊⡔⢡⠊⡔⢡⠢⡑⣘⠢⣑⠺⢸⢜⡈⢳⡝⢦⡑⠬⡐⠄⢃⠄⠒⡈⠄⣏⡞⣽⣭⢧⠰⡁⢎⡐⢣⠓⣼⢃⠎⣌⠱⡀⠇⠀⠀⠀⠀⠀⠀⠀
+⡀⠀⠀⠀⠀⣼⣯⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⠱⡈⢆⠱⡈⢆⢡⠊⡔⢡⠊⡔⢡⠊⡔⠡⢆⠱⣀⠣⢄⠃⢸⢚⢄⠈⢿⡢⡝⢢⠑⡌⢢⠈⢂⠑⡈⠜⣮⢵⣻⣎⠳⡌⢆⡍⢦⢹⠃⡬⠘⡄⢣⠘⡄⠀⠀⠀⠀⠀⠀⠀
+⠄⠀⠀⠀⢸⣿⣽⣿⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣇⠣⡘⢄⡣⠜⣀⣂⣥⣬⣤⣅⣚⡠⠧⣌⠱⣈⠒⡄⠣⢌⢲⢸⢚⡈⠄⢸⡷⣉⠆⡱⠈⠄⠈⠀⠄⠐⡈⠜⡖⡧⡿⣧⣙⠶⣘⣦⢃⠜⣐⠣⡘⢄⠣⠄⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⣿⣿⢿⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢇⠖⣫⡵⣞⢻⣝⣫⣞⣵⡺⣜⣯⣻⡽⣶⢮⣒⠭⣐⡉⡦⢝⡾⠆⢇⠂⣼⠳⢡⠘⢠⠁⠂⡁⠠⠀⠐⠠⢌⠹⡖⡟⢘⠻⠮⠵⢃⠎⡜⢠⠃⡜⡠⢃⠆⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⣿⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⡻⣧⢷⣯⣿⣾⠿⠽⠾⠿⠿⣷⣿⣽⣾⣯⣿⣷⣌⡥⠚⢅⢊⠜⠤⢢⡿⣁⠃⢌⠀⠆⠡⠐⠀⠂⠁⠎⡄⢃⢜⡇⢸⠊⡍⢍⠣⡑⢌⠢⡑⠬⡐⢡⠂⠀⠀⠀⠀⠀⠀⠀
+⡃⠀⠀⠀⢿⣿⣿⣿⣧⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⡿⣻⣍⢦⣟⢦⡜⡇⢿⡝⡻⣿⣿⣿⣿⣿⣷⡄⢨⡘⡼⣦⡿⣧⢏⠸⣨⡜⢆⠃⠆⠀⢀⠃⠆⡝⢮⢸⠁⡏⣞⢱⡘⣆⢳⡘⣆⡳⢦⠳⢮⠃⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠘⣿⣿⣿⣿⣷⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣿⣿⡿⢻⠱⢳⠹⡜⢧⡜⢦⠳⡝⣮⢿⡵⢻⠛⣿⣿⣿⣿⣿⣶⡷⣾⠏⡟⢦⠋⡞⢱⠸⠈⠞⠀⡄⠈⡜⠶⡝⡏⡾⢸⠹⡌⢧⠹⡌⢧⠹⣬⠹⣬⠛⡎⠃⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠙⣿⣿⣽⣿⣿⣦⣤⣀⡀⠀⠀⠀⠀⣀⣠⣴⣾⣿⣿⣿⣿⠿⠫⠄⠥⢃⠆⡱⢈⠆⡘⡤⢗⣩⠖⠋⢀⠂⡱⢈⠿⣿⣿⣿⣿⠿⢋⠔⡈⢎⠱⣈⠆⢡⠉⡐⢀⠀⠆⡐⢢⢳⠁⡇⡎⠱⠌⠦⠑⠈⠂⠓⠂⣁⣀⠁⡈⠁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣾⣿⣽⣻⣽⢿⣿⣿⣿⢿⣟⣿⣿⣿⣿⠟⠁⠀⡧⢉⠆⡥⢊⠔⣡⠞⣪⠔⠋⠀⠀⢀⠂⠰⣀⢃⢎⡹⣿⠻⠏⡜⠠⢊⡴⢊⠱⡀⠎⠐⠠⠐⠠⠈⡔⢡⠣⣍⢰⡇⡖⣄⣢⣄⣩⢉⡔⠢⠑⠂⠆⠣⠘⠄⠀⠀⠀⠀⠀⠀⠀
+⡁⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⠿⣿⣿⣿⣿⣷⣿⣿⣿⣿⠿⠟⠉⠀⠀⠀⠀⣇⠣⡘⠤⢃⡜⢡⡾⠃⠀⠀⠀⠀⡀⠈⢡⠀⢎⠦⣑⢩⡥⢗⡚⠱⡉⠔⡁⠂⠔⠈⠠⠁⡐⠠⢑⡈⢆⡱⢼⣸⢠⣀⠄⡠⣐⠐⡒⢒⠒⡒⢒⠒⣂⠒⡄⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⣇⠣⣘⢐⠏⣰⠃⠀⠀⠀⡀⠀⠀⠠⢁⠂⡘⢌⣶⡷⢋⠜⢂⠈⠁⠐⡀⠀⢁⠂⠈⡐⠠⢄⡑⢢⠘⡤⢣⢷⠇⡎⡔⢨⠔⠤⠓⡌⢢⠑⡌⢂⠳⢠⠃⡆⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⡱⢀⡏⢰⢃⠆⠠⢈⠐⡀⠠⠈⠐⡀⢂⢱⣾⠋⡔⠡⢈⠠⠀⠀⠀⠀⠐⠀⠠⠁⠄⡡⢂⠜⣠⢋⠴⣋⣾⡀⡇⡜⢠⠊⡔⢣⠘⡄⢣⠘⠤⡉⢆⠱⡀⠀⠀⠀⠀⠀⠀⠀
+⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣁⠩⠄⠀⡏⡼⡈⢅⠂⡐⠠⠀⡀⠂⠐⣨⡾⢡⠃⡌⠐⡀⠀⠀⡀⠄⠠⠁⠂⢁⠈⡐⢐⠠⠒⠠⡍⢎⡵⣊⣇⢱⡘⢄⠣⡘⢄⠣⡘⠤⡉⢆⠱⡈⢆⡁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡄⣒⢺⠀⡇⡷⡁⢎⡐⠠⢀⠁⡀⠠⠁⣼⡥⢃⠜⣀⠡⠀⡌⠐⡄⠌⡄⠃⠌⡀⢂⠰⢈⠆⡁⢣⠜⣌⢲⡱⢺⠈⡜⡄⢣⠘⡄⢣⠘⠤⡑⠌⣆⠑⡢⠄⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡗⡄⢺⠀⡇⡷⡉⢆⡘⠄⢂⠐⠠⠐⠠⣿⠰⣁⠢⢀⠜⡐⠄⡃⠔⠡⡘⠨⡐⠠⢁⠒⡨⢠⠑⠢⢍⢆⢣⡝⡭⡇⢳⢈⠆⡱⢈⠆⡉⢆⠱⡈⠤⢃⡑⡂⠀⠀⠀⠀⠀⠀⠀
+⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡗⡌⡡⠇⢹⡸⡑⣎⠰⣁⠂⠌⠠⠉⢄⢻⡔⡡⢒⢈⡐⠌⡰⠈⠌⡡⠐⠡⠐⡁⠂⠌⡐⠠⢉⠒⠌⡌⢆⢳⢂⢷⠸⢌⠢⡑⢌⠢⡑⢌⢢⣁⢃⡒⠤⡁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠓⠒⠑⠚⠈⢷⡽⡤⢓⡄⢣⠘⠤⣉⠢⣹⣖⡱⢌⠢⢌⠰⠠⢑⠨⢐⠡⣁⠒⡠⢉⠔⣀⠃⡰⢈⠒⡌⣘⠢⢭⢸⠀⠃⠂⠑⠈⠂⠑⠈⠂⠐⠂⠘⠀⠁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣝⡧⡘⢦⣉⠲⣄⠳⣐⢻⣜⢎⡕⣊⠦⡑⡈⢆⠡⠒⠤⠑⡠⢂⠒⠠⢃⡐⡀⠎⠰⣈⠞⠬⡘⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣷⡙⢆⢆⡓⢌⠲⢡⢎⠻⢾⣴⢡⡒⢥⢊⡄⢣⠉⡔⠡⠒⡈⠌⡁⢂⠠⠐⠈⠂⠔⣊⠱⡂⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣯⠜⡢⠜⣌⢃⠣⣌⢣⡙⠷⣗⠍⣆⠣⢜⠢⡑⢌⠢⡑⡐⠄⡡⢀⠀⠄⠈⠄⡡⢂⠱⡁⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⢀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡈⢿⣦⡙⡰⢊⡱⢄⠲⣈⠕⡸⢮⣄⢋⠆⣣⠙⡌⠦⡑⠰⡈⠔⡀⠂⠌⠐⡠⠑⡌⢆⡁⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*/

@@ -106,6 +106,7 @@ pub const TypeNode = extern struct {
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
     initializer: ?*Node, // i.e. 5 in int x = 5;
+    ass_op: ?*Node, // i.e. *=
 };
 
 pub const AssignmentOpNode = struct {
@@ -469,14 +470,10 @@ export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
     return n;
 }
 
-export fn make_assignment_node(declarator: *Node, initializer: ?*Node) ?*Node {
+export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *Node) ?*Node {
     const assignment_node = std.heap.c_allocator.create(AssignmentNode) catch return null;
 
-    if (initializer) |init| {
-        assignment_node.* = .{ .declarator = declarator, .initializer = init };
-    } else {
-        assignment_node.* = .{ .declarator = declarator, .initializer = null };
-    }
+    assignment_node.* = .{ .declarator = declarator, .initializer = initializer, .ass_op = ass_op};
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Assignment = assignment_node };
@@ -545,7 +542,7 @@ export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
 }
 
 export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
-    const ass_op_node = std.heap.c_allocator.create(PostFixNode) catch return null;
+    const ass_op_node = std.heap.c_allocator.create(AssignmentOpNode) catch return null;
 
     switch (token) {
         c.MUL_ASSIGN => {
@@ -1265,6 +1262,10 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             const pf = node.PreFix;
             std.debug.print("🔺 Prefix Op: {s}\n", .{pf.pre_op});
             printNode(pf.val, indent + 1);
+        },
+        .AssOp => {
+            const ao = node.AssOp;
+            std.debug.print("🔻 Ass Op: {s}\n", .{ao.assign_op});
         },
         .Comp => {
             const cmp = node.Comp;
