@@ -925,14 +925,14 @@ export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
         const new_node = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
 
         // Copy existing decls
-        @memcpy(new_node[0..decls_block.decl_list.decl_list.len], decls_block.decl_list);
+        @memcpy(new_node[0..decls_block.decl_list.len], decls_block.decl_list);
         new_node[decls_block.decl_list.len] = decl;
 
         const list_node = std.heap.c_allocator.create(StructDeclListNode) catch return null;
         list_node.* = StructDeclListNode{ .decl_list = new_node };
 
         const node = std.heap.c_allocator.create(Node) catch return null;
-        node.* = Node{ .StructDecl = list_node };
+        node.* = Node{ .StructDeclList = list_node };
         return node;
     }
 }
