@@ -91,7 +91,7 @@ extern struct Node* root;
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
 %type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list 
 %type <node> assignment_operator
-%type <id> string
+%type <node> string
 %%
 primary_expression
 	: IDENTIFIER { $$ = make_identifier_node($1); }
@@ -241,17 +241,17 @@ assignment_expression /* Reassign Node Boi */
 	;
 
 assignment_operator
-	: '='
-	| MUL_ASSIGN { make_assignment_op_node($1); }
-	| DIV_ASSIGN { make_assignment_op_node($1); }
-	| MOD_ASSIGN { make_assignment_op_node($1); }
-	| ADD_ASSIGN { make_assignment_op_node($1); }
-	| SUB_ASSIGN { make_assignment_op_node($1); }
-	| LEFT_ASSIGN { make_assignment_op_node($1); }
-	| RIGHT_ASSIGN { make_assignment_op_node($1); }
-	| AND_ASSIGN { make_assignment_op_node($1); }
-	| XOR_ASSIGN { make_assignment_op_node($1); }
-	| OR_ASSIGN { make_assignment_op_node($1); }
+	: '=' { $$ = make_assignment_op_node('='); }
+	| MUL_ASSIGN { $$ = make_assignment_op_node(MUL_ASSIGN); }
+	| DIV_ASSIGN { $$ = make_assignment_op_node(DIV_ASSIGN); }
+	| MOD_ASSIGN { $$ = make_assignment_op_node(MOD_ASSIGN); }
+	| ADD_ASSIGN { $$ = make_assignment_op_node(ADD_ASSIGN); }
+	| SUB_ASSIGN { $$ = make_assignment_op_node(SUB_ASSIGN); }
+	| LEFT_ASSIGN { $$ = make_assignment_op_node(LEFT_ASSIGN); }
+	| RIGHT_ASSIGN { $$ = make_assignment_op_node(RIGHT_ASSIGN); }
+	| AND_ASSIGN { $$ = make_assignment_op_node(AND_ASSIGN); }
+	| XOR_ASSIGN { $$ = make_assignment_op_node(XOR_ASSIGN); }
+	| OR_ASSIGN { $$ = make_assignment_op_node(OR_ASSIGN); }
 	;
 
 expression
@@ -598,13 +598,13 @@ iteration_statement
 	: WHILE '(' expression ')' statement { $$ = make_iteration_stmt($3, $5, NULL, NULL); }
 	| WHILE expression compound_statement { $$ = make_iteration_stmt($2, $3, NULL, NULL); }
 	| DO statement WHILE '(' expression ')' ';'
-    | FOR expression_statement expression_statement compound_statement
-    | FOR expression_statement expression_statement expression_statement compound_statement
-    | FOR declaration expression_statement expression compound_statement
-    | FOR declaration expression_statement compound_statement
-	| FOR '(' expression_statement expression_statement ')' statement
-	| FOR '(' expression_statement expression_statement expression ')' statement
-	| FOR '(' declaration expression_statement ')' statement
+    | FOR expression_statement expression_statement compound_statement {$$ = make_iteration_stmt($3, $4, $2, NULL);}
+    | FOR expression_statement expression_statement expression_statement compound_statement {$$ = make_iteration_stmt($3, $5, $2, $4);}
+    | FOR declaration expression_statement expression compound_statement {$$ = make_iteration_stmt($3, $5, $2, $4);}
+    | FOR declaration expression_statement compound_statement {$$ = make_iteration_stmt($3, $4, $2, NULL);}
+	| FOR '(' expression_statement expression_statement ')' statement { $$ = make_iteration_stmt($4, $6, $3, NULL);}
+	| FOR '(' expression_statement expression_statement expression ')' statement {$$ = make_iteration_stmt($4, $7, $3, $5);}
+	| FOR '(' declaration expression_statement ')' statement { $$ = make_iteration_stmt($4, $6, $3, NULL);}
 	| FOR '(' declaration expression_statement expression ')' statement {$$ = make_iteration_stmt($4, $7, $3, $5);}
 	;
 
@@ -618,11 +618,9 @@ jump_statement
 
 translation_unit
 	: external_declaration { 
-        printf("[DEBUG] Assigning Root External_Declaration\n");
-        fflush(stdout);
         root = $1; 
     }
-	| translation_unit external_declaration
+	| translation_unit external_declaration { $$ = $2; }
 	;
 
 external_declaration
@@ -631,7 +629,7 @@ external_declaration
 	;
 
 function_definition
-	: declaration_specifiers declarator declaration_list compound_statement { zig_error(); }
+	: declaration_specifiers declarator declaration_list compound_statement
 	| declaration_specifiers declarator compound_statement {$$ = make_function_node($1, $2, $3); }
 	;
 

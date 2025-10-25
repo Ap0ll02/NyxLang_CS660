@@ -1197,8 +1197,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             }
             if (asgn.ass_op) |ass| {
                 std.debug.print("↳ Ass Op:\n", .{});
-                printNode(ass, indent + 1);
-            
+                printNode(ass, indent + 1); 
             } else {
                 printIndent(indent + 1);
                 std.debug.print("(no initializer)\n", .{});
