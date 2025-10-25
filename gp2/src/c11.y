@@ -38,6 +38,9 @@ struct Node* make_string_node(const char* s);
 struct Node* make_return_node(struct Node* ret_val);
 struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
 struct Node* combine_type_node(struct Node* left, struct Node* right);
+struct Node* append_struct_decl_list(struct Node* decl, struct Node* decls);
+struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
+void make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
 extern struct Node* root;
 %}
 
@@ -82,6 +85,7 @@ extern struct Node* root;
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
+%type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list
 %type <id> string
 %%
 primary_expression
@@ -251,7 +255,7 @@ expression
 	;
 
 constant_expression
-	: conditional_expression	/* with constraints */
+	: conditional_expression	// with constraints
 	;
 
 declaration
@@ -341,43 +345,43 @@ type_specifier
 	;
 
 struct_or_union_specifier
-	: struct_or_union '{' struct_declaration_list '}'
-	| struct_or_union IDENTIFIER '{' struct_declaration_list '}'
-	| struct_or_union IDENTIFIER
+	: struct_or_union '{' struct_declaration_list '}' // struct_declaration_list	// anonymous struct/union -> struct { int x; float y; ... }
+	| struct_or_union IDENTIFIER '{' struct_declaration_list '}' // named struct/union -> struct Foo { int x; float y; ... }
+	| struct_or_union IDENTIFIER  { $$ = struct_or_union_specifier()}// make ident node? // reference to previously defined struct/union -> struct Foo
 	;
 
 struct_or_union
-	: STRUCT
-	| UNION
+	: STRUCT { $$ = STRUCT; }
+	| UNION { $$ = UNION; }
 	;
 
-struct_declaration_list
-	: struct_declaration
-	| struct_declaration_list struct_declaration
+struct_declaration_list // int age; float height; char* name; ...
+	: struct_declaration { $$ = append_struct_decl_list($1, NULL); } // append_struct_declaration
+	| struct_declaration_list struct_declaration { $$ = append_struct_decl_list($2, $1); }
 	;
 
 struct_declaration
-	: specifier_qualifier_list ';'	/* for anonymous struct/union */
-	| specifier_qualifier_list struct_declarator_list ';'
-	| static_assert_declaration
+	: specifier_qualifier_list ';' { make_struct_decl($1, NULL); } /* for anonymous struct/union */
+	| specifier_qualifier_list struct_declarator_list ';' { make_struct_decl($1, $2); }	/* for named struct/union */
+	| static_assert_declaration { zig_error(); }
 	;
 
 specifier_qualifier_list
-	: type_specifier specifier_qualifier_list
+	: type_specifier specifier_qualifier_list // e.g., "unsigned int"
 	| type_specifier
 	| type_qualifier specifier_qualifier_list
 	| type_qualifier
 	;
 
 struct_declarator_list
-	: struct_declarator
-	| struct_declarator_list ',' struct_declarator
+	: struct_declarator { $$ = append_struct_declarator_list($1, NULL); } // append_struct_declarator // single name -> int x;
+	| struct_declarator_list ',' struct_declarator { $$ = append_struct_declarator_list($3, $1); }// multiple names -> int x, y, z
 	;
 
 struct_declarator
-	: ':' constant_expression
-	| declarator ':' constant_expression
-	| declarator
+	: ':' constant_expression // bit-field without a name -> int : 3;
+	| declarator ':' constant_expression // bit-field with a name -> int x : 3;
+	| declarator // normal declarator -> int x;
 	;
 
 enum_specifier
@@ -425,7 +429,7 @@ declarator
 	;
 
 direct_declarator
-	: IDENTIFIER { $$ = make_identifier_node($1); }
+	: IDENTIFIER { $$ = make_identifier_node($1); } 
 	| '(' declarator ')' { $$ = $2; }
 	| direct_declarator '[' ']'
 	| direct_declarator '[' '*' ']'

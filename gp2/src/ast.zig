@@ -177,6 +177,9 @@ pub const NodeTag = enum {
     // Pointers
     Pointer,
     IdPointer,
+
+    // Structs
+    StructDecl, StructDeclList, StructDeclaratorList, Struct
 };
 
 pub const Node = union(NodeTag) {
@@ -224,6 +227,12 @@ pub const Node = union(NodeTag) {
     // Pointers
     Pointer: *PointerNode,
     IdPointer: *IdPointerNode,
+
+    // Structs
+    StructDecl: *StructDeclNode,
+    StructDeckList: *StructDeclListNode,
+    StructDeclaratorList: *StructDeclaratorListNode,
+    Struct: *StructNode,
 };
 
 // Type information structure
@@ -821,6 +830,151 @@ export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
     node.* = Node{ .IdPointer = pointer_node };
     const n: *Node = @ptrCast(node);
     return n;
+}
+
+// ===============
+// |   Structs   |
+// ===============
+
+pub const StructNode = struct {
+    name: ?*IdentifierNode,
+    decl_list: ?[]*StructDeclNode,
+};
+
+export fn make_struct_or_union_specifier(struct_or_union: c.yytokentype, identifier: ?[*c]const u8, decl_list_node: ?*Node) ?*Node {
+    const struct_node = std.heap.c_allocator.create(StructNode) catch return null;
+
+    var id = null;
+    var decl_list = null;
+    if (identifier) |i| {
+        id = make_identifier_node(i);
+    } else {
+        // Anonymous struct
+        const anon_name = std.heap.c_allocator.create(IdentifierNode) catch return null;
+        anon_name.* = IdentifierNode{ .name = "<anonymous>" };
+        id = anon_name;
+    }
+    // For now, we only handle struct
+    if (struct_or_union == c.STRUCT) {
+
+        if (decl_list_node) |dl| {
+            decl_list = dl.StructDeclList.decl_list;
+        } else {
+            const empty_decl_list = std.heap.c_allocator.alloc(*StructNode, 0) catch return null;
+            decl_list = empty_decl_list;
+        }
+
+        struct_node.* = StructNode { .name = id, .decl_list = decl_list };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node { .Struct = struct_node };
+        return node;
+
+    } else {
+        return null; //union later
+    }
+}
+
+
+pub const StructDeclNode = struct {
+    identifier: *IdentifierNode,
+    decl_list: []*StructDeclNode,
+};
+pub const StructDeclListNode = struct {
+    decl_list: []*StructDeclNode,
+};
+
+export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
+    if (decls == null) {
+        const list_node = std.heap.c_allocator.create(StructDeclListNode) catch return null;
+
+        const new_node = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_node[0] = decl;
+
+        // Set the params field
+        list_node.* = StructDeclListNode{ .decls = new_node };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .StructDeclList = list_node };
+        return node;
+    } else {
+        const decls_block = decls.?.StructDeclList;
+
+        const new_len = decls_block.decls.len + 1;
+        const new_node = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+
+        // Copy existing decls
+        @memcpy(new_node[0..decls_block.decls.len], decls_block.decls);
+        new_node[decls_block.decls.len] = decl;
+
+        const list_node = std.heap.c_allocator.create(StructDeclListNode) catch return null;
+        list_node.* = StructDeclListNode{ .decls = new_node };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .StructDeclList = list_node };
+        return node;
+    }
+}
+
+export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Node {
+    const struct_node = std.heap.c_allocator.create(StructDeclNode) catch return null;
+
+    const identifier = identifier_node.Identifier;
+    const decl_list = decl_list_node.?.StructDeclaratorList;
+
+    if (decl_list) |dl| {
+        struct_node.* = StructDeclNode{
+            .identifier = identifier,
+            .decl_list = dl.StructDeclList.decl_list,
+        };
+    } else {
+        // Struct reference (no body)
+        const empty_decl_list = std.heap.c_allocator.alloc(*StructDeclNode, 0) catch return null;
+        struct_node.* = StructDeclNode{
+            .typeNode = identifier,
+            .decl_list = empty_decl_list,
+        };
+    }
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .StructDecl = struct_node };
+
+    return node;
+}
+
+pub const StructDeclaratorListNode = struct {
+    declarators: []*Node,
+};
+export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) ?*Node {
+    if (declarators == null) {
+        const declarators_list_node = std.heap.c_allocator.create(StructDeclaratorListNode) catch return null;
+
+        const new_declr = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_declr[0] = declarator;
+
+        // Set the params field
+        declarators_list_node.* = StructDeclaratorListNode{ .declarators = new_declr };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .StructDeclaratorList = declarators_list_node };
+        return node;
+    } else {
+        const declarators_block = declarators.?.StructDeclaratorList;
+
+        const new_len = declarators_block.declarators.len + 1;
+        const new_declr = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+
+        // Copy existing declarators
+        @memcpy(new_declr[0..declarators_block.declarators.len], declarators_block.declarators);
+        new_declr[declarators_block.declarators.len] = declarator;
+
+        const declarators_list_node = std.heap.c_allocator.create(StructDeclaratorListNode) catch return null;
+        declarators_list_node.* = StructDeclaratorListNode{ .declarators = new_declr };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .StructDeclaratorList = declarators_list_node };
+        return node;
+    }
 }
 
 // ===============
