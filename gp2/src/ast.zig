@@ -1182,6 +1182,7 @@ export fn append_translation_unit(unit: *Node, units: ?*Node) ?*Node {
         node.* = Node{ .TranslationUnitList = units_list_node };
         return node;
     } else {
+        // BUG weird behavior here. Can't access translationUnitList field because of functions?
         const units_block = units.?.TranslationUnitList;
 
         const new_len = units_block.translationUnits.len + 1;
