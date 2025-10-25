@@ -108,6 +108,10 @@ pub const AssignmentNode = struct {
     initializer: ?*Node, // i.e. 5 in int x = 5;
 };
 
+pub const AssignmentOpNode = struct {
+    assign_op: []const u8,
+};
+
 pub const ConditionalExpressionNode = struct {
     logicalOperator: [*c]const u8,
     expr1: *Node,
@@ -151,6 +155,7 @@ pub const NodeTag = enum {
     ConditionalExpression,
     Comp,
     Cast,
+    AssOp,
 
     // Variables, Pointers and Arrays
     Declaration,
@@ -207,6 +212,7 @@ pub const Node = union(NodeTag) {
     ConditionalExpression: *ConditionalExpressionNode,
     Comp: *CompNode,
     Cast: *CastNode,
+    AssOp: *AssignmentOpNode,
 
     // Vars
     Declaration: *DeclarationNode,
@@ -477,6 +483,8 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node) ?*Node {
     return node;
 }
 
+
+
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
@@ -532,6 +540,73 @@ export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
 
     node.* = Node{ .Unary = unary_node };
 
+    const n: *Node = @ptrCast(node);
+    return n;
+}
+
+export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
+    const ass_op_node = std.heap.c_allocator.create(PostFixNode) catch return null;
+
+    switch (token) {
+        c.MUL_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "*=",
+            };
+        },
+        c.DIV_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "/=",
+            };
+        },
+        c.MOD_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "%=",
+            };
+        },
+        c.ADD_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "+=",
+            };
+        },
+        c.SUB_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "-=",
+            };
+        },
+        c.LEFT_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "<<=",
+            };
+        },
+        c.RIGHT_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = ">>=",
+            };
+        },
+        c.AND_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "&=",
+            };
+        },
+        c.XOR_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "^=",
+            };
+        },
+        c.OR_ASSIGN => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "|=",
+            };
+        },
+        else => {
+            ass_op_node.* = AssignmentOpNode{
+                .assign_op = "Error_Unknown_Op",
+            };
+        },
+    }
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .AssOp = ass_op_node };
     const n: *Node = @ptrCast(node);
     return n;
 }
