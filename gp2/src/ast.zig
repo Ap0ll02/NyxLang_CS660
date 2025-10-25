@@ -23,8 +23,8 @@ pub const DeclarationNode = struct {
     assignNode: ?*AssignmentNode,
 };
 pub const StructDeclarationNode = struct {
-    packedNode: *StructNode,
-    assignNode: ?*AssignmentNode,
+    packedNode: *Node,
+    assignNode: ?*Node,
 };
 pub const FunctionNode = struct {
     retType: *TypeNode,
@@ -466,9 +466,9 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     if(typeNode.* == .Struct) {
         const decl_node = std.heap.c_allocator.create(StructDeclarationNode) catch return null;
         if (asgnNode) |n| {
-            decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = n.Assignment }; 
+            decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n }; 
         } else {
-            decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = null };
+            decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = null };
         }// We create a *node that wraps a specific node type
         const node = std.heap.c_allocator.create(Node) catch return null;
         // We set the union to be of type Declaration and assign the created declaration node
@@ -914,8 +914,8 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
 
 
 pub const StructDeclNode = struct {
-    type: *TypeNode,
-    decl_list: []*StructDeclNode,
+    type: *Node,
+    decl_list: []*Node,
 };
 pub const StructDeclListNode = struct {
     decl_list: []*Node,
@@ -955,17 +955,16 @@ export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
 export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Node {
     const struct_node = std.heap.c_allocator.create(StructDeclNode) catch return null;
 
-    const identifier = identifier_node.Type;
     if (decl_list_node) |dl| {
         struct_node.* = StructDeclNode{
-            .type = identifier,
+            .type = identifier_node,
             .decl_list = dl.StructDeclaratorList.declarators,
         };
     } else {
         // Struct reference (no body)
-        const empty_decl_list = std.heap.c_allocator.alloc(*StructDeclNode, 0) catch return null;
+        const empty_decl_list = std.heap.c_allocator.alloc(*Node, 0) catch return null;
         struct_node.* = StructDeclNode{
-            .type = identifier,
+            .type = identifier_node,
             .decl_list = empty_decl_list,
         };
     }
@@ -1235,18 +1234,31 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Struct => {
             const s_node = node.Struct;
-            printNode(s_node.name, indent);
+            printNode(s_node.name, indent+1);
         },
         .StructDecl => {
             const sd = node.StructDecl;
-            const s = std.mem.span(sd.type.type_name);
-            printIndent(indent);
-            std.debug.print("{s}", .{s});
+            printNode(sd.type, indent);
+            for (sd.decl_list) |item| {
+                printNode(item, indent);
+            }
         },
         .StructDeclaration => {
             const sd = node.StructDeclaration;
-            printIndent(indent);
-            std.debug.print("{s}", .{sd.packedNode.name.?.Identifier.name});
+            printNode(sd.packedNode, indent);
+            printNode(sd.assignNode, indent);
+        },
+        .StructDeclaratorList => {
+            const sd = node.StructDeclaratorList;
+            for (sd.declarators) |item| {
+                printNode(item, indent+1);
+            }
+        },
+        .StructDeclList => {
+            const s = node.StructDeclList;
+            for(s.decl_list) |item| {
+                printNode(item, indent+1);
+            }
         },
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
