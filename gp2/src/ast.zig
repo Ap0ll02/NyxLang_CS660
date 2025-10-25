@@ -841,7 +841,7 @@ pub const StructNode = struct {
     decl_list: ?[]*StructDeclNode,
 };
 
-export fn make_struct_or_union_specifier(struct_or_union: c.yytokentype, identifier: ?[*c]const u8, decl_list_node: ?*Node) ?*Node {
+export fn make_struct_or_union_specifier(struct_or_union: c.yytokentype, identifier: [*c]const u8, decl_list_node: ?*Node) ?*Node {
     const struct_node = std.heap.c_allocator.create(StructNode) catch return null;
 
     var id = null;
@@ -892,26 +892,25 @@ export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
         new_node[0] = decl;
 
         // Set the params field
-        list_node.* = StructDeclListNode{ .decls = new_node };
+        list_node.* = StructDeclListNode{ .decl_list = new_node };
 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .StructDeclList = list_node };
         return node;
     } else {
         const decls_block = decls.?.StructDeclList;
-
-        const new_len = decls_block.decls.len + 1;
+        const new_len = decls_block.decl_list.len + 1;
         const new_node = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
 
         // Copy existing decls
-        @memcpy(new_node[0..decls_block.decls.len], decls_block.decls);
+        @memcpy(new_node[0..decls_block.decl_list.decls.len], decls_block.decls);
         new_node[decls_block.decls.len] = decl;
 
         const list_node = std.heap.c_allocator.create(StructDeclListNode) catch return null;
-        list_node.* = StructDeclListNode{ .decls = new_node };
+        list_node.* = StructDeclListNode{ .decl_list = new_node };
 
         const node = std.heap.c_allocator.create(Node) catch return null;
-        node.* = Node{ .StructDeclList = list_node };
+        node.* = Node{ .StructDecl = list_node };
         return node;
     }
 }
