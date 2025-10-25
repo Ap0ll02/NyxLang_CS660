@@ -58,6 +58,10 @@ pub const PostFixNode = struct {
     post_op: []const u8,
     val: *Node,
 };
+pub const PreFixNode = struct {
+    pre_op: []const u8,
+    val: *Node,
+};
 pub const LogicNode = struct {
     log_op: *Node,
     val: *Node,
@@ -89,17 +93,7 @@ pub const IntNode = struct {
 };
 pub const FloatNode = struct { val: f32 };
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const BaseType = enum(u8) {
-    INT,
-    FLOAT,
-    STRING,
-    CHAR,
-    LONG,
-    SHORT,
-    DOUBLE,
-    BOOL,
-    VOID
-};
+pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
 pub const TypeNode = extern struct {
     is_unsigned: bool = false,
     is_const: bool = false,
@@ -153,6 +147,7 @@ pub const NodeTag = enum {
     Binary,
     Unary,
     PostFix,
+    PreFix,
     ConditionalExpression,
     Comp,
     Cast,
@@ -184,7 +179,11 @@ pub const NodeTag = enum {
     IdPointer,
 
     // Structs
-    StructDecl, StructDeclList, StructDeclaratorList, Struct, StructUnion
+    StructDecl,
+    StructDeclList,
+    StructDeclaratorList,
+    Struct,
+    StructUnion,
 };
 
 pub const Node = union(NodeTag) {
@@ -204,6 +203,7 @@ pub const Node = union(NodeTag) {
     Binary: *BinaryNode,
     Unary: *UnaryNode,
     PostFix: *PostFixNode,
+    PreFix: *PreFixNode,
     ConditionalExpression: *ConditionalExpressionNode,
     Comp: *CompNode,
     Cast: *CastNode,
@@ -239,7 +239,7 @@ pub const Node = union(NodeTag) {
     StructDeclList: *StructDeclListNode,
     StructDeclaratorList: *StructDeclaratorListNode,
     Struct: *StructNode,
-    StructUnion: *StructUnionNode
+    StructUnion: *StructUnionNode,
 };
 
 // Type information structure
@@ -322,7 +322,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     if (right_type == null) return left_type;
 
     const new_type = std.heap.c_allocator.create(TypeNode) catch return null;
-    if(left_type != null and right_type != null) {
+    if (left_type != null and right_type != null) {
         const rt = right_type.?;
         const lt = left_type.?;
         const new_base = rt.Type.base;
@@ -330,24 +330,48 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
         const new_const = lt.Type.is_const or rt.Type.is_const;
         var alignment: usize = 0;
         var size: usize = 0;
-        switch(new_base) {
-            .BOOL => { alignment = @alignOf(bool); size = @sizeOf(bool); },
-            .DOUBLE => { alignment = @alignOf(f64); size = @sizeOf(f64); },
-            .FLOAT => { alignment = @alignOf(f32); size = @sizeOf(f32); },
-            .INT => { alignment = @alignOf(i32); size = @sizeOf(i32); },
-            .LONG => { alignment = @alignOf(i64); size = @sizeOf(i64); },
-            .CHAR => { alignment = @alignOf(u8); size = @sizeOf(u8); },
-            .SHORT => { alignment = @alignOf(i32); size = @sizeOf(i32); },
-            else => { alignment = @alignOf(void); size = @sizeOf(void); }
+        switch (new_base) {
+            .BOOL => {
+                alignment = @alignOf(bool);
+                size = @sizeOf(bool);
+            },
+            .DOUBLE => {
+                alignment = @alignOf(f64);
+                size = @sizeOf(f64);
+            },
+            .FLOAT => {
+                alignment = @alignOf(f32);
+                size = @sizeOf(f32);
+            },
+            .INT => {
+                alignment = @alignOf(i32);
+                size = @sizeOf(i32);
+            },
+            .LONG => {
+                alignment = @alignOf(i64);
+                size = @sizeOf(i64);
+            },
+            .CHAR => {
+                alignment = @alignOf(u8);
+                size = @sizeOf(u8);
+            },
+            .SHORT => {
+                alignment = @alignOf(i32);
+                size = @sizeOf(i32);
+            },
+            else => {
+                alignment = @alignOf(void);
+                size = @sizeOf(void);
+            },
         }
         const new_qual = rt.Type.qualifier + lt.Type.qualifier;
 
         const alloc = std.heap.c_allocator;
         var name_parts: std.ArrayList([]const u8) = .empty;
-        if(new_const) _ = name_parts.append(alloc, "const") catch {};
-        if(new_sign) _ = name_parts.append(alloc, "unsigned") catch {};
-        if(new_qual == 1) _ = name_parts.append(alloc, "long") catch {};
-        if(new_qual >= 2) _ = name_parts.append(alloc, "long long") catch {};
+        if (new_const) _ = name_parts.append(alloc, "const") catch {};
+        if (new_sign) _ = name_parts.append(alloc, "unsigned") catch {};
+        if (new_qual == 1) _ = name_parts.append(alloc, "long") catch {};
+        if (new_qual >= 2) _ = name_parts.append(alloc, "long long") catch {};
         const base_name = switch (new_base) {
             .BOOL => "bool",
             .CHAR => "char",
@@ -363,14 +387,10 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
             _ = name_parts.append(alloc, base_name) catch {};
         }
         const new_name = std.mem.join(alloc, " ", name_parts.items) catch "unknown";
-        new_type.* = TypeNode {
-            .base = new_base, .is_const = new_const, .is_unsigned = new_sign, 
-            .alignment = alignment, .size = size, 
-            .type_name = new_name.ptr, .qualifier = new_qual
-        };
+        new_type.* = TypeNode{ .base = new_base, .is_const = new_const, .is_unsigned = new_sign, .alignment = alignment, .size = size, .type_name = new_name.ptr, .qualifier = new_qual };
     }
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node {.Type = new_type};
+    node.* = Node{ .Type = new_type };
     return node;
 }
 export fn make_type_node(token: c.yytokentype) ?*Node {
@@ -393,7 +413,7 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
             type_node_ptr.* = TypeNode{ .base = .STRING };
         },
         c.UNSIGNED => {
-            type_node_ptr.* = TypeNode { .base = .INT, .is_unsigned = true };
+            type_node_ptr.* = TypeNode{ .base = .INT, .is_unsigned = true };
         },
         else => {
             type_node_ptr.* = TypeNode{ .base = .VOID };
@@ -463,13 +483,13 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node) ?*Node {
 export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
-    if(typeNode.* == .Struct) {
+    if (typeNode.* == .Struct) {
         const decl_node = std.heap.c_allocator.create(StructDeclarationNode) catch return null;
         if (asgnNode) |n| {
-            decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = n.Assignment }; 
+            decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = n.Assignment };
         } else {
             decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = null };
-        }// We create a *node that wraps a specific node type
+        } // We create a *node that wraps a specific node type
         const node = std.heap.c_allocator.create(Node) catch return null;
         // We set the union to be of type Declaration and assign the created declaration node
         node.* = Node{ .StructDeclaration = decl_node };
@@ -478,10 +498,10 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     } else {
         const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
         if (asgnNode) |n| {
-            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment }; 
+            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment };
         } else {
             decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null };
-        }// We create a *node that wraps a specific node type
+        } // We create a *node that wraps a specific node type
         const node = std.heap.c_allocator.create(Node) catch return null;
         // We set the union to be of type Declaration and assign the created declaration node
         node.* = Node{ .Declaration = decl_node };
@@ -542,6 +562,36 @@ export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .PostFix = postfix_node };
+    const n: *Node = @ptrCast(node);
+    return n;
+}
+
+export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
+    const prefix_node = std.heap.c_allocator.create(PreFixNode) catch return null;
+
+    switch (token) {
+        c.INC_OP => {
+            prefix_node.* = PreFixNode{
+                .pre_op = "++",
+                .val = val,
+            };
+        },
+        c.DEC_OP => {
+            prefix_node.* = PreFixNode{
+                .pre_op = "--",
+                .val = val,
+            };
+        },
+        else => {
+            prefix_node.* = PreFixNode{
+                .pre_op = "Error_Unknown_Op",
+                .val = val,
+            };
+        },
+    }
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node{ .PreFix = prefix_node };
     const n: *Node = @ptrCast(node);
     return n;
 }
@@ -864,13 +914,19 @@ export fn make_structunion_node(t: c.yytokentype) ?*Node {
     const us = std.heap.c_allocator.create(StructUnionNode) catch return null;
     const node = std.heap.c_allocator.create(Node) catch return null;
 
-    switch(t) {
-        c.UNION => { us.* = StructUnionNode { .type = c.UNION }; },
-        c.STRUCT => { us.* = StructUnionNode { .type = c.STRUCT }; },
-        else => { us.* = StructUnionNode { .type = c.VOID }; }
+    switch (t) {
+        c.UNION => {
+            us.* = StructUnionNode{ .type = c.UNION };
+        },
+        c.STRUCT => {
+            us.* = StructUnionNode{ .type = c.STRUCT };
+        },
+        else => {
+            us.* = StructUnionNode{ .type = c.VOID };
+        },
     }
 
-    node.* = Node {.StructUnion = us};
+    node.* = Node{ .StructUnion = us };
     return node;
 }
 export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8, decl_list_node: ?*Node) ?*Node {
@@ -885,12 +941,11 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
         const anon_name = std.heap.c_allocator.create(IdentifierNode) catch return null;
         anon_name.* = IdentifierNode{ .name = "<anonymous>" };
         const node = std.heap.c_allocator.create(Node) catch return null;
-        node.* = Node {.Identifier = anon_name};
+        node.* = Node{ .Identifier = anon_name };
         id = node;
     }
     // For now, we only handle struct
     if (struct_or_union.StructUnion.type == c.STRUCT) {
-
         if (decl_list_node) |dl| {
             decl_list = dl.StructDeclList.decl_list;
         } else {
@@ -900,18 +955,18 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
         var name: *Node = undefined;
         if (id) |ident| {
             name = ident;
-        } else { return null; }
-        struct_node.* = StructNode { .name = name, .decl_list = decl_list };
+        } else {
+            return null;
+        }
+        struct_node.* = StructNode{ .name = name, .decl_list = decl_list };
 
         const node = std.heap.c_allocator.create(Node) catch return null;
-        node.* = Node { .Struct = struct_node };
+        node.* = Node{ .Struct = struct_node };
         return node;
-
     } else {
         return null; //union later
     }
 }
-
 
 pub const StructDeclNode = struct {
     type: *TypeNode,
@@ -1130,6 +1185,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .PostFix => {
             const pf = node.PostFix;
             std.debug.print("🔻 Postfix Op: {s}\n", .{pf.post_op});
+            printNode(pf.val, indent + 1);
+        },
+        .PreFix => {
+            const pf = node.PreFix;
+            std.debug.print("🔺 Prefix Op: {s}\n", .{pf.pre_op});
             printNode(pf.val, indent + 1);
         },
         .Comp => {
