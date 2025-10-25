@@ -40,7 +40,7 @@ struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
 struct Node* combine_type_node(struct Node* left, struct Node* right);
 struct Node* append_struct_decl_list(struct Node* decl, struct Node* decls);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
-void make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
+struct Node* make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
 extern struct Node* root;
 %}
 
@@ -347,7 +347,7 @@ type_specifier
 struct_or_union_specifier
 	: struct_or_union '{' struct_declaration_list '}' // struct_declaration_list	// anonymous struct/union -> struct { int x; float y; ... }
 	| struct_or_union IDENTIFIER '{' struct_declaration_list '}' // named struct/union -> struct Foo { int x; float y; ... }
-	| struct_or_union IDENTIFIER  { $$ = struct_or_union_specifier()}// make ident node? // reference to previously defined struct/union -> struct Foo
+	| struct_or_union IDENTIFIER  { $$ = struct_or_union_specifier(); } // make ident node? // reference to previously defined struct/union -> struct Foo
 	;
 
 struct_or_union
