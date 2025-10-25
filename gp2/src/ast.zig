@@ -128,7 +128,9 @@ pub const PointerNode = struct {
 };
 
 pub const IdPointerNode = struct { pointer: *Node, identifier: *Node };
-
+pub const TranslationUnitListNode = struct {
+    translationUnits: []*Node,
+};
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -145,6 +147,7 @@ pub const NodeTag = enum {
     ArgumentList,
     ParameterList,
     NameParameterNode,
+    TranslationUnitList,
     // Blocks
     BlockItems,
 
@@ -203,6 +206,7 @@ pub const Node = union(NodeTag) {
     ArgumentList: *ArgumentListNode,
     ParameterList: *ParameterListNode,
     NameParameterNode: *NameParameterNode,
+    TranslationUnitList: *TranslationUnitListNode,
     BlockItems: *BlockItemsNode,
 
     // Arithmetic and Cast
@@ -1157,6 +1161,43 @@ export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .StructDeclaratorList = declarators_list_node };
         return node;
+    }
+}
+
+// ===================
+// | TranslationUnit |
+// ===================
+
+export fn append_translation_unit(unit: *Node, units: ?*Node) ?*Node {
+    if (units == null) {
+        const units_list_node = std.heap.c_allocator.create(TranslationUnitListNode) catch return null;
+
+        const new_unit = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_unit[0] = unit;
+
+        // Set the params field
+        units_list_node.* = TranslationUnitListNode{ .translationUnits = new_unit };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .TranslationUnitList = units_list_node };
+        return node;
+    } else {
+        const units_block = units.?.TranslationUnitList;
+
+        const new_len = units_block.translationUnits.len + 1;
+        const new_unit = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+
+        // Copy existing units
+        @memcpy(new_unit[0..units_block.translationUnits.len], units_block.translationUnits);
+        new_unit[units_block.translationUnits.len] = unit;
+
+        const units_list_node = std.heap.c_allocator.create(TranslationUnitListNode) catch return null;
+        units_list_node.* = TranslationUnitListNode{ .translationUnits = new_unit };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .TranslationUnitList = units_list_node };
+        return node;
+
     }
 }
 
