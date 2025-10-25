@@ -46,6 +46,7 @@ struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, s
 struct Node* make_structunion_node(enum yytokentype t);
 
 struct Node* make_assignment_op_node(enum yytokentype token);
+struct Node* make_float_node(float f);
 
 extern struct Node* root;
 %}
@@ -103,7 +104,7 @@ primary_expression
 
 constant
 	: I_CONSTANT { $$ = make_constant_node($1); }		/* includes character_constant */
-	| F_CONSTANT { $$ = make_constant_node($1); }
+	| F_CONSTANT { $$ = make_float_node($1); }
 	| ENUMERATION_CONSTANT { $$ = make_identifier_node($1); }	/* after it has been defined as such */
 	;
 

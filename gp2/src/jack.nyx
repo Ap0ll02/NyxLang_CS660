@@ -1,16 +1,4 @@
-unsigned long long factorial(int n) { 
-    if (n < 0) { 
-        printf("Error: Factorial of a negative number doesn't exist.\n");
-        return 0;
-    } 
-    unsigned long long result = 1;
-    for (int i = 1; i <= n; ++i) {
-        result *= i;
-    } 
-    return result;
-} 
-int main() { 
-    int num = 5;
-    printf("Easy Print");
-    return 0; 
+int main() {
+    float cats = 69.06;
+    char boys = 'c';
 }

@@ -451,7 +451,7 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     const n: *Node = @ptrCast(node);
     return n;
 }
-
+// if we want float constants
 export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
@@ -668,6 +668,18 @@ export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
     return n;
 }
 
+export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
+    const fnode = std.heap.c_allocator.create(FloatNode) catch return null;
+
+    fnode.* = FloatNode{ .val = val };
+
+    const node = std.heap.c_allocator.create(Node) catch return null;
+
+    node.* = Node{ .Float = fnode };
+
+    const n: *Node = @ptrCast(node);
+    return n;
+}
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
 
