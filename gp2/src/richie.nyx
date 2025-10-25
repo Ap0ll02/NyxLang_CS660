@@ -1,0 +1,5 @@
+// c struct 
+struct x {
+    int y;
+    float z;
+};
