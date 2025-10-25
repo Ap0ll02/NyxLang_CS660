@@ -19,7 +19,11 @@ pub const ConstantNode = struct {
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    typeNode: *TypeNode,
+    typeNode: *TypeNode, // Structs will return StructNode here, others return TypeNode
+    assignNode: ?*AssignmentNode,
+};
+pub const StructDeclarationNode = struct {
+    packedNode: *StructNode,
     assignNode: ?*AssignmentNode,
 };
 pub const FunctionNode = struct {
@@ -155,6 +159,7 @@ pub const NodeTag = enum {
 
     // Variables, Pointers and Arrays
     Declaration,
+    StructDeclaration,
     Assignment,
 
     // Control Flow (If, Loops)
@@ -205,6 +210,7 @@ pub const Node = union(NodeTag) {
 
     // Vars
     Declaration: *DeclarationNode,
+    StructDeclaration: *StructDeclarationNode,
     Assignment: *AssignmentNode,
 
     // Control Flow
@@ -457,22 +463,31 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node) ?*Node {
 export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
-    const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
-    if (asgnNode) |n| {
-        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment };
+    if(typeNode.* == .Struct) {
+        const decl_node = std.heap.c_allocator.create(StructDeclarationNode) catch return null;
+        if (asgnNode) |n| {
+            decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = n.Assignment }; 
+        } else {
+            decl_node.* = StructDeclarationNode{ .packedNode = typeNode.Struct, .assignNode = null };
+        }// We create a *node that wraps a specific node type
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        // We set the union to be of type Declaration and assign the created declaration node
+        node.* = Node{ .StructDeclaration = decl_node };
+        const n: *Node = @ptrCast(node);
+        return n;
     } else {
-        decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null };
+        const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
+        if (asgnNode) |n| {
+            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment }; 
+        } else {
+            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null };
+        }// We create a *node that wraps a specific node type
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        // We set the union to be of type Declaration and assign the created declaration node
+        node.* = Node{ .Declaration = decl_node };
+        const n: *Node = @ptrCast(node);
+        return n;
     }
-    // We set the variable name, type, and optional initializer for the declaration node
-
-    // We create a *node that wraps a specific node type
-    const node = std.heap.c_allocator.create(Node) catch return null;
-    // We set the union to be of type Declaration and assign the created declaration node
-    node.* = Node{ .Declaration = decl_node };
-
-    // We return the created node
-    const n: *Node = @ptrCast(node);
-    return n;
 }
 
 export fn make_binary_node(lhs: *Node, op: c_char, rhs: *Node) ?*Node {
@@ -899,7 +914,7 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
 
 
 pub const StructDeclNode = struct {
-    identifier: *IdentifierNode,
+    type: *TypeNode,
     decl_list: []*StructDeclNode,
 };
 pub const StructDeclListNode = struct {
@@ -940,17 +955,17 @@ export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
 export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Node {
     const struct_node = std.heap.c_allocator.create(StructDeclNode) catch return null;
 
-    const identifier = identifier_node.Identifier;
+    const identifier = identifier_node.Type;
     if (decl_list_node) |dl| {
         struct_node.* = StructDeclNode{
-            .identifier = identifier,
-            .decl_list = dl.StructDeclList.decl_list,
+            .type = identifier,
+            .decl_list = dl.StructDeclaratorList.declarators,
         };
     } else {
         // Struct reference (no body)
         const empty_decl_list = std.heap.c_allocator.alloc(*StructDeclNode, 0) catch return null;
         struct_node.* = StructDeclNode{
-            .identifier = identifier,
+            .type = identifier,
             .decl_list = empty_decl_list,
         };
     }
