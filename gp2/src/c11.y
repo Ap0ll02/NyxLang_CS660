@@ -68,7 +68,7 @@ extern struct Node* root;
 %start translation_unit
 %union {
 	int intval;
-	float floatval;
+	float fval;
 	double doubleval;
 	char *id; // magic that works
 	// char charval;
@@ -76,11 +76,11 @@ extern struct Node* root;
     enum yytokentype yyt_type;
 }
 
-%token <yyt_type> INT FLOAT STRUCT UNION MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
+%token <yyt_type> INT FLOAT STRUCT UNION MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN DOUBLE
 %token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
 %token <intval> INT_CONST I_CONSTANT
-%token <floatval> FLOAT_CONST F_CONSTANT
-%token <doubleval> DOUBLE_CONST DOUBLE
+%token <fval> FLOAT_CONST F_CONSTANT
+%token <doubleval> DOUBLE_CONST
 %token <boolval> BOOL
 // %token <charval> '*' '/' '%' '+' '-' '<' '>' '&' '^' '|' '~' '!' '=' ';' ',' ':' '?' '(' ')' '{' '}' '[' ']'
 %token <intval> LE_OP GE_OP EQ_OP NE_OP AND_OP OR_OP LEFT_OP RIGHT_OP
@@ -273,7 +273,7 @@ declaration
 declaration_specifiers
 	: storage_class_specifier declaration_specifiers { zig_error(); }
 	| storage_class_specifier { zig_error(); }
-	| type_specifier_list declaration_specifiers
+	| type_specifier_list declaration_specifiers { zig_error(); }
 	| type_specifier_list
 	| type_qualifier declaration_specifiers { zig_error(); }
 	| type_qualifier { zig_error(); }
