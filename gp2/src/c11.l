@@ -96,12 +96,12 @@ static int check_type(void);
 "0"{O}*{IS}?				{ yylval.id = strdup(yytext); return I_CONSTANT; }
 {CP}?"'"([^'\\\n]|{ES})+"'"		{ yylval.id = strdup(yytext); return I_CONSTANT; }
 
-{D}+{E}{FS}?				{ yylval.id = strdup(yytext); return F_CONSTANT; }
-{D}*"."{D}+{E}?{FS}?			{ yylval.id = strdup(yytext); return F_CONSTANT; }
-{D}+"."{E}?{FS}?			{ yylval.id = strdup(yytext); return F_CONSTANT; }
-{HP}{H}+{P}{FS}?			{ yylval.id = strdup(yytext); return F_CONSTANT; }
-{HP}{H}*"."{H}+{P}{FS}?			{ yylval.id = strdup(yytext); return F_CONSTANT; }
-{HP}{H}+"."{P}{FS}?			{ yylval.id = strdup(yytext); return F_CONSTANT; }
+{D}+{E}{FS}?				{ yylval.fval = strtof(yytext, NULL); return F_CONSTANT; }
+{D}*"."{D}+{E}?{FS}?			{ yylval.fval = strtof(yytext, NULL); return F_CONSTANT; }
+{D}+"."{E}?{FS}?			{ yylval.fval = strtof(yytext, NULL); return F_CONSTANT; }
+{HP}{H}+{P}{FS}?			{ yylval.fval = strtof(yytext, NULL); return F_CONSTANT; }
+{HP}{H}*"."{H}+{P}{FS}?			{ yylval.fval = strtof(yytext, NULL); return F_CONSTANT; }
+{HP}{H}+"."{P}{FS}?			{ yylval.fval = strtof(yytext, NULL); return F_CONSTANT; }
 
 ({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ yylval.id = strdup(yytext); return STRING_LITERAL; }
 
