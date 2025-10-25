@@ -41,6 +41,8 @@ struct Node* combine_type_node(struct Node* left, struct Node* right);
 struct Node* append_struct_decl_list(struct Node* decl, struct Node* decls);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
 struct Node* make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
+struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
+struct Node* make_structunion_node(enum yytokentype t);
 extern struct Node* root;
 %}
 
@@ -55,7 +57,7 @@ extern struct Node* root;
 %token	CONST RESTRICT VOLATILE
 %token	CHAR SHORT LONG SIGNED UNSIGNED VOID
 %token	COMPLEX IMAGINARY 
-%token	STRUCT UNION ENUM ELLIPSIS
+%token	ENUM ELLIPSIS
 
 %token	CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
@@ -71,7 +73,7 @@ extern struct Node* root;
     struct Node* node;
     enum yytokentype yyt_type;
 }
-%token <yyt_type> INT FLOAT
+%token <yyt_type> INT FLOAT STRUCT UNION
 %token <id> IDENTIFIER STRING_LITERAL ENUMERATION_CONSTANT FUNC_NAME GENERIC
 %token <intval> INT_CONST I_CONSTANT
 %token <floatval> FLOAT_CONST F_CONSTANT
@@ -85,7 +87,7 @@ extern struct Node* root;
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
-%type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list
+%type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list 
 %type <id> string
 %%
 primary_expression
@@ -346,16 +348,16 @@ type_specifier
 
 struct_or_union_specifier
 	: struct_or_union '{' struct_declaration_list '}' // struct_declaration_list	// anonymous struct/union -> struct { int x; float y; ... }
-	| struct_or_union IDENTIFIER '{' struct_declaration_list '}' // named struct/union -> struct Foo { int x; float y; ... }
-	| struct_or_union IDENTIFIER  { $$ = struct_or_union_specifier(); } // make ident node? // reference to previously defined struct/union -> struct Foo
+	| struct_or_union IDENTIFIER '{' struct_declaration_list '}' {$$ = make_struct_or_union($1, $2, $4); }// named struct/union -> struct Foo { int x; float y; ... }
+	| struct_or_union IDENTIFIER  { $$ = make_struct_or_union($1, $2, NULL); } // make ident node? // reference to previously defined struct/union -> struct Foo
 	;
 
 struct_or_union
-	: STRUCT { $$ = STRUCT; }
-	| UNION { $$ = UNION; }
+	: STRUCT { $$ = make_structunion_node(STRUCT); }
+	| UNION { $$ = make_structunion_node(UNION); }
 	;
 
-struct_declaration_list // int age; float height; char* name; ...
+struct_declaration_list
 	: struct_declaration { $$ = append_struct_decl_list($1, NULL); } // append_struct_declaration
 	| struct_declaration_list struct_declaration { $$ = append_struct_decl_list($2, $1); }
 	;
