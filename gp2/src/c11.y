@@ -341,7 +341,7 @@ type_specifier
         $$ = make_type_node(IMAGINARY);
     }	/* non-mandated extension */
 	| atomic_type_specifier { zig_error(); }
-	| struct_or_union_specifier { zig_error(); }
+	| struct_or_union_specifier
 	| enum_specifier { zig_error(); }
 	| TYPEDEF_NAME { zig_error(); }		/* after it has been defined as such */
 	;
