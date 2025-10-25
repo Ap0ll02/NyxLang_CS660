@@ -325,9 +325,10 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
 }
 export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     // null check
-    if (left_type == null) return right_type;
     if (right_type == null) return left_type;
+    if (left_type == null) return right_type;
 
+    std.debug.print("Both Nodes Valid: Checking Details\n", .{});
     const new_type = std.heap.c_allocator.create(TypeNode) catch return null;
     if (left_type != null and right_type != null) {
         const rt = right_type.?;
@@ -390,10 +391,11 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
             .VOID => "void",
             else => "unknown",
         };
-        if (!(new_base == .INT or new_base == .LONG) or new_qual == 0) {
+        if ( !(new_base == .INT or new_base == .LONG) or new_qual == 0) {
             _ = name_parts.append(alloc, base_name) catch {};
         }
         const new_name = std.mem.join(alloc, " ", name_parts.items) catch "unknown";
+        std.debug.print("\n Type Node Created: {any}\n", .{new_base});
         new_type.* = TypeNode{ .base = new_base, .is_const = new_const, .is_unsigned = new_sign, .alignment = alignment, .size = size, .type_name = new_name.ptr, .qualifier = new_qual };
     }
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -405,22 +407,30 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
     std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.FLOAT => {
-            type_node_ptr.* = TypeNode{ .base = .FLOAT };
+            const tn: [*c]const u8 = "float";
+            type_node_ptr.* = TypeNode{ .base = .FLOAT, .type_name = tn };
         },
         c.DOUBLE => {
-            type_node_ptr.* = TypeNode{ .base = .DOUBLE };
+            const tn: [*c]const u8 = "double";
+            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = tn};
         },
         c.INT => {
             type_node_ptr.* = TypeNode{ .base = .INT };
         },
         c.LONG => {
-            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1 };
+            const tn: [*c]const u8 = "long";
+            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1, .type_name = tn};
         },
         c.STRING_LITERAL => {
-            type_node_ptr.* = TypeNode{ .base = .STRING };
+            const tn: [*c]const u8 = "string";
+            type_node_ptr.* = TypeNode{ .base = .STRING, .type_name = tn };
         },
         c.UNSIGNED => {
             type_node_ptr.* = TypeNode{ .base = .INT, .is_unsigned = true };
+        },
+        c.CHAR => {
+            const tn: [*c]const u8 = "char";
+            type_node_ptr.* = TypeNode{ .base = .CHAR, .is_unsigned = true, .type_name = tn };
         },
         else => {
             type_node_ptr.* = TypeNode{ .base = .VOID };
@@ -486,7 +496,7 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
 export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
-    std.debug.print("make_declaration_node function reached\n", .{});
+    // std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
     if (typeNode.* == .Struct) {
         const decl_node = std.heap.c_allocator.create(StructDeclarationNode) catch return null;
@@ -502,6 +512,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
         return n;
     } else {
         const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
+        // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
         if (asgnNode) |n| {
             decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment };
         } else {
