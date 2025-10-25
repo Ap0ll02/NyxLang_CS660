@@ -853,8 +853,8 @@ export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
 // ===============
 
 pub const StructNode = struct {
-    name: ?*IdentifierNode,
-    decl_list: ?[]*StructDeclNode,
+    name: ?*Node,
+    decl_list: ?[]*Node,
 };
 pub const StructUnionNode = struct {
     type: c.yytokentype,
@@ -897,9 +897,9 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
             const empty_decl_list = std.heap.c_allocator.alloc(*StructNode, 0) catch return null;
             decl_list = empty_decl_list;
         }
-        var name: *IdentifierNode = undefined;
+        var name: *Node = undefined;
         if (id) |ident| {
-            name = ident.Identifier;
+            name = ident;
         } else { return null; }
         struct_node.* = StructNode { .name = name, .decl_list = decl_list };
 
@@ -1232,6 +1232,21 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
                 printIndent(indent + 1);
                 std.debug.print("Base\n", .{});
             }
+        },
+        .Struct => {
+            const s_node = node.Struct;
+            printNode(s_node.name, indent);
+        },
+        .StructDecl => {
+            const sd = node.StructDecl;
+            const s = std.mem.span(sd.type.type_name);
+            printIndent(indent);
+            std.debug.print("{s}", .{s});
+        },
+        .StructDeclaration => {
+            const sd = node.StructDeclaration;
+            printIndent(indent);
+            std.debug.print("{s}", .{sd.packedNode.name.?.Identifier.name});
         },
         else => |tag| {
             std.debug.print("Unknown node type: {}\n", .{tag});
