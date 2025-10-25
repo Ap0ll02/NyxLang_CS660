@@ -37,6 +37,7 @@ struct Node* append_argument_list(struct Node* item, struct Node* items);
 struct Node* make_string_node(const char* s);
 struct Node* make_return_node(struct Node* ret_val);
 struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
+struct Node* make_pre_fix_node(enum yytokentype operator, struct Node* base);
 struct Node* combine_type_node(struct Node* left, struct Node* right);
 struct Node* append_struct_decl_list(struct Node* decl, struct Node* decls);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
@@ -147,8 +148,8 @@ argument_expression_list
 
 unary_expression
 	: postfix_expression
-    | INC_OP unary_expression
-	| DEC_OP unary_expression
+    | INC_OP unary_expression { $$ = make_pre_fix_node(INC_OP, $2); }
+	| DEC_OP unary_expression { $$ = make_pre_fix_node(DEC_OP, $2); }
 	| unary_operator cast_expression
 	| SIZEOF unary_expression
 	| SIZEOF '(' type_name ')'
