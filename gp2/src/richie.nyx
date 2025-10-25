@@ -1,5 +1,4 @@
-// c struct 
-struct x {
-    int y;
-    float z;
-};
+int main () {
+    int x = 0;
+    x *= 5;
+}

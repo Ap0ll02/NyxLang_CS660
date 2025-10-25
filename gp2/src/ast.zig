@@ -1172,7 +1172,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
             if (decl_node.assignNode) |asgn| {
                 printIndent(indent + 1);
-                std.debug.print("↳ Assignment:\n", .{});
+                if (asgn.ass_op) |ass| {
+                    std.debug.print("↳ Assignment: {s}\n", .{ass.AssOp.assign_op});
+                } else {
+                    std.debug.print("↳ Assignment: meow\n", .{});
+                }
                 printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
                 printNode(n, indent);
@@ -1190,6 +1194,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
                 printIndent(indent + 1);
                 std.debug.print("↳ Initializer:\n", .{});
                 printNode(init, indent + 1);
+            }
+            if (asgn.ass_op) |ass| {
+                std.debug.print("↳ Ass Op:\n", .{});
+                printNode(ass, indent + 1);
+            
             } else {
                 printIndent(indent + 1);
                 std.debug.print("(no initializer)\n", .{});
