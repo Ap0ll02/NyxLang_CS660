@@ -37,7 +37,7 @@ pub fn main() !void {
 
     std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
-        ast.printNode(r, 0);
+        try ast.printNode(r, 0);
     } else {
         std.debug.print("Completed, but NULL.", .{});
     }
