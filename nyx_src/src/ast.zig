@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
 
+pub var debug_mode: bool = false;
 extern var yylineno: c_int;
 extern var yycolumn: c_int;
 // ==============

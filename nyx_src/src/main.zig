@@ -15,14 +15,20 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    if (args.len < 2) {
+    if (args.len == 1 or args.len > 3) {
         std.debug.print("Usage: {s} <filename>. Found {d} args\n", .{ args[0], args.len });
+        std.debug.print("Usage: {s} <filename> <flags>. Found {d} args\n", .{ args[0], args.len });
         return;
     }
     const cwd = try std.fs.cwd().realpathAlloc(allocator, ".");
     std.debug.print("CWD: {s}\n", .{cwd});
     defer allocator.free(cwd);
     const filename = args[1];
+    if (args.len > 2) {
+        if (std.mem.eql(u8, args[2], "d")) {
+            ast.debug_mode = true;
+        }
+    }
     std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
@@ -35,7 +41,8 @@ pub fn main() !void {
 
     const result = yyparse();
 
-    std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
+    if (ast.debug_mode) std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{}) else std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
+    // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
         try ast.printNode(r, 0);
     } else {
