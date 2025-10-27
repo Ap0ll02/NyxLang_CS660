@@ -296,12 +296,12 @@ init_declarator
 	;
 
 storage_class_specifier
-	: TYPEDEF	/* identifiers must be flagged as TYPEDEF_NAME */
-	| EXTERN
-	| STATIC
-	| THREAD_LOCAL
-	| AUTO
-	| REGISTER
+	: TYPEDEF { $$ = zig_error(); }	/* identifiers must be flagged as TYPEDEF_NAME */
+	| EXTERN { $$ = zig_error(); }
+	| STATIC { $$ = zig_error(); }
+	| THREAD_LOCAL { $$ = zig_error(); }
+	| AUTO { $$ = zig_error(); }
+	| REGISTER { $$ = zig_error(); }
 	;
 
 type_specifier_list
@@ -393,11 +393,11 @@ struct_declarator
 	;
 
 enum_specifier
-	: ENUM '{' enumerator_list '}'
-	| ENUM '{' enumerator_list ',' '}'
-	| ENUM IDENTIFIER '{' enumerator_list '}'
-	| ENUM IDENTIFIER '{' enumerator_list ',' '}'
-	| ENUM IDENTIFIER
+	: ENUM '{' enumerator_list '}' { $$ = zig_error(); }
+	| ENUM '{' enumerator_list ',' '}' { $$ = zig_error(); }
+	| ENUM IDENTIFIER '{' enumerator_list '}' { $$ = zig_error(); }
+	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { $$ = zig_error(); }
+	| ENUM IDENTIFIER { $$ = zig_error(); }
 	;
 
 enumerator_list
@@ -411,24 +411,24 @@ enumerator	/* identifiers must be flagged as ENUMERATION_CONSTANT */
 	;
 
 atomic_type_specifier
-	: ATOMIC '(' type_name ')'
+	: ATOMIC '(' type_name ')' { $$ = zig_error(); }
 	;
 
 type_qualifier
-	: CONST
-	| RESTRICT
-	| VOLATILE
-	| ATOMIC
+	: CONST { $$ = zig_error(); }
+	| RESTRICT { $$ = zig_error(); }
+	| VOLATILE { $$ = zig_error(); }
+	| ATOMIC { $$ = zig_error(); }
 	;
 
 function_specifier
-	: INLINE
-	| NORETURN
+	: INLINE { $$ = zig_error(); }
+	| NORETURN { $$ = zig_error(); }
 	;
 
 alignment_specifier
-	: ALIGNAS '(' type_name ')'
-	| ALIGNAS '(' constant_expression ')'
+	: ALIGNAS '(' type_name ')' { $$ = zig_error(); }
+	| ALIGNAS '(' constant_expression ')' { $$ = zig_error(); }
 	;
 
 declarator
