@@ -128,7 +128,9 @@ pub const PointerNode = struct {
 };
 
 pub const IdPointerNode = struct { pointer: *Node, identifier: *Node };
-
+pub const TranslationUnitListNode = struct {
+    translationUnits: []*Node,
+};
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -145,6 +147,7 @@ pub const NodeTag = enum {
     ArgumentList,
     ParameterList,
     NameParameterNode,
+    TranslationUnitList,
     // Blocks
     BlockItems,
 
@@ -203,6 +206,7 @@ pub const Node = union(NodeTag) {
     ArgumentList: *ArgumentListNode,
     ParameterList: *ParameterListNode,
     NameParameterNode: *NameParameterNode,
+    TranslationUnitList: *TranslationUnitListNode,
     BlockItems: *BlockItemsNode,
 
     // Arithmetic and Cast
@@ -1160,6 +1164,49 @@ export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) 
     }
 }
 
+// ===================
+// | TranslationUnit |
+// ===================
+
+var myGlobalConst: i32 = 0;
+
+export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
+
+    myGlobalConst += 1;
+    std.debug.print("COUNTER: {any}", .{myGlobalConst});
+    
+    if (prev) |p| {
+        const unit_block = p.TranslationUnitList;
+
+        const new_len = unit_block.translationUnits.len + 1;
+        const new_unit = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+
+        // Copy existing declarators
+        @memcpy(new_unit[0..unit_block.translationUnits.len], unit_block.translationUnits);
+        new_unit[unit_block.translationUnits.len] = unit;
+
+        const unit_list_node = std.heap.c_allocator.create(TranslationUnitListNode) catch return null;
+        unit_list_node.* = TranslationUnitListNode{ .translationUnits = new_unit };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .TranslationUnitList = unit_list_node };
+        return node;
+    } else {
+        // starting a new list
+        const tul = std.heap.c_allocator.create(TranslationUnitListNode) catch return null;
+
+        const new_unit = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        new_unit[0] = unit;
+
+        // Set the params field
+        tul.* = TranslationUnitListNode{ .translationUnits = new_unit };
+
+        const node = std.heap.c_allocator.create(Node) catch return null;
+        node.* = Node{ .TranslationUnitList = tul };
+        return node;
+    }
+}   
+
 // ===============
 // | AST Printer |
 // ===============
@@ -1240,10 +1287,9 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             if (func.body.items.len == 0) {
                 printIndent(indent + 1);
                 std.debug.print("(empty block)\n", .{});
-                return;
-            }
-
-            for (func.body.items) |item| printNode(item, indent + 1);
+            } else {
+                for (func.body.items) |item| printNode(item, indent + 1);
+            } 
         },
         .FunctionCall => {
             std.debug.print("📞 Function Call\n", .{});
@@ -1296,6 +1342,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .AssOp => {
             const ao = node.AssOp;
+            printIndent(indent+1);
             std.debug.print("🔻 Ass Op: {s}\n", .{ao.assign_op});
         },
         .Comp => {
@@ -1425,6 +1472,15 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             const s = node.StructDeclList;
             for(s.decl_list) |item| {
                 printNode(item, indent+1);
+            }
+        },
+        .TranslationUnitList => {
+            const tul = node.TranslationUnitList;
+            std.debug.print("📦 Translation Unit List ({} units)\n", .{tul.translationUnits.len});
+            for (tul.translationUnits, 0..) |tu, i| {
+                printIndent(indent + 1);
+                std.debug.print("• Unit [{}]:\n", .{i});
+                printNode(tu, indent + 2);
             }
         },
         else => |tag| {
