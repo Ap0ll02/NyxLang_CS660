@@ -8,7 +8,6 @@ int yydebug = 1;
 int yylex(void);
 int yyparse(void);
 void yyerror(const char *s);
-// External Functions
 
 // Symbol Table Functions
 
@@ -16,6 +15,7 @@ void zig_error();
 
 // So we can return generic node pointers and other values
 struct Node* node;
+struct Node* make_error_node(const char *msg, int loc);
 struct Node* make_identifier_node(const char *s);
 struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
 struct Node* make_constant_node(int s);
@@ -91,7 +91,7 @@ extern struct Node* root;
 %type <node> multiplicative_expression additive_expression shift_expression  constant_expression equality_expression relational_expression expression_statement
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
-%type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list 
+%type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list storage_class_specifier
 %type <node> assignment_operator
 %type <node> string program
 
@@ -120,7 +120,7 @@ string
 	;
 
 generic_selection
-	: GENERIC '(' assignment_expression ',' generic_assoc_list ')' { zig_error(); }
+	: GENERIC '(' assignment_expression ',' generic_assoc_list ')' { $$ = make_error_node("Unsupported operation: GENERIC SELECTION\n", 0); }
 	;
 
 generic_assoc_list
@@ -172,7 +172,7 @@ unary_operator
 
 cast_expression
 	: unary_expression
-	| '(' type_name ')' cast_expression
+	| '(' type_name ')' cast_expression { $$ = make_error_node("Unsupported operation: GENERIC SELECTION\n", 0); }
 	;
 
 multiplicative_expression
@@ -296,12 +296,12 @@ init_declarator
 	;
 
 storage_class_specifier
-	: TYPEDEF { $$ = zig_error(); }	/* identifiers must be flagged as TYPEDEF_NAME */
-	| EXTERN { $$ = zig_error(); }
-	| STATIC { $$ = zig_error(); }
-	| THREAD_LOCAL { $$ = zig_error(); }
-	| AUTO { $$ = zig_error(); }
-	| REGISTER { $$ = zig_error(); }
+	: TYPEDEF { $$ = make_error_node("Unsupported Operation: TYPEDEF", 0); }	/* identifiers must be flagged as TYPEDEF_NAME */
+	| EXTERN { $$ = make_error_node("Unsupported Operation: EXTERN", 0); }
+	| STATIC { $$ = make_error_node("Unsupported Operation: STATIC", 0); }
+	| THREAD_LOCAL { $$ = make_error_node("Unsupported Operation: THREAD_LOCAL", 0); }
+	| AUTO { $$ = make_error_node("Unsupported Operation: AUTO", 0); }
+	| REGISTER { $$ = make_error_node("Unsupported Operation: REGISTER", 0); }
 	;
 
 type_specifier_list
@@ -393,11 +393,11 @@ struct_declarator
 	;
 
 enum_specifier
-	: ENUM '{' enumerator_list '}' { $$ = zig_error(); }
-	| ENUM '{' enumerator_list ',' '}' { $$ = zig_error(); }
-	| ENUM IDENTIFIER '{' enumerator_list '}' { $$ = zig_error(); }
-	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { $$ = zig_error(); }
-	| ENUM IDENTIFIER { $$ = zig_error(); }
+	: ENUM '{' enumerator_list '}' { zig_error(); }
+	| ENUM '{' enumerator_list ',' '}' { zig_error(); }
+	| ENUM IDENTIFIER '{' enumerator_list '}' { zig_error(); }
+	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { zig_error(); }
+	| ENUM IDENTIFIER { zig_error(); }
 	;
 
 enumerator_list
@@ -411,24 +411,24 @@ enumerator	/* identifiers must be flagged as ENUMERATION_CONSTANT */
 	;
 
 atomic_type_specifier
-	: ATOMIC '(' type_name ')' { $$ = zig_error(); }
+	: ATOMIC '(' type_name ')' { zig_error(); }
 	;
 
 type_qualifier
-	: CONST { $$ = zig_error(); }
-	| RESTRICT { $$ = zig_error(); }
-	| VOLATILE { $$ = zig_error(); }
-	| ATOMIC { $$ = zig_error(); }
+	: CONST { zig_error(); }
+	| RESTRICT { zig_error(); }
+	| VOLATILE { zig_error(); }
+	| ATOMIC { zig_error(); }
 	;
 
 function_specifier
-	: INLINE { $$ = zig_error(); }
-	| NORETURN { $$ = zig_error(); }
+	: INLINE { zig_error(); }
+	| NORETURN { zig_error(); }
 	;
 
 alignment_specifier
-	: ALIGNAS '(' type_name ')' { $$ = zig_error(); }
-	| ALIGNAS '(' constant_expression ')' { $$ = zig_error(); }
+	: ALIGNAS '(' type_name ')' { zig_error(); }
+	| ALIGNAS '(' constant_expression ')' { zig_error(); }
 	;
 
 declarator
