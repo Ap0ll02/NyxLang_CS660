@@ -1,4 +1,10 @@
 int main() {
     float cats = 69.06;
     char boys = 'c';
+    switch boys {
+        case 'a':
+            return;
+        default:
+            return;
+    }
 }
