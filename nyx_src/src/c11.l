@@ -152,8 +152,9 @@ static int check_type(void);
 "|"					{ return '|'; }
 "?"					{ return '?'; }
 
-{WS}+					{ /* whitespace separates tokens */ }
-.					{ /* discard bad characters */ }
+"\\n"               
+{WS}+				
+.				
 
 %%
 
