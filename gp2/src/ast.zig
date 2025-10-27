@@ -269,7 +269,7 @@ pub const Node = union(NodeTag) {
 export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, expr2: *Node) ?*Node {
     const CondExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
 
-    std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
+    // std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.GE_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
@@ -332,7 +332,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     if (right_type == null) return left_type;
     if (left_type == null) return right_type;
 
-    std.debug.print("Both Nodes Valid: Checking Details\n", .{});
+    // std.debug.print("Both Nodes Valid: Checking Details\n", .{});
     const new_type = std.heap.c_allocator.create(TypeNode) catch return null;
     if (left_type != null and right_type != null) {
         const rt = right_type.?;
@@ -399,7 +399,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
             _ = name_parts.append(alloc, base_name) catch {};
         }
         const new_name = std.mem.join(alloc, " ", name_parts.items) catch "unknown";
-        std.debug.print("\n Type Node Created: {any}\n", .{new_base});
+        // std.debug.print("\n Type Node Created: {any}\n", .{new_base});
         new_type.* = TypeNode{ .base = new_base, .is_const = new_const, .is_unsigned = new_sign, .alignment = alignment, .size = size, .type_name = new_name.ptr, .qualifier = new_qual };
     }
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -408,7 +408,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
 }
 export fn make_type_node(token: c.yytokentype) ?*Node {
     const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
-    std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
+    // std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.FLOAT => {
             const tn: [*c]const u8 = "float";
@@ -724,7 +724,7 @@ export fn make_string_node(raw_val: [*c]const u8) ?*Node {
 export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node or statement node, create a new BlockItemsNode with the item as the first element
     if (items == null) {
-        std.debug.print("\nNEW BLOCK LIST CREATED:\n", .{});
+        // std.debug.print("\nNEW BLOCK LIST CREATED:\n", .{});
         const block_items_node = std.heap.c_allocator.create(BlockItemsNode) catch return null;
 
         const new_items = std.heap.c_allocator.alloc(*Node, 1) catch return null;
@@ -737,7 +737,7 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
         return node;
     } else {
         // Otherwise, we have an existing BlockItemsNode, append the new item to its items array
-        std.debug.print("\nADDING TO OLD LIST\n", .{});
+        // std.debug.print("\nADDING TO OLD LIST\n", .{});
         // Unwrap the items from Node
         const items_block = items.?.BlockItems;
 
@@ -774,7 +774,7 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node so we, create a new ParameterListNode with the item as the first element
     if (items == null) {
-        std.debug.print("\nCREATING PARAM LIST:\n", .{});
+        // std.debug.print("\nCREATING PARAM LIST:\n", .{});
         // create the ParameterListNode
         const parameter_items_node = std.heap.c_allocator.create(ParameterListNode) catch return null;
         // initialize it with the single item which
@@ -788,7 +788,7 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
 
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .ParameterList = parameter_items_node };
-        std.debug.print("Param: {any}\n", .{item});
+        // std.debug.print("Param: {any}\n", .{item});
         return node;
     } else {
         // Otherwise, we have an existing BlockItemsNode, append the new item to its items array
@@ -811,8 +811,8 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
         // Wrap the items block in node and return
         const node = std.heap.c_allocator.create(Node) catch return null;
         node.* = Node{ .ParameterList = parameter_list_node };
-        std.debug.print("\nAdding to OLD LIST\n", .{});
-        std.debug.print("Param: {any}\n", .{item});
+        // std.debug.print("\nAdding to OLD LIST\n", .{});
+        // std.debug.print("Param: {any}\n", .{item});
         return node;
     }
 }
@@ -924,7 +924,7 @@ export fn make_expr_stmt(expr: *Node) ?*Node {
 }
 
 export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node {
-    std.debug.print("make_if_stmt function reached\n", .{});
+    // std.debug.print("make_if_stmt function reached\n", .{});
 
     const if_node = std.heap.c_allocator.create(IfNode) catch return null;
 
@@ -941,7 +941,7 @@ export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node 
 }
 
 export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr: ?*Node) ?*Node {
-    std.debug.print("make_iteration_stmt function reached\n", .{});
+    // std.debug.print("make_iteration_stmt function reached\n", .{});
 
     // make new body with old body and post_expr
     var new_body: *Node = body;
@@ -1173,7 +1173,7 @@ var myGlobalConst: i32 = 0;
 export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
 
     myGlobalConst += 1;
-    std.debug.print("COUNTER: {any}", .{myGlobalConst});
+    // std.debug.print("COUNTER: {any}", .{myGlobalConst});
     
     if (prev) |p| {
         const unit_block = p.TranslationUnitList;

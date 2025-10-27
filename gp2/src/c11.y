@@ -569,18 +569,18 @@ labeled_statement
 	;
 
 compound_statement
-	: '{' '}' { printf("Empty Block Found\n"); }
+	: '{' '}' 
 	| '{'  block_item_list '}' { $$ = $2; }
 	;
 
 block_item_list
-	: block_item { printf("Matched Block_Item\n"); $$ = append_block_list($1, NULL); }
-	| block_item_list block_item { printf("Matched Block List then Block Item\n"); $$ = append_block_list($2, $1); }
+	: block_item { $$ = append_block_list($1, NULL); }
+	| block_item_list block_item { $$ = append_block_list($2, $1); }
 	;
 
 block_item
-	: declaration { printf("Declaration Found\n"); }
-	| statement { printf("Statement Found\n"); }
+	: declaration 
+	| statement
 	;
 
 expression_statement
