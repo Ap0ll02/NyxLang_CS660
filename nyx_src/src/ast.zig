@@ -1,6 +1,8 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
 
+extern var yylineno: c_int;
+extern var yycolumn: c_int;
 // ==============
 // NODE STRUCTS
 // ==============
@@ -131,6 +133,7 @@ pub const IdPointerNode = struct { pointer: *Node, identifier: *Node };
 pub const TranslationUnitListNode = struct {
     translationUnits: []*Node,
 };
+pub const ErrorNode = struct { loc: usize, msg: []const u8 };
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -193,6 +196,8 @@ pub const NodeTag = enum {
     StructDeclaratorList,
     Struct,
     StructUnion,
+
+    Error
 };
 
 pub const Node = union(NodeTag) {
@@ -251,6 +256,8 @@ pub const Node = union(NodeTag) {
     StructDeclaratorList: *StructDeclaratorListNode,
     Struct: *StructNode,
     StructUnion: *StructUnionNode,
+
+    Error: *ErrorNode,
 };
 
 // Type information structure
@@ -1163,6 +1170,16 @@ export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) 
         return node;
     }
 }
+export fn make_error_node(msg: [*c]const u8, loc: c_int) ?*Node {
+    const err = std.heap.c_allocator.create(ErrorNode) catch return null;
+    const err_msg = std.mem.span(msg);
+    const location: usize = @intCast(loc);
+    err.* = ErrorNode { .msg = err_msg, .loc = location };
+    const node = std.heap.c_allocator.create(Node) catch return null;
+    node.* = Node { .Error = err };
+
+    return node;
+}
 
 // ===================
 // | TranslationUnit |
@@ -1216,7 +1233,7 @@ pub fn printIndent(indent: usize) void {
         std.debug.print("│  ", .{});
     }
 }
-pub fn printNode(orig_node: ?*Node, indent: usize) void {
+pub fn printNode(orig_node: ?*Node, indent: usize) !void {
     if (orig_node == null) {
         printIndent(indent);
         std.debug.print("Null/Uninitialized\n", .{});
@@ -1227,6 +1244,10 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
     printIndent(indent);
     switch (node.*) {
+        .Error => {
+            const en = node.Error;
+            std.debug.print("{s}", .{en.msg});
+        },
         .Identifier => {
             const id_node = node.Identifier;
             std.debug.print("🟦 Identifier: {s}\n", .{id_node.name});
@@ -1247,9 +1268,9 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
                 } else {
                     std.debug.print("↳ Assignment: meow\n", .{});
                 }
-                printNode(asgn.initializer, indent + 2);
+                try printNode(asgn.initializer, indent + 2);
                 const n: *Node = @ptrCast(asgn.declarator);
-                printNode(n, indent);
+                try printNode(n, indent);
             }
         },
         .Assignment => {
@@ -1258,16 +1279,16 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
             printIndent(indent + 1);
             std.debug.print("↳ Declarator:\n", .{});
-            printNode(asgn.declarator, indent + 1);
+            try printNode(asgn.declarator, indent + 1);
 
             if (asgn.initializer) |init| {
                 printIndent(indent + 1);
                 std.debug.print("↳ Initializer:\n", .{});
-                printNode(init, indent + 1);
+                try printNode(init, indent + 1);
             }
             if (asgn.ass_op) |ass| {
                 std.debug.print("↳ Ass Op:\n", .{});
-                printNode(ass, indent + 1); 
+                try printNode(ass, indent + 1); 
             } else {
                 printIndent(indent + 1);
                 std.debug.print("(no initializer)\n", .{});
@@ -1288,30 +1309,30 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
                 printIndent(indent + 1);
                 std.debug.print("(empty block)\n", .{});
             } else {
-                for (func.body.items) |item| printNode(item, indent + 1);
+                for (func.body.items) |item| try printNode(item, indent + 1);
             } 
         },
         .FunctionCall => {
             std.debug.print("📞 Function Call\n", .{});
             const fc = node.FunctionCall;
-            printNode(fc.name, indent + 1);
+            try printNode(fc.name, indent + 1);
             if (fc.args) |args| {
                 printIndent(indent + 2);
                 std.debug.print("↳ 📋 Argument List\n", .{});
-                printNode(args, indent + 1);
+                try printNode(args, indent + 1);
             }
         },
         .ArgumentList => {
             const args = node.ArgumentList;
             for (args.args) |arg| {
                 // std.debug.print("Argument DEBUG: {any}\n", .{arg});
-                printNode(arg, indent + 1);
+                try printNode(arg, indent + 1);
             }
         },
         .BlockItems => {
             const blk = node.BlockItems;
             std.debug.print("Block: \n", .{});
-            for (blk.items) |item| printNode(item, indent);
+            for (blk.items) |item| try printNode(item, indent);
         },
         .Binary => {
             const bin = node.Binary;
@@ -1319,26 +1340,26 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
             printIndent(indent + 1);
             std.debug.print("↳ Left:\n", .{});
-            printNode(bin.lhs, indent + 2);
+            try printNode(bin.lhs, indent + 2);
 
             printIndent(indent + 1);
             std.debug.print("↳ Right:\n", .{});
-            printNode(bin.rhs, indent + 2);
+            try printNode(bin.rhs, indent + 2);
         },
         .Unary => {
             const un = node.Unary;
             std.debug.print("🔹 Unary Op: '{c}'\n", .{un.un_op});
-            printNode(un.val, indent + 1);
+            try printNode(un.val, indent + 1);
         },
         .PostFix => {
             const pf = node.PostFix;
             std.debug.print("🔻 Postfix Op: {s}\n", .{pf.post_op});
-            printNode(pf.val, indent + 1);
+            try printNode(pf.val, indent + 1);
         },
         .PreFix => {
             const pf = node.PreFix;
             std.debug.print("🔺 Prefix Op: {s}\n", .{pf.pre_op});
-            printNode(pf.val, indent + 1);
+            try printNode(pf.val, indent + 1);
         },
         .AssOp => {
             const ao = node.AssOp;
@@ -1348,14 +1369,14 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         .Comp => {
             const cmp = node.Comp;
             std.debug.print("⚖️ Comparison\n", .{});
-            printNode(cmp.comp_op, indent + 1);
-            printNode(cmp.val, indent + 1);
+            try printNode(cmp.comp_op, indent + 1);
+            try printNode(cmp.val, indent + 1);
         },
         .Cast => {
             const cast = node.Cast;
             std.debug.print("🌀 Cast\n", .{});
-            printNode(cast.cast, indent + 1);
-            printNode(cast.val, indent + 1);
+            try printNode(cast.cast, indent + 1);
+            try printNode(cast.val, indent + 1);
         },
         .WhileStmt => {
             const wh = node.WhileStmt;
@@ -1364,9 +1385,9 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             } else {
                 std.debug.print("🔁 While Loop\n", .{});
             }
-            printNode(wh.init, indent + 1);
-            printNode(wh.cond, indent + 1);
-            printNode(wh.body, indent + 1);
+            try printNode(wh.init, indent + 1);
+            try printNode(wh.cond, indent + 1);
+            try printNode(wh.body, indent + 1);
         },
         .IfStmt => {
             const ifn = node.IfStmt;
@@ -1374,22 +1395,22 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
             printIndent(indent + 1);
             std.debug.print("↳ Condition:\n", .{});
-            printNode(ifn.cond, indent + 2);
+            try printNode(ifn.cond, indent + 2);
 
             printIndent(indent + 1);
             std.debug.print("↳ Then:\n", .{});
-            printNode(ifn.if_branch, indent);
+            try printNode(ifn.if_branch, indent);
 
             if (ifn.el_branch) |elseb| {
                 printIndent(indent + 1);
                 std.debug.print("↳ Else:\n", .{});
-                printNode(elseb, indent + 2);
+                try printNode(elseb, indent + 2);
             }
         },
         .ReturnStmt => {
             const ret = node.ReturnStmt;
             std.debug.print("🔙 Return\n", .{});
-            if (ret.val) |v| printNode(v, indent + 1);
+            if (ret.val) |v| try printNode(v, indent + 1);
         },
         .String => {
             const str = node.String;
@@ -1409,7 +1430,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             const np = node.NameParameterNode;
             std.debug.print("Parameters:\n", .{});
             if (np.parameterList) |plist| {
-                for (plist.params) |item| printNode(item, indent + 2);
+                for (plist.params) |item| try printNode(item, indent + 2);
             }
         },
         .ConditionalExpression => {
@@ -1419,20 +1440,20 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
 
             printIndent(indent + 1);
             std.debug.print("↳ Expression 1:\n", .{});
-            printNode(cond.expr1, indent + 2);
+            try printNode(cond.expr1, indent + 2);
 
             printIndent(indent + 1);
             std.debug.print("↳ Expression 2:\n", .{});
-            printNode(cond.expr2, indent + 2);
+            try printNode(cond.expr2, indent + 2);
         },
         .ExpressionStmt => {
             if (node.ExpressionStmt.expr) |expr| {
-                printNode(expr, indent);
+                try printNode(expr, indent);
             }
         },
         .IdPointer => {
-            printNode(node.IdPointer.pointer, indent + 1);
-            printNode(node.IdPointer.identifier, indent + 2);
+            try printNode(node.IdPointer.pointer, indent + 1);
+            try printNode(node.IdPointer.identifier, indent + 2);
         },
         .Pointer => {
             const p_node = node.Pointer;
@@ -1440,7 +1461,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             if (p_node.pointee) |p| {
                 printIndent(indent + 2);
                 std.debug.print("It's just a pointer to a pointer\n", .{});
-                printNode(p, indent + 1);
+                try printNode(p, indent + 1);
             } else {
                 printIndent(indent + 1);
                 std.debug.print("Base\n", .{});
@@ -1448,30 +1469,30 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
         },
         .Struct => {
             const s_node = node.Struct;
-            printNode(s_node.name, indent+1);
+            try printNode(s_node.name, indent+1);
         },
         .StructDecl => {
             const sd = node.StructDecl;
-            printNode(sd.type, indent);
+            try printNode(sd.type, indent);
             for (sd.decl_list) |item| {
-                printNode(item, indent);
+                try printNode(item, indent);
             }
         },
         .StructDeclaration => {
             const sd = node.StructDeclaration;
-            printNode(sd.packedNode, indent);
-            printNode(sd.assignNode, indent);
+            try printNode(sd.packedNode, indent);
+            try printNode(sd.assignNode, indent);
         },
         .StructDeclaratorList => {
             const sd = node.StructDeclaratorList;
             for (sd.declarators) |item| {
-                printNode(item, indent+1);
+                try printNode(item, indent+1);
             }
         },
         .StructDeclList => {
             const s = node.StructDeclList;
             for(s.decl_list) |item| {
-                printNode(item, indent+1);
+                try printNode(item, indent+1);
             }
         },
         .TranslationUnitList => {
@@ -1480,7 +1501,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) void {
             for (tul.translationUnits, 0..) |tu, i| {
                 printIndent(indent + 1);
                 std.debug.print("• Unit [{}]:\n", .{i});
-                printNode(tu, indent + 2);
+                try printNode(tu, indent + 2);
             }
         },
         else => |tag| {
