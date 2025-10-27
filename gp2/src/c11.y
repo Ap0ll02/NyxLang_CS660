@@ -44,7 +44,7 @@ struct Node* append_struct_declarator_list(struct Node* declarator, struct Node*
 struct Node* make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
 struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
 struct Node* make_structunion_node(enum yytokentype t);
-struct Node* append_translation_unit(struct Node* unit, struct Node* units);
+struct Node* append_translation_unit(struct Node* unit, struct Node* prev);
 
 struct Node* make_assignment_op_node(enum yytokentype token);
 struct Node* make_float_node(float f);
@@ -66,7 +66,7 @@ extern struct Node* root;
 
 %token	ALIGNAS ALIGNOF ATOMIC NORETURN STATIC_ASSERT THREAD_LOCAL
 
-%start translation_unit
+%start program
 %union {
 	int intval;
 	float fval;
@@ -93,7 +93,7 @@ extern struct Node* root;
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
 %type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list 
 %type <node> assignment_operator
-%type <node> string
+%type <node> string program
 
 %%
 primary_expression
@@ -619,9 +619,12 @@ jump_statement
 	| RETURN expression ';' { $$ = make_return_node($2); }
 	;
 
+program
+    : translation_unit { root = $$; }
+
 translation_unit
 	: external_declaration { 
-        root = append_translation_unit($1, NULL);
+        $$ = append_translation_unit($1, NULL);
     }
 	| translation_unit external_declaration { $$ = append_translation_unit($2, $1); }
 	;
