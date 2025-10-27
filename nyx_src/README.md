@@ -46,7 +46,7 @@ cd NyxLang_CS660
 ### Step 3: Executing 
 
 ```fish 
-cd gp2/src
+cd nyx_src/src
 zig build run <filename> [optional flag, -d]
 ```
 
