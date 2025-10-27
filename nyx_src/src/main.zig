@@ -25,7 +25,7 @@ pub fn main() !void {
     defer allocator.free(cwd);
     const filename = args[1];
     if (args.len > 2) {
-        if (std.mem.eql(u8, args[2], "d")) {
+        if (std.mem.eql(u8, args[2], "-d")) {
             ast.debug_mode = true;
         }
     }
