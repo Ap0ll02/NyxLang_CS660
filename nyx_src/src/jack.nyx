@@ -7,4 +7,5 @@ int main() {
         default:
             return;
     }
+    char hello = 'k';
 }
