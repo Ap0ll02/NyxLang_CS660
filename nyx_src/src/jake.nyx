@@ -1,0 +1,8 @@
+double voodoo() {
+    return 7.11;
+}
+
+int main() {
+    print("%.2f\n", voodoo());
+    return 0;
+}
