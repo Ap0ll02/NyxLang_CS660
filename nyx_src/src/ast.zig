@@ -12,7 +12,7 @@ extern var yycolumn: c_int;
 // It includes the name as a string
 pub const IdentifierNode = struct {
     name: []const u8,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 // Constant node represents literal values
 // It includes the value and its type information
@@ -24,102 +24,110 @@ pub const ConstantNode = struct {
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
     typeNode: *TypeNode, // Structs will return StructNode here, others return TypeNode
-    assignNode: ?*AssignmentNode,
+    assignNode: ?*Node,
 };
 pub const StructDeclarationNode = struct {
     packedNode: *Node,
     assignNode: ?*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const FunctionNode = struct {
     retType: *TypeNode,
-    nameParam: *NameParameterNode,
-    body: *BlockItemsNode,
-    typeNode: ?*TypeNode,
+    nameParam: *Node,
+    body: *Node,
+    typeNode: ?*TypeNode = null,
 };
 pub const FunctionCallNode = struct {
     name: *Node,
     args: ?*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const ArgumentListNode = struct {
     args: []*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const ParameterListNode = struct {
     params: []*Node, // a list of parameter nodes
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const NameParameterNode = struct {
-    name: *IdentifierNode,
-    parameterList: ?*ParameterListNode,
-    typeNode: ?*TypeNode,
+    name: *Node,
+    parameterList: ?*Node,
+    typeNode: ?*TypeNode = null,
 };
 pub const BlockItemsNode = struct {
     items: []*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 }; // A list of statements/declarations in a block
 
 pub const BinaryNode = struct {
     lhs: *Node,
     op: u8,
     rhs: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
-pub const UnaryNode = struct { un_op: u8, val: *Node };
+pub const UnaryNode = struct {
+    un_op: u8,
+    val: *Node,
+    typeNode: ?*TypeNode = null,
+};
 // Should combind this with UnaryNode and just make them both strings at one point
 pub const PostFixNode = struct {
     post_op: []const u8,
     val: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const PreFixNode = struct {
     pre_op: []const u8,
     val: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const LogicNode = struct {
     log_op: *Node,
     val: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const CompNode = struct {
     comp_op: *Node,
     val: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
-pub const CastNode = struct { cast: *Node, val: *Node };
+pub const CastNode = struct {
+    cast: *Node,
+    val: *Node,
+    typeNode: ?*TypeNode = null,
+};
 pub const WhileNode = struct {
     cond: *Node,
     body: *Node,
     init: ?*Node, //optional initializer to handle for loops
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const IfNode = struct {
     cond: *Node,
     if_branch: *Node, // Block
     el_branch: ?*Node, // Block
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const ReturnNode = struct {
     val: ?*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const StringNode = struct {
     raw_val: []const u8,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const CharNode = struct {
     char: u8,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const IntNode = struct {
     val: i32,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const FloatNode = struct {
     val: f32,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 // and additional fields for complex types (arrays, structs, etc.) in the future
 pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
@@ -131,50 +139,50 @@ pub const TypeNode = extern struct {
     type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
     initializer: ?*Node, // i.e. 5 in int x = 5;
     ass_op: ?*Node, // i.e. *=
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 
 pub const AssignmentOpNode = struct {
     assign_op: []const u8,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 
 pub const ConditionalExpressionNode = struct {
     logicalOperator: [*c]const u8,
     expr1: *Node,
     expr2: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 
 pub const ExpressionStmtNode = struct {
     expr: ?*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 
 pub const PointerNode = struct {
     pointee: ?*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 
 pub const IdPointerNode = struct {
     pointer: *Node,
     identifier: *Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const TranslationUnitListNode = struct {
     translationUnits: []*Node,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 pub const ErrorNode = struct {
     loc: usize,
     msg: []const u8,
-    typeNode: ?*TypeNode,
+    typeNode: ?*TypeNode = null,
 };
 // This is the main AST node type
 // It is a tagged union of all possible node types
@@ -565,7 +573,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
         const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
         // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
         if (asgnNode) |n| {
-            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n.Assignment };
+            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n };
         } else {
             decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null };
         } // We create a *node that wraps a specific node type
@@ -869,12 +877,12 @@ export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
 
     if (parameterList) |pl| {
         name_param_node.* = NameParameterNode{
-            .name = name.Identifier,
-            .parameterList = pl.ParameterList,
+            .name = name,
+            .parameterList = pl,
         };
     } else {
         name_param_node.* = NameParameterNode{
-            .name = name.Identifier,
+            .name = name,
             .parameterList = null,
         };
     }
@@ -900,8 +908,8 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
 
     function_node.* = FunctionNode{
         .retType = retType.Type,
-        .nameParam = nameParameter.NameParameterNode,
-        .body = body.BlockItems,
+        .nameParam = nameParameter,
+        .body = body,
     };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -1300,16 +1308,8 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             const type_str = std.mem.span(decl_node.typeNode.type_name);
             std.debug.print("🌊 Declaration (Type: {s})\n", .{type_str});
 
-            if (decl_node.assignNode) |asgn| {
-                printIndent(indent + 1);
-                if (asgn.ass_op) |ass| {
-                    std.debug.print("↳ Assignment: {s}\n", .{ass.AssOp.assign_op});
-                } else {
-                    std.debug.print("↳ Assignment: meow\n", .{});
-                }
-                try printNode(asgn.initializer, indent + 2);
-                const n: *Node = @ptrCast(asgn.declarator);
-                try printNode(n, indent);
+            if (decl_node.assignNode) |assgn| {
+                try printNode(assgn, indent + 1);
             }
         },
         .Assignment => {
@@ -1338,17 +1338,17 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             const type_str = std.mem.span(func.retType.type_name);
 
             std.debug.print("🟩 Function: {s} (returns {s})\n", .{
-                func.nameParam.name.name, type_str,
+                func.nameParam.NameParameterNode.name.Identifier.name, type_str,
             });
 
             printIndent(indent + 1);
             std.debug.print("↳ Body:\n", .{});
 
-            if (func.body.items.len == 0) {
+            if (func.body.BlockItems.items.len == 0) {
                 printIndent(indent + 1);
                 std.debug.print("(empty block)\n", .{});
             } else {
-                for (func.body.items) |item| try printNode(item, indent + 1);
+                for (func.body.BlockItems.items) |item| try printNode(item, indent + 1);
             }
         },
         .FunctionCall => {
@@ -1469,7 +1469,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             const np = node.NameParameterNode;
             std.debug.print("Parameters:\n", .{});
             if (np.parameterList) |plist| {
-                for (plist.params) |item| try printNode(item, indent + 2);
+                for (plist.ParameterList.params) |item| try printNode(item, indent + 2);
             }
         },
         .ConditionalExpression => {

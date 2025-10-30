@@ -3,6 +3,7 @@ const std = @import("std");
 const parse = @cImport(@cInclude("c11.tab.h"));
 const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
+const analyzer = @import("semanticAnalyzer.zig");
 
 pub const YY_BUFFER_STATE = *opaque {};
 extern fn yylex() c_int; // from your lexer
@@ -45,6 +46,7 @@ pub fn main() !void {
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
         try ast.printNode(r, 0);
+        analyzer.semantic_analyze_node(r);
     } else {
         std.debug.print("Completed, but NULL.", .{});
     }
