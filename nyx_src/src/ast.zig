@@ -12,6 +12,7 @@ extern var yycolumn: c_int;
 // It includes the name as a string
 pub const IdentifierNode = struct {
     name: []const u8,
+    typeNode: ?*TypeNode,
 };
 // Constant node represents literal values
 // It includes the value and its type information
@@ -28,73 +29,98 @@ pub const DeclarationNode = struct {
 pub const StructDeclarationNode = struct {
     packedNode: *Node,
     assignNode: ?*Node,
+    typeNode: ?*TypeNode,
 };
 pub const FunctionNode = struct {
     retType: *TypeNode,
     nameParam: *NameParameterNode,
     body: *BlockItemsNode,
+    typeNode: ?*TypeNode,
 };
 pub const FunctionCallNode = struct {
     name: *Node,
     args: ?*Node,
+    typeNode: ?*TypeNode,
 };
 pub const ArgumentListNode = struct {
     args: []*Node,
+    typeNode: ?*TypeNode,
 };
 pub const ParameterListNode = struct {
     params: []*Node, // a list of parameter nodes
+    typeNode: ?*TypeNode,
 };
 pub const NameParameterNode = struct {
     name: *IdentifierNode,
     parameterList: ?*ParameterListNode,
+    typeNode: ?*TypeNode,
 };
-pub const BlockItemsNode = struct { items: []*Node }; // A list of statements/declarations in a block
+pub const BlockItemsNode = struct {
+    items: []*Node,
+    typeNode: ?*TypeNode,
+}; // A list of statements/declarations in a block
 
 pub const BinaryNode = struct {
     lhs: *Node,
     op: u8,
     rhs: *Node,
+    typeNode: ?*TypeNode,
 };
 pub const UnaryNode = struct { un_op: u8, val: *Node };
 // Should combind this with UnaryNode and just make them both strings at one point
 pub const PostFixNode = struct {
     post_op: []const u8,
     val: *Node,
+    typeNode: ?*TypeNode,
 };
 pub const PreFixNode = struct {
     pre_op: []const u8,
     val: *Node,
+    typeNode: ?*TypeNode,
 };
 pub const LogicNode = struct {
     log_op: *Node,
     val: *Node,
+    typeNode: ?*TypeNode,
 };
 pub const CompNode = struct {
     comp_op: *Node,
     val: *Node,
+    typeNode: ?*TypeNode,
 };
 pub const CastNode = struct { cast: *Node, val: *Node };
 pub const WhileNode = struct {
     cond: *Node,
     body: *Node,
     init: ?*Node, //optional initializer to handle for loops
+    typeNode: ?*TypeNode,
 };
 pub const IfNode = struct {
     cond: *Node,
     if_branch: *Node, // Block
     el_branch: ?*Node, // Block
+    typeNode: ?*TypeNode,
 };
-pub const ReturnNode = struct { val: ?*Node };
+pub const ReturnNode = struct {
+    val: ?*Node,
+    typeNode: ?*TypeNode,
+};
 pub const StringNode = struct {
     raw_val: []const u8,
+    typeNode: ?*TypeNode,
 };
 pub const CharNode = struct {
     char: u8,
+    typeNode: ?*TypeNode,
 };
 pub const IntNode = struct {
     val: i32,
+    typeNode: ?*TypeNode,
 };
-pub const FloatNode = struct { val: f32 };
+pub const FloatNode = struct {
+    val: f32,
+    typeNode: ?*TypeNode,
+};
 // and additional fields for complex types (arrays, structs, etc.) in the future
 pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
 pub const TypeNode = extern struct {
@@ -105,36 +131,51 @@ pub const TypeNode = extern struct {
     type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
+    typeNode: ?*TypeNode,
 };
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
     initializer: ?*Node, // i.e. 5 in int x = 5;
     ass_op: ?*Node, // i.e. *=
+    typeNode: ?*TypeNode,
 };
 
 pub const AssignmentOpNode = struct {
     assign_op: []const u8,
+    typeNode: ?*TypeNode,
 };
 
 pub const ConditionalExpressionNode = struct {
     logicalOperator: [*c]const u8,
     expr1: *Node,
     expr2: *Node,
+    typeNode: ?*TypeNode,
 };
 
 pub const ExpressionStmtNode = struct {
     expr: ?*Node,
+    typeNode: ?*TypeNode,
 };
 
 pub const PointerNode = struct {
     pointee: ?*Node,
+    typeNode: ?*TypeNode,
 };
 
-pub const IdPointerNode = struct { pointer: *Node, identifier: *Node };
+pub const IdPointerNode = struct {
+    pointer: *Node,
+    identifier: *Node,
+    typeNode: ?*TypeNode,
+};
 pub const TranslationUnitListNode = struct {
     translationUnits: []*Node,
+    typeNode: ?*TypeNode,
 };
-pub const ErrorNode = struct { loc: usize, msg: []const u8 };
+pub const ErrorNode = struct {
+    loc: usize,
+    msg: []const u8,
+    typeNode: ?*TypeNode,
+};
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
