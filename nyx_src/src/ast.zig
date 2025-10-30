@@ -17,7 +17,7 @@ pub const IdentifierNode = struct {
 // It includes the value and its type information
 pub const ConstantNode = struct {
     value: []const u8,
-    typeNode: TypeNode,
+    typeNode: *TypeNode,
 };
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
@@ -198,7 +198,7 @@ pub const NodeTag = enum {
     Struct,
     StructUnion,
 
-    Error
+    Error,
 };
 
 pub const Node = union(NodeTag) {
@@ -403,7 +403,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
             .VOID => "void",
             else => "unknown",
         };
-        if ( !(new_base == .INT or new_base == .LONG) or new_qual == 0) {
+        if (!(new_base == .INT or new_base == .LONG) or new_qual == 0) {
             _ = name_parts.append(alloc, base_name) catch {};
         }
         const new_name = std.mem.join(alloc, " ", name_parts.items) catch "unknown";
@@ -424,14 +424,14 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
         },
         c.DOUBLE => {
             const tn: [*c]const u8 = "double";
-            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = tn};
+            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = tn };
         },
         c.INT => {
             type_node_ptr.* = TypeNode{ .base = .INT };
         },
         c.LONG => {
             const tn: [*c]const u8 = "long";
-            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1, .type_name = tn};
+            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1, .type_name = tn };
         },
         c.STRING_LITERAL => {
             const tn: [*c]const u8 = "string";
@@ -474,7 +474,7 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     return n;
 }
 // if we want float constants
-export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
+export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
@@ -495,14 +495,12 @@ export fn make_constant_node(value: [*c]const u8, typeNode: TypeNode) ?*Node {
 export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *Node) ?*Node {
     const assignment_node = std.heap.c_allocator.create(AssignmentNode) catch return null;
 
-    assignment_node.* = .{ .declarator = declarator, .initializer = initializer, .ass_op = ass_op};
+    assignment_node.* = .{ .declarator = declarator, .initializer = initializer, .ass_op = ass_op };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
     node.* = Node{ .Assignment = assignment_node };
     return node;
 }
-
-
 
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
@@ -513,10 +511,10 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     if (typeNode.* == .Struct) {
         const decl_node = std.heap.c_allocator.create(StructDeclarationNode) catch return null;
         if (asgnNode) |n| {
-            decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n }; 
+            decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n };
         } else {
             decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = null };
-        }// We create a *node that wraps a specific node type
+        } // We create a *node that wraps a specific node type
         const node = std.heap.c_allocator.create(Node) catch return null;
         // We set the union to be of type Declaration and assign the created declaration node
         node.* = Node{ .StructDeclaration = decl_node };
@@ -1175,9 +1173,9 @@ export fn make_error_node(msg: [*c]const u8, loc: c_int) ?*Node {
     const err = std.heap.c_allocator.create(ErrorNode) catch return null;
     const err_msg = std.mem.span(msg);
     const location: usize = @intCast(loc);
-    err.* = ErrorNode { .msg = err_msg, .loc = location };
+    err.* = ErrorNode{ .msg = err_msg, .loc = location };
     const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node { .Error = err };
+    node.* = Node{ .Error = err };
 
     return node;
 }
@@ -1189,10 +1187,9 @@ export fn make_error_node(msg: [*c]const u8, loc: c_int) ?*Node {
 var myGlobalConst: i32 = 0;
 
 export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
-
     myGlobalConst += 1;
     // std.debug.print("COUNTER: {any}", .{myGlobalConst});
-    
+
     if (prev) |p| {
         const unit_block = p.TranslationUnitList;
 
@@ -1223,7 +1220,7 @@ export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
         node.* = Node{ .TranslationUnitList = tul };
         return node;
     }
-}   
+}
 
 // ===============
 // | AST Printer |
@@ -1289,7 +1286,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             }
             if (asgn.ass_op) |ass| {
                 std.debug.print("↳ Ass Op:\n", .{});
-                try printNode(ass, indent + 1); 
+                try printNode(ass, indent + 1);
             } else {
                 printIndent(indent + 1);
                 std.debug.print("(no initializer)\n", .{});
@@ -1311,7 +1308,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 std.debug.print("(empty block)\n", .{});
             } else {
                 for (func.body.items) |item| try printNode(item, indent + 1);
-            } 
+            }
         },
         .FunctionCall => {
             std.debug.print("📞 Function Call\n", .{});
@@ -1364,7 +1361,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
         },
         .AssOp => {
             const ao = node.AssOp;
-            printIndent(indent+1);
+            printIndent(indent + 1);
             std.debug.print("🔻 Ass Op: {s}\n", .{ao.assign_op});
         },
         .Comp => {
@@ -1470,7 +1467,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
         },
         .Struct => {
             const s_node = node.Struct;
-            try printNode(s_node.name, indent+1);
+            try printNode(s_node.name, indent + 1);
         },
         .StructDecl => {
             const sd = node.StructDecl;
@@ -1487,13 +1484,13 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
         .StructDeclaratorList => {
             const sd = node.StructDeclaratorList;
             for (sd.declarators) |item| {
-                try printNode(item, indent+1);
+                try printNode(item, indent + 1);
             }
         },
         .StructDeclList => {
             const s = node.StructDeclList;
-            for(s.decl_list) |item| {
-                try printNode(item, indent+1);
+            for (s.decl_list) |item| {
+                try printNode(item, indent + 1);
             }
         },
         .TranslationUnitList => {

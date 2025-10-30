@@ -3,6 +3,7 @@ double voodoo() {
 }
 
 int main() {
+    char c = 't';
     print("%.2f\n", voodoo());
     return 0;
 }
