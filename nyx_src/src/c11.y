@@ -65,7 +65,7 @@ extern struct Node* root;
 %token	CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
 %token	ALIGNAS ALIGNOF ATOMIC NORETURN STATIC_ASSERT THREAD_LOCAL
-
+%locations
 %start program
 %union {
 	int intval;
