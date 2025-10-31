@@ -19,20 +19,31 @@ IS  (((u|U)(l|L|ll|LL)?)|((l|L|ll|LL)(u|U)?))
 CP  (u|U|L)
 SP  (u8|u|U|L)
 ES  (\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+))
-WS  [ \t\v\n\f]
+WS  [ \t\v\f]
 
 %{
 #include <stdio.h>
 #include "c11.tab.h"
 
-extern YYLTYPE yyloc;
-static int curr_line = 0;
-static int curr_col = 0;
-
 extern int sym_type(const char *);  /* returns type from symbol table */
-
+extern int column;
+extern int line;
+static char current_line[256];
+static int current_line_len = 0;
 #define sym_type(identifier) IDENTIFIER /* with no symbol table, fake it */
-
+#define YY_USER_ACTION \
+    do { \
+        for(int i = 0; i < yyleng; i++) { \
+            char c = yytext[i]; \
+            if (c == '\n') { current_line[current_line_len] = '\0'; } \
+            else if (current_line_len < 256 - 1) { \
+                current_line[current_line_len++] = c; \
+                column++; \
+            } \
+        } \
+    } while(0);
+char* get_current_line(void) { return current_line; }
+int get_current_length(void) { return current_line_len; }
 static void comment(void);
 static int check_type(void);
 %}
@@ -156,8 +167,9 @@ static int check_type(void);
 "|"					{ return '|'; }
 "?"					{ return '?'; }
 
-"\\n"   { curr_col = 0; curr_line += 1; }               
-{WS}+
+"\\n"   { column = 1; line += 1; }               
+\n   { column = 1; line += 1; }               
+{WS}+ 
 .				
 
 %%
