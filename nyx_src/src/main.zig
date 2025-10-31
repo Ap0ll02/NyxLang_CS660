@@ -1,5 +1,5 @@
 const std = @import("std");
-
+const log = @import("Log.zig");
 const parse = @cImport(@cInclude("c11.tab.h"));
 const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
@@ -54,6 +54,7 @@ pub fn main() !void {
 }
 
 export fn yyerror(msg: [*c]const u8) void {
+
     std.debug.print("Parse Error! {s}\n", .{msg});
 }
 
