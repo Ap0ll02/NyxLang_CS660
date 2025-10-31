@@ -6,29 +6,29 @@ const LogType = enum {
     ERROR
 };
 
-pub fn info(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
+pub fn info(this_column: i32, this_line: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_src = std.mem.span(source); 
     const new_hint = std.mem.span(hint);
-    log(this_column, this_line, length, new_msg, new_src, new_hint, .INFO);
+    log(this_column, this_line, new_msg, new_src, new_hint, .INFO);
 }
 
-pub fn Warn(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
+pub fn Warn(this_column: i32, this_line: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_src = std.mem.span(source);
     const new_hint = std.mem.span(hint);
-    log(this_column, this_line, length, new_msg, new_src, new_hint, .WARN);
+    log(this_column, this_line, new_msg, new_src, new_hint, .WARN);
 }
 
-pub fn Error(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
+pub fn Error(this_column: i32, this_line: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_src = std.mem.span(source);
     const new_hint = std.mem.span(hint);
-    log(this_column, this_line, length, new_msg, new_src, new_hint, .ERROR);
+    log(this_column, this_line, new_msg, new_src, new_hint, .ERROR);
 }
 
-fn log(this_column: i32, this_line: i32, length: i32, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
-    const ulen = @as(usize, @max(0, length));
+fn log(this_column: i32, this_line: i32, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
+    const ulen = @as(usize, @max(0, this_column));
     // Line 1
     switch (l_type) {
         .INFO => std.debug.print("\x1b[1;32mNyxLang | Info: \x1b[0m", .{}),
@@ -43,10 +43,6 @@ fn log(this_column: i32, this_line: i32, length: i32, msg: []const u8, source: [
     } else {
         std.debug.print("{s}\n", .{source[ulen-40..ulen+40]});
     }
-    // const ucol = @as(usize, @max(0, this_column));
-    // for (0..ucol) |_| {
-    //     std.debug.print(" ", .{});
-    // }
 
     // Line 3
     for (0..ulen-1) |_| {
