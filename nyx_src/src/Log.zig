@@ -6,25 +6,22 @@ const LogType = enum {
     ERROR
 };
 
-pub fn info(this_column: i32, this_line: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
+pub fn Info(this_column: i32, this_line: i32, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
-    const new_src = std.mem.span(source); 
     const new_hint = std.mem.span(hint);
-    log(this_column, this_line, new_msg, new_src, new_hint, .INFO);
+    log(this_column, this_line, new_msg, source, new_hint, .INFO);
 }
 
-pub fn Warn(this_column: i32, this_line: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
+pub fn Warn(this_column: i32, this_line: i32, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
-    const new_src = std.mem.span(source);
     const new_hint = std.mem.span(hint);
-    log(this_column, this_line, new_msg, new_src, new_hint, .WARN);
+    log(this_column, this_line, new_msg, source, new_hint, .WARN);
 }
 
-pub fn Error(this_column: i32, this_line: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
+pub fn Error(this_column: i32, this_line: i32, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
-    const new_src = std.mem.span(source);
     const new_hint = std.mem.span(hint);
-    log(this_column, this_line, new_msg, new_src, new_hint, .ERROR);
+    log(this_column, this_line, new_msg, source, new_hint, .ERROR);
 }
 
 fn log(this_column: i32, this_line: i32, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
@@ -38,17 +35,20 @@ fn log(this_column: i32, this_line: i32, msg: []const u8, source: []const u8, hi
     std.debug.print("{s} at location {d}:{d}\n", .{msg, this_line, this_column});
 
     // Line 2
-    if (ulen < 80) {
-        std.debug.print("{s}\n", .{source});
-    } else {
-        std.debug.print("{s}\n", .{source[ulen-40..ulen+40]});
-    }
+    std.debug.print("{s}\n", .{source});
 
     // Line 3
-    for (0..ulen-1) |_| {
-        std.debug.print("-", .{});
+    const len = if(ulen < 4) 0 else ulen - 4;
+    var i: usize = ulen;
+    for (0..len-2) |_| {
+        std.debug.print(" ", .{});
     }
-    std.debug.print("^\n", .{});
-    std.debug.print("{s}\n", .{hint});
-    
+    while (source.len-1 > 0) : (i -= 1) {
+        if (i == ulen) { continue; }
+        if (source[i-1] == ' ') { break; }
+        std.debug.print("\x1b[1;35m~\x1b[0m", .{});
+    }
+    std.debug.print("\x1b[1;35m^\x1b[0m\n", .{});
+    // std.debug.print("\x1b[1;35m~~~^\x1b[0m\n", .{});
+    if (hint.len >= 2) std.debug.print("\x1b[1;36mHint: \x1b[0m{s}\n", .{hint}); 
 }
