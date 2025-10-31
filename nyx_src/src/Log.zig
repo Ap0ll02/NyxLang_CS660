@@ -28,6 +28,7 @@ pub fn Error(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, s
 }
 
 fn log(this_column: i32, this_line: i32, length: i32, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
+    const ulen = @as(usize, @max(0, length));
     // Line 1
     switch (l_type) {
         .INFO => std.debug.print("\x1b[1;32mNyxLang | Info: \x1b[0m", .{}),
@@ -37,18 +38,18 @@ fn log(this_column: i32, this_line: i32, length: i32, msg: []const u8, source: [
     std.debug.print("{s} at location {d}:{d}\n", .{msg, this_line, this_column});
 
     // Line 2
-    if (length < 80) {
-        std.debug.print("{s}", .{source});
+    if (ulen < 80) {
+        std.debug.print("{s}\n", .{source});
     } else {
-        std.debug.print("{s}", .{source[length-40..length+40]});
+        std.debug.print("{s}\n", .{source[ulen-40..ulen+40]});
     }
-    
-    for (0..this_column) |_| {
-        std.debug.print(" ", .{});
-    }
+    // const ucol = @as(usize, @max(0, this_column));
+    // for (0..ucol) |_| {
+    //     std.debug.print(" ", .{});
+    // }
 
     // Line 3
-    for (length-1) |_| {
+    for (0..ulen-1) |_| {
         std.debug.print("-", .{});
     }
     std.debug.print("^\n", .{});
