@@ -4,12 +4,19 @@ const parse = @cImport(@cInclude("c11.tab.h"));
 const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 const analyzer = @import("semanticAnalyzer.zig");
+const c = @cImport(@cInclude("c11.tab.h"));
 
 pub const YY_BUFFER_STATE = *opaque {};
 extern fn yylex() c_int; // from your lexer
 extern fn yy_scan_bytes(bytes: [*c]const u8, len: c_int) YY_BUFFER_STATE;
 extern fn yyparse() c_int;
 export var root: ?*ast.Node = null;
+pub const YYLTYPE = extern struct {
+    first_line: c_int,
+    first_column: c_int,
+    last_line: c_int,
+    last_column: c_int,
+};
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
@@ -53,11 +60,8 @@ pub fn main() !void {
     std.debug.print("\nValid C?: {s}\n", .{if (result == 1) "No" else "Yes"});
 }
 
-export fn yyerror(msg: [*c]const u8) void {
-
-    std.debug.print("Parse Error! {s}\n", .{msg});
+export fn yyerror(loc: *YYLTYPE, msg: [*c]const u8) void {
+    log.Error(loc.first_line, loc.first_column, 40, msg, " ", "Parsing error");
 }
 
-export fn zig_error() void {
-    std.debug.print("\x1b[1;35mNyxLang:\x1b[0m \x1b[1;33mError Caught Nya\x1b[0m\n", .{});
-}
+export fn zig_error() void {}

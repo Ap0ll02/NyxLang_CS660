@@ -25,6 +25,10 @@ WS  [ \t\v\n\f]
 #include <stdio.h>
 #include "c11.tab.h"
 
+extern YYLTYPE yyloc;
+static int curr_line = 0;
+static int curr_col = 0;
+
 extern int sym_type(const char *);  /* returns type from symbol table */
 
 #define sym_type(identifier) IDENTIFIER /* with no symbol table, fake it */
@@ -152,8 +156,8 @@ static int check_type(void);
 "|"					{ return '|'; }
 "?"					{ return '?'; }
 
-"\\n"               
-{WS}+				
+"\\n"   { curr_col = 0; curr_line += 1; }               
+{WS}+
 .				
 
 %%

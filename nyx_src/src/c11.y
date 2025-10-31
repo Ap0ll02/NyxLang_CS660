@@ -3,11 +3,12 @@
 #include <stdio.h>
 #include <stdint.h>
 // FUNCTION DECLARATIONS: 
+const char* yytext;
 enum yytokentype;
 int yydebug = 1;
 int yylex(void);
 int yyparse(void);
-void yyerror(const char *s);
+void yyerror(YYLTYPE *loc, const char *s);
 
 // Symbol Table Functions
 
@@ -66,6 +67,7 @@ extern struct Node* root;
 
 %token	ALIGNAS ALIGNOF ATOMIC NORETURN STATIC_ASSERT THREAD_LOCAL
 %locations
+%error-verbose
 %start program
 %union {
 	int intval;
