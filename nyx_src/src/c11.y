@@ -2,18 +2,19 @@
 #include "c11.tab.h"
 #include <stdio.h>
 #include <stdint.h>
+
 // FUNCTION DECLARATIONS: 
-const char* yytext;
+// const char* yytext;
 enum yytokentype;
 int yydebug = 1;
+// static char current_line[256];
+// static int current_line_length;
 int yylex(void);
 int yyparse(void);
-void yyerror(YYLTYPE *loc, const char *s);
-
+void yyerror(const char *s);
 // Symbol Table Functions
 
-void zig_error();
-
+void zig_error(const char *hint, const char *msg, const char *src);
 // So we can return generic node pointers and other values
 struct Node* node;
 struct Node* make_error_node(const char *msg, int loc);
@@ -49,10 +50,10 @@ struct Node* append_translation_unit(struct Node* unit, struct Node* prev);
 
 struct Node* make_assignment_op_node(enum yytokentype token);
 struct Node* make_float_node(float f);
-
+extern char* get_current_line(void);
+extern int get_current_length(void);
 extern struct Node* root;
 %}
-
 %token	SIZEOF
 %token	PTR_OP INC_OP DEC_OP 
 %token	TYPEDEF_NAME
@@ -66,8 +67,6 @@ extern struct Node* root;
 %token	CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
 %token	ALIGNAS ALIGNOF ATOMIC NORETURN STATIC_ASSERT THREAD_LOCAL
-%locations
-%error-verbose
 %start program
 %union {
 	int intval;
@@ -261,7 +260,7 @@ assignment_operator
 
 expression
 	: assignment_expression
-	| expression ',' assignment_expression { zig_error(); }
+	| expression ',' assignment_expression { zig_error("", "Multiple assignments not allowed", get_current_line()); }
 	;
 
 constant_expression
@@ -271,20 +270,20 @@ constant_expression
 declaration
 	: declaration_specifiers ';' { $$ = make_declaration_node($1, NULL); }
 	| declaration_specifiers init_declarator_list ';' { $$ = make_declaration_node($1, $2); }
-	| static_assert_declaration { zig_error(); }
+	| static_assert_declaration { }
 	;
 
 declaration_specifiers
-	: storage_class_specifier declaration_specifiers { zig_error(); }
-	| storage_class_specifier { zig_error(); }
-	| type_specifier_list declaration_specifiers { zig_error(); }
+	: storage_class_specifier declaration_specifiers { }
+	| storage_class_specifier {}
+	| type_specifier_list declaration_specifiers {}
 	| type_specifier_list
-	| type_qualifier declaration_specifiers { zig_error(); }
-	| type_qualifier { zig_error(); }
-	| function_specifier declaration_specifiers { zig_error(); }
-	| function_specifier { zig_error(); }
-	| alignment_specifier declaration_specifiers { zig_error(); }
-	| alignment_specifier { zig_error(); }
+	| type_qualifier declaration_specifiers {}
+	| type_qualifier {}
+	| function_specifier declaration_specifiers {}
+	| function_specifier {}
+	| alignment_specifier declaration_specifiers {}
+	| alignment_specifier {}
 	;
 
 init_declarator_list
@@ -348,10 +347,10 @@ type_specifier
 	| IMAGINARY{ 
         $$ = make_type_node(IMAGINARY);
     }	/* non-mandated extension */
-	| atomic_type_specifier { zig_error(); }
+	| atomic_type_specifier {}
 	| struct_or_union_specifier
-	| enum_specifier { zig_error(); }
-	| TYPEDEF_NAME { zig_error(); }		/* after it has been defined as such */
+	| enum_specifier {}
+	| TYPEDEF_NAME {}		/* after it has been defined as such */
 	;
 
 struct_or_union_specifier
@@ -373,7 +372,7 @@ struct_declaration_list
 struct_declaration
 	: specifier_qualifier_list ';' { make_struct_decl($1, NULL); } /* for anonymous struct/union */
 	| specifier_qualifier_list struct_declarator_list ';' { make_struct_decl($1, $2); }	/* for named struct/union */
-	| static_assert_declaration { zig_error(); }
+	| static_assert_declaration {}
 	;
 
 specifier_qualifier_list
@@ -395,11 +394,11 @@ struct_declarator
 	;
 
 enum_specifier
-	: ENUM '{' enumerator_list '}' { zig_error(); }
-	| ENUM '{' enumerator_list ',' '}' { zig_error(); }
-	| ENUM IDENTIFIER '{' enumerator_list '}' { zig_error(); }
-	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { zig_error(); }
-	| ENUM IDENTIFIER { zig_error(); }
+	: ENUM '{' enumerator_list '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
+	| ENUM '{' enumerator_list ',' '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
+	| ENUM IDENTIFIER '{' enumerator_list '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
+	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
+	| ENUM IDENTIFIER { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
 	;
 
 enumerator_list
@@ -413,24 +412,24 @@ enumerator	/* identifiers must be flagged as ENUMERATION_CONSTANT */
 	;
 
 atomic_type_specifier
-	: ATOMIC '(' type_name ')' { zig_error(); }
+	: ATOMIC '(' type_name ')' { zig_error("", "Atomics are unsupported", get_current_line()); }
 	;
 
 type_qualifier
-	: CONST { zig_error(); }
-	| RESTRICT { zig_error(); }
-	| VOLATILE { zig_error(); }
-	| ATOMIC { zig_error(); }
+	: CONST { zig_error("", "I guess constants are unsupported", get_current_line()); }
+	| RESTRICT { zig_error("", "RESTRICT IS UNSUPPORTED.", get_current_line()); }
+	| VOLATILE { zig_error("", "VOLATILE IS UNSUPPORTED.", get_current_line()); }
+	| ATOMIC { zig_error("", "ATOMIC IS UNSUPPORTED.", get_current_line()); }
 	;
 
 function_specifier
-	: INLINE { zig_error(); }
-	| NORETURN { zig_error(); }
+	: INLINE { zig_error("Try making the function normally!", "Inline functions are not supported.", get_current_line()); }
+	| NORETURN { zig_error("Try making a void function!", "NORETURN Functions are not supported.", get_current_line()); }
 	;
 
 alignment_specifier
-	: ALIGNAS '(' type_name ')' { zig_error(); }
-	| ALIGNAS '(' constant_expression ')' { zig_error(); }
+	: ALIGNAS '(' type_name ')' { zig_error("", "Alignas is not supported", get_current_line()); }
+	| ALIGNAS '(' constant_expression ')' { zig_error("", "Alignas is not supported", get_current_line()); }
 	;
 
 declarator
