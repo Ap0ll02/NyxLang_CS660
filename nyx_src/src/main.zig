@@ -60,6 +60,6 @@ export fn yyerror(msg: [*c]const u8) void {
     log.Error(line, column, 40, msg, " ", "Parsing error");
 }
 
-export fn zig_error(hint: [*c]const u8, msg: [*c]const u8, src: [*c]const u8) void {
-    log.Error(column, line, 40, msg, src, hint);
+export fn zig_error(hint: [*c]const u8, msg: [*c]const u8) void {
+    log.Error(column, line, msg, get_src(), hint);
 }
