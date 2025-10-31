@@ -13,7 +13,7 @@ extern fn yyparse() c_int;
 export var root: ?*ast.Node = null;
 export var column: c_int = 1;
 export var line: c_int = 1;
-
+var source_code: []const u8 = undefined;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
@@ -38,6 +38,7 @@ pub fn main() !void {
     defer file.close();
 
     const contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    source_code = contents;
     defer allocator.free(contents);
 
     const length: c_int = @intCast(contents.len);
@@ -57,7 +58,36 @@ pub fn main() !void {
 }
 
 export fn yyerror(msg: [*c]const u8) void {
-    log.Error(line, column, 40, msg, " ", "Parsing error");
+    log.Error(line, column, msg, get_src(), "Parsing error");
+}
+
+pub fn diagnostic_source(myline: usize) []const u8 {
+    var current_line: usize = 0;
+    var idx: usize = 0;
+    var line_length: usize = 0;
+    while (idx < source_code.len and current_line < myline) {
+        if (source_code[idx] == '\n') {
+            current_line += 1;
+            if (current_line < myline) line_length = idx;
+        }
+        idx += 1;
+    }
+    return source_code[line_length..idx-1];
+}
+
+fn get_src() []const u8 {
+    var current_line: usize = 0;
+    var idx: usize = 0;
+    var line_length: usize = 0;
+    while (idx < source_code.len and current_line < line) {
+        if (source_code[idx] == '\n') {
+            current_line += 1;
+            if (current_line < line) line_length = idx;
+        }
+        idx += 1;
+    }
+    // WE ARE STOPPED AT THE CURRENT LINE!
+    return source_code[line_length..idx-1];
 }
 
 export fn zig_error(hint: [*c]const u8, msg: [*c]const u8) void {
