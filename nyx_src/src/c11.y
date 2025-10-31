@@ -14,7 +14,7 @@ int yyparse(void);
 void yyerror(const char *s);
 // Symbol Table Functions
 
-void zig_error(const char *hint, const char *msg, const char *src);
+void zig_error(const char *hint, const char *msg, const char *src, int len);
 // So we can return generic node pointers and other values
 struct Node* node;
 struct Node* make_error_node(const char *msg, int loc);
@@ -260,7 +260,7 @@ assignment_operator
 
 expression
 	: assignment_expression
-	| expression ',' assignment_expression { zig_error("", "Multiple assignments not allowed", get_current_line()); }
+	| expression ',' assignment_expression { zig_error("", "Multiple assignments not allowed", get_current_line(), get_current_length()); }
 	;
 
 constant_expression
@@ -394,11 +394,11 @@ struct_declarator
 	;
 
 enum_specifier
-	: ENUM '{' enumerator_list '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
-	| ENUM '{' enumerator_list ',' '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
-	| ENUM IDENTIFIER '{' enumerator_list '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
-	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
-	| ENUM IDENTIFIER { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line());}
+	: ENUM '{' enumerator_list '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line(), get_current_length());}
+	| ENUM '{' enumerator_list ',' '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line(), get_current_length());}
+	| ENUM IDENTIFIER '{' enumerator_list '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line(), get_current_length());}
+	| ENUM IDENTIFIER '{' enumerator_list ',' '}' { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line(), get_current_length());}
+	| ENUM IDENTIFIER { zig_error("Try not making an enum", "Enums are currently unsupported.", get_current_line(), get_current_length());}
 	;
 
 enumerator_list
@@ -412,24 +412,24 @@ enumerator	/* identifiers must be flagged as ENUMERATION_CONSTANT */
 	;
 
 atomic_type_specifier
-	: ATOMIC '(' type_name ')' { zig_error("", "Atomics are unsupported", get_current_line()); }
+	: ATOMIC '(' type_name ')' { zig_error("", "Atomics are unsupported", get_current_line(), get_current_length()); }
 	;
 
 type_qualifier
-	: CONST { zig_error("", "I guess constants are unsupported", get_current_line()); }
-	| RESTRICT { zig_error("", "RESTRICT IS UNSUPPORTED.", get_current_line()); }
-	| VOLATILE { zig_error("", "VOLATILE IS UNSUPPORTED.", get_current_line()); }
-	| ATOMIC { zig_error("", "ATOMIC IS UNSUPPORTED.", get_current_line()); }
+	: CONST { zig_error("", "I guess constants are unsupported", get_current_line(), get_current_length()); }
+	| RESTRICT { zig_error("", "RESTRICT IS UNSUPPORTED.", get_current_line(), get_current_length()); }
+	| VOLATILE { zig_error("", "VOLATILE IS UNSUPPORTED.", get_current_line(), get_current_length()); }
+	| ATOMIC { zig_error("", "ATOMIC IS UNSUPPORTED.", get_current_line(), get_current_length()); }
 	;
 
 function_specifier
-	: INLINE { zig_error("Try making the function normally!", "Inline functions are not supported.", get_current_line()); }
-	| NORETURN { zig_error("Try making a void function!", "NORETURN Functions are not supported.", get_current_line()); }
+	: INLINE { zig_error("Try making the function normally!", "Inline functions are not supported.", get_current_line(), get_current_length()); }
+	| NORETURN { zig_error("Try making a void function!", "NORETURN Functions are not supported.", get_current_line(), get_current_length()); }
 	;
 
 alignment_specifier
-	: ALIGNAS '(' type_name ')' { zig_error("", "Alignas is not supported", get_current_line()); }
-	| ALIGNAS '(' constant_expression ')' { zig_error("", "Alignas is not supported", get_current_line()); }
+	: ALIGNAS '(' type_name ')' { zig_error("", "Alignas is not supported", get_current_line(), get_current_length()); }
+	| ALIGNAS '(' constant_expression ')' { zig_error("", "Alignas is not supported", get_current_line(), get_current_length()); }
 	;
 
 declarator
