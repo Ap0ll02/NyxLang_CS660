@@ -10,23 +10,23 @@ const LogType = enum {
 };
 
 fn info(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
-    const new_msg = std.mem.span(msg);
-    const new_src = std.mem.span(source);
-    const new_hint = std.mem.span(hint);
+    const new_msg = std.mem.span(msg) catch return "null";
+    const new_src = std.mem.span(source) catch return "null";
+    const new_hint = std.mem.span(hint) catch return "null";
     log(this_column, this_line, length, new_msg, new_src, new_hint);
 }
 
 fn Warn(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
-    const new_msg = std.mem.span(msg);
-    const new_src = std.mem.span(source);
-    const new_hint = std.mem.span(hint);
+    const new_msg = std.mem.span(msg) catch return "null";
+    const new_src = std.mem.span(source) catch return "null";
+    const new_hint = std.mem.span(hint) catch return "null";
     log(this_column, this_line, length, new_msg, new_src, new_hint);
 }
 
 fn Error(this_column: i32, this_line: i32, length: i32, msg: [*c]const u8, source: [*c]const u8, hint: [*c]const u8) void {
-    const new_msg = std.mem.span(msg);
-    const new_src = std.mem.span(source);
-    const new_hint = std.mem.span(hint);
+    const new_msg = std.mem.span(msg) catch return "null";
+    const new_src = std.mem.span(source) catch return "null";
+    const new_hint = std.mem.span(hint) catch return "null";
     log(this_column, this_line, length, new_msg, new_src, new_hint);
 }
 
