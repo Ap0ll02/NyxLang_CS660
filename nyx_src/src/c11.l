@@ -36,12 +36,9 @@ static int current_line_len = 0;
         for(int i = 0; i < yyleng; i++) { \
             char c = yytext[i]; \
             if (c == '\n') { \
-                current_line[current_line_len] = '\0';  \
                 current_line_len = 0; \
-                memset(current_line + current_line_len + 1, 0, 256 - current_line_len - 1); \
             } \
             else if (current_line_len < 256 - 1) { \
-                current_line[current_line_len++] = c; \
                 column++; \
             } \
         } \
@@ -173,14 +170,8 @@ static int check_type(void);
 
 "\\n"   {}               
 \n   { column = 1; line += 1; }               
-{WS}+ {
-        for (int i = 0; i < yyleng; i++) {
-            if (current_line_len < 256 - 1)
-                current_line[current_line_len++] = yytext[i];
-            column++;
-        }
-    }
-.				
+{WS}+ {}
+.	{}			
 
 %%
 
