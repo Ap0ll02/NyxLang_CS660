@@ -1,125 +1,136 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 
+const PointerType = struct {
+    base_type: *Type = null,
+    is_const: bool,
+    indirection_level: usize,
+};
 
-struct SymbolTable
-{
-    
-    const var parent: ?*SymbolTable = null;
-    // Creating structs that we point to in our maps
-    // Type, Variable, Function Quinn
-    struct Type
-    {
-        name: []const u8,
-        size: usize,
-        allignment: usize,
-        is_pointer: bool,
+const Type = struct {
+    is_unsigned: bool,
+    is_const: bool, // The Value its self is constant think of it as a Pointer to a constant int. You can’t modify the pointee const int* ptr;
+    qualifier: usize = 0, // 0 none, 1 long, 2 long long
+    //base: BaseType = .INT, We will later integrate this with our ast BaseType enum
+    type_name: []const u8,
+    size: usize,
+    alignment: usize,
+};
+
+const Variable = struct {
+    name: []const u8,
+    var_type: *Type,
+    is_global: bool,
+    is_const: bool,
+    is_mutable: bool,
+    is_initialized: bool,
+    scope_depth: u32 = 0, // which lexical depth this belongs to
+};
+
+const Function = struct {
+    name: []const u8,
+    return_type: *Type,
+    parameters: []Variable,
+};
+
+pub const SymbolTable = struct {
+
+    // Symbol Table Fields
+    gpa: std.heap.GeneralPurposeAllocator(.{}),
+    allocator: std.mem.Allocator,
+    // Maps to hold types, variables, and functions
+    type_map: std.AutoHashMap([]const u8, Type),
+    variable_map: std.AutoHashMap([]const u8, Variable),
+    function_map: std.AutoHashMap([]const u8, Function),
+
+    // To support nested scopes, we keep a reference to the parent symbol table
+    parent: ?*SymbolTable,
+
+    // We need 3  Assign functions to add types, variables and functions to our symbol table
+    // Param: string name, Node* node
+    // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
+    pub fn assign_type(self: *SymbolTable, type_node: *ast.TypeNode) void {
+        const newType = Type{ .is_unsigned = type_node.is_unsigned, .is_const = type_node.is_const, .qualifier = type_node.qualifier, .type_name = type_node.type_name, .size = type_node.size, .alignment = type_node.alignment };
+        try self.type_map.put(newType);
     }
 
-    struct Variable
-    {
-        name: []const u8,
-        var_type: *Type,
-        is_mutable: bool,
-        is_contant: bool,
+    pub fn assign_variable(self: *SymbolTable, var_node: *ast.IdentifierNode) void {
+        const newVar = Variable{
+            .name = var_node.name,
+            .var_type = get_type(var_node.var_type.type_name) orelse null,
+        };
+        try self.variable_map.put(var_node.name, newVar);
     }
 
-    struct Function
-    {
-        name: []const u8,
-        return_type: *Type,
-        parameters: []Variable,
+    pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.Node) void {
+        const newFunc = Function{
+            .name = name,
+            .return_type = get_type(func_node.return_type.type_name) orelse null,
+            // .parameters = func_node.parameters, // This will need to be populated properly
+        };
+        try self.function_map.put(name, newFunc);
     }
 
-    // Creating the maps that we will use in our symbol table
+    // We need 3 Get functions to retrieve types, variables and functions from our symbol table
+    // Param: string name
+    // return the struct pointer if found, else return null
 
-    // To use our Allocator
-    // Quinn
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    pub fn get_type(self: *SymbolTable, name: []const u8) ?*Type {
+        var current_table: *SymbolTable = self;
 
-    // To free our allocated memory
-    defer {
-        const leaked = gpa.deinit();
-        if (leaked) {
-            std.debug.print("ERROR: Memory leak detected!\n", .{});
+        while (current_table) |table| {
+            if (table.type_map.getPtr(name)) |type_ptr| {
+                return type_ptr;
+            }
+            current_table = table.parent;
+        }
+        return null;
+    }
+
+    pub fn get_variable(self: *SymbolTable, name: []const u8) ?*Variable {
+        var current_table: *SymbolTable = self;
+        while (current_table) |table| {
+            if (table.variable_map.getPtr(name)) |var_ptr| {
+                return var_ptr;
+            }
+            current_table = table.parent;
         }
     }
 
-        // Assign values to maps
-        var type_map = std.AutoHashMap([]const u8, Type).init(allocator);
-        var variable_map = std.AutoHashMap([]const u8, Variable).init(allocator);
-        var function_map = std.AutoHashMap([]const u8, Function).init(allocator);
-        defer {
-            type_map.deinit();
-            variable_map.deinit();
-            function_map.deinit();
+    pub fn get_function(self: *SymbolTable, name: []const u8) ?*Function {
+        var current_table: *SymbolTable = self;
+        while (current_table) |table| {
+            if (table.function_map.getPtr(name)) |func_ptr| {
+                return func_ptr;
+            }
+            current_table = table.parent;
         }
-        
+    }
 
-        // We need 3  Assign functions to add types, variables and functions to our symbol table
-        // Param: string name, Node* node
-        // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
-        fn assignType(name: []const u8, type_node: *ast.Node) void
-        {
-            // Implementation here
-        }
+    // *************Symbol Table Functions********************
+    // Symbol Table initilization function
 
-        fn assignVariable(name: []const u8, var_node: *ast.Node) void
-        {
-            // Implementation here
-        }
+    pub fn init() void {
+        // Implementation here
+    }
 
-        fn assignFunction(name: []const u8, func_node: *ast.Node) void
-        {
-            // Implementation here
-        }
+    pub fn deinit(self: *SymbolTable) void {
+        _ = self;
+        // Implementation here
+    }
 
-        // We need 3 Get functions to retrieve types, variables and functions from our symbol table
-        // Param: string name
-        // return the struct pointer if found, else return null
-        fn getType(name: []const u8) ?*Type
-        {
-            // Implementation here
-        }
-        fn getVariable(name: []const u8) ?*Variable
-        {
-            // Implementation here
-        }
-        fn getFunction(name: []const u8) ?*Function
-        {
-            // Implementation here
-        }
+    pub fn push_table(self: *SymbolTable) *SymbolTable {
+        _ = self;
+        // Implementation here create a new symbol table and set the new table to self
+    }
 
-        // *************Symbol Table Functions********************
-        // Symbol Table initilization function
-        fn initSymbolTable() void
-        {
-            // Implementation here
-        }
+    pub fn pop_table(self: *SymbolTable) *SymbolTable {
+        _ = self;
+        // Implementation here set self to parent and deinitialize the current table
+    }
 
-        // Symbol Table deinitilization function 
-        fn deinitSymbolTable() void
-        {
-            // Implementation here
-        }
-        // Symbol Table Push function Richie
-        fn pushSymbolTable() void
-        {
-            // Implementation here
-        }
-        // Symbol Table Pop function Richie 
-        fn popSymbolTable() void
-        {
-            // Implementation here
-        }
-        // Symbol Table Get Depth function Richie and Quinn
-        fn getSymbolTableDepth() usize
-        {
-            // Implementation here
-        }
-
-
-}
-
-
+    pub fn current_depth(self: *SymbolTable) u32 {
+        _ = self;
+        // Implementation here return the current depth of the symbol table
+    }
+};
