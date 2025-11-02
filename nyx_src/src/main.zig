@@ -11,8 +11,8 @@ extern fn yylex() c_int; // from your lexer
 extern fn yy_scan_bytes(bytes: [*c]const u8, len: c_int) YY_BUFFER_STATE;
 extern fn yyparse() c_int;
 export var root: ?*ast.Node = null;
-export var column: c_int = 1;
-export var line: c_int = 1;
+pub export var column: c_int = 1;
+pub export var line: c_int = 1;
 var source_code: []const u8 = undefined;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;

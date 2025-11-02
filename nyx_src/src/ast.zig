@@ -350,9 +350,11 @@ pub const Node = union(NodeTag) {
 // We can expand this function as we add more types
 // For now, it handles int, float, and string types
 
-fn get_location() *Location {
-    const loc_node = glob_alloc.create(Location);
-    loc_node.* = Location { .col = m.column, .line = m.line };
+fn get_location() ?*Location {
+    const column_loc: usize = @intCast(m.column);
+    const line_loc: usize = @intCast(m.line);
+    const loc_node = glob_alloc.create(Location) catch return null;
+    loc_node.* = Location { .col = column_loc, .line = line_loc };
     return loc_node;
 }
 // expand this function to handle the multicharacter operators
