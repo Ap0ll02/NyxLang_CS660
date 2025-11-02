@@ -25,7 +25,7 @@ pub fn main() !void {
         return;
     }
     const cwd = try std.fs.cwd().realpathAlloc(allocator, ".");
-    std.debug.print("CWD: {s}\n", .{cwd});
+    if (ast.debug_mode) std.debug.print("CWD: {s}\n", .{cwd});
     defer allocator.free(cwd);
     const filename = args[1];
     if (args.len > 2) {
@@ -33,7 +33,7 @@ pub fn main() !void {
             ast.debug_mode = true;
         }
     }
-    std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
+    if(ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 
@@ -56,7 +56,7 @@ pub fn main() !void {
     } else {
         std.debug.print("Completed, but NULL.", .{});
     }
-    std.debug.print("\nValid C?: {s}\n", .{if (result == 1) "No" else "Yes"});
+    std.debug.print("\nParse {s}\n", .{if (result == 1) "failed." else "successful"});
 }
 
 export fn yyerror(msg: [*c]const u8) void {
