@@ -46,6 +46,22 @@ pub const SymbolTable = struct {
     // To support nested scopes, we keep a reference to the parent symbol table
     parent: ?*SymbolTable,
 
+    pub fn init(allocator: std.mem.Allocator, parent: *SymbolTable) void {
+        gpa = std.heap.GeneralPurposeAllocator  
+    }
+
+    // pub fn init(allocator: std.mem.Allocator) SymbolTable {
+    //     // create a global scope which will be the root of all scopes
+    //     const global = allocator.create(Scope) catch unreachable;
+    //     global.* = Scope{
+    //         // This is the global scope hash table
+    //         .symbols = std.StringHashMap(*Symbol).init(allocator),
+    //         // No parent for the global scope
+    //         .parent = null,
+    //     };
+    //     // return the symbol table with the global scope as the current scope
+    //     return SymbolTable{ .allocator = allocator, .current = global };
+    // }
     // We need 3  Assign functions to add types, variables and functions to our symbol table
     // Param: string name, Node* node
     // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
@@ -109,10 +125,6 @@ pub const SymbolTable = struct {
 
     // *************Symbol Table Functions********************
     // Symbol Table initilization function
-
-    pub fn init() void {
-        // Implementation here
-    }
 
     pub fn deinit(self: *SymbolTable) void {
         _ = self;
