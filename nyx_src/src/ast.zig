@@ -179,11 +179,6 @@ pub const TranslationUnitListNode = struct {
     translationUnits: []*Node,
     typeNode: ?*TypeNode = null,
 };
-pub const ErrorNode = struct {
-    loc: usize,
-    msg: []const u8,
-    typeNode: ?*TypeNode = null,
-};
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -246,8 +241,6 @@ pub const NodeTag = enum {
     StructDeclaratorList,
     Struct,
     StructUnion,
-
-    Error,
 };
 
 pub const Node = union(NodeTag) {
@@ -306,8 +299,6 @@ pub const Node = union(NodeTag) {
     StructDeclaratorList: *StructDeclaratorListNode,
     Struct: *StructNode,
     StructUnion: *StructUnionNode,
-
-    Error: *ErrorNode,
 };
 
 // Type information structure
@@ -326,7 +317,7 @@ pub const Node = union(NodeTag) {
 export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, expr2: *Node) ?*Node {
     const CondExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
 
-    // std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
+    if(debug_mode) std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.GE_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
@@ -394,6 +385,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     if (left_type != null and right_type != null) {
         const rt = right_type.?;
         const lt = left_type.?;
+        if (rt.* != .Type or lt.* != .Type) return null;
         const new_base = rt.Type.base;
         const new_sign = lt.Type.is_unsigned or rt.Type.is_unsigned;
         const new_const = lt.Type.is_const or rt.Type.is_const;
@@ -466,6 +458,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
 export fn make_type_node(token: c.yytokentype) ?*Node {
     const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
     // std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
+    if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.FLOAT => {
             const tn: [*c]const u8 = "float";
@@ -507,7 +500,7 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
 export fn make_identifier_node(name: [*c]const u8) ?*Node {
     // We create the identifier node
     const id_node = std.heap.c_allocator.create(IdentifierNode) catch return null;
-
+    if (@TypeOf(name) != [*c]const u8) {return null;}
     const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(name)) catch return null;
 
     // We set the name for the identifier node
@@ -527,6 +520,7 @@ export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
     // We create the constant node
     const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
+    if (@TypeOf(value) != [*c]const u8) return null;
     const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(value)) catch return null;
 
     const_node.* = ConstantNode{ .value = val_copy, .typeNode = typeNode };
@@ -543,7 +537,6 @@ export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
 
 export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *Node) ?*Node {
     const assignment_node = std.heap.c_allocator.create(AssignmentNode) catch return null;
-
     assignment_node.* = .{ .declarator = declarator, .initializer = initializer, .ass_op = ass_op };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -569,7 +562,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
         node.* = Node{ .StructDeclaration = decl_node };
         const n: *Node = @ptrCast(node);
         return n;
-    } else {
+    } else if (typeNode.* == .Type){
         const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
         // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
         if (asgnNode) |n| {
@@ -582,7 +575,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
         node.* = Node{ .Declaration = decl_node };
         const n: *Node = @ptrCast(node);
         return n;
-    }
+    } else return null;
 }
 
 export fn make_binary_node(lhs: *Node, op: c_char, rhs: *Node) ?*Node {
@@ -613,7 +606,7 @@ export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
 
 export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
     const ass_op_node = std.heap.c_allocator.create(AssignmentOpNode) catch return null;
-
+    if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.MUL_ASSIGN => {
             ass_op_node.* = AssignmentOpNode{
@@ -680,7 +673,7 @@ export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
 
 export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
     const postfix_node = std.heap.c_allocator.create(PostFixNode) catch return null;
-
+    if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.INC_OP => {
             postfix_node.* = PostFixNode{
@@ -710,6 +703,7 @@ export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
 
 export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
     const prefix_node = std.heap.c_allocator.create(PreFixNode) catch return null;
+    if (@TypeOf(token) != c.yytokentype) return null;
 
     switch (token) {
         c.INC_OP => {
@@ -740,7 +734,7 @@ export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
 
 export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
     const fnode = std.heap.c_allocator.create(FloatNode) catch return null;
-
+    if (@TypeOf(val) != f32) { return null; }
     fnode.* = FloatNode{ .val = val };
 
     const node = std.heap.c_allocator.create(Node) catch return null;
@@ -752,6 +746,7 @@ export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
 }
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
+    if (@TypeOf(val) != i32) { return null; }
 
     int_node.* = IntNode{ .val = val };
 
@@ -763,6 +758,7 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     return n;
 }
 export fn make_string_node(raw_val: [*c]const u8) ?*Node {
+    if (@TypeOf(raw_val) != [*c]const u8) return null;
     const string_node = std.heap.c_allocator.create(StringNode) catch return null;
     const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(raw_val)) catch return null;
     string_node.* = StringNode{ .raw_val = val_copy };
@@ -905,7 +901,7 @@ export fn make_return_node(ret_val: ?*Node) ?*Node {
 
 export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) ?*Node {
     const function_node = std.heap.c_allocator.create(FunctionNode) catch return null;
-
+    if (retType.* != .Type) return null;
     function_node.* = FunctionNode{
         .retType = retType.Type,
         .nameParam = nameParameter,
@@ -931,22 +927,25 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
         node.* = Node{ .ArgumentList = arg_list_node };
         return node;
     } else {
-        const items_block = items.?.ArgumentList;
+        if (items.?.* != .ArgumentList) { return null; }
+        const items_b = items;
+        if (items_b) |items_bl| {
+            const items_block = items_bl.ArgumentList;
+            const new_len = items_block.args.len + 1;
+            const new_args = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
 
-        const new_len = items_block.args.len + 1;
-        const new_args = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+            // Copy existing items
+            @memcpy(new_args[0..items_block.args.len], items_block.args);
+            new_args[items_block.args.len] = item;
 
-        // Copy existing items
-        @memcpy(new_args[0..items_block.args.len], items_block.args);
-        new_args[items_block.args.len] = item;
-
-        // Create a new BlockItemsNode with the updated items
-        const args_list_node = std.heap.c_allocator.create(ArgumentListNode) catch return null;
-        args_list_node.* = ArgumentListNode{ .args = new_args };
-        // Wrap the items block in node and return
-        const node = std.heap.c_allocator.create(Node) catch return null;
-        node.* = Node{ .ArgumentList = args_list_node };
-        return node;
+            // Create a new BlockItemsNode with the updated items
+            const args_list_node = std.heap.c_allocator.create(ArgumentListNode) catch return null;
+            args_list_node.* = ArgumentListNode{ .args = new_args };
+            // Wrap the items block in node and return
+            const node = std.heap.c_allocator.create(Node) catch return null;
+            node.* = Node{ .ArgumentList = args_list_node };
+            return node; 
+        } else return null;
     }
 }
 
@@ -1085,7 +1084,6 @@ export fn make_structunion_node(t: c.yytokentype) ?*Node {
 }
 export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8, decl_list_node: ?*Node) ?*Node {
     const struct_node = std.heap.c_allocator.create(StructNode) catch return null;
-
     var id: ?*Node = null;
     var decl_list: []*Node = undefined;
     if (identifier) |i| {
@@ -1218,16 +1216,6 @@ export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) 
         return node;
     }
 }
-export fn make_error_node(msg: [*c]const u8, loc: c_int) ?*Node {
-    const err = std.heap.c_allocator.create(ErrorNode) catch return null;
-    const err_msg = std.mem.span(msg);
-    const location: usize = @intCast(loc);
-    err.* = ErrorNode{ .msg = err_msg, .loc = location };
-    const node = std.heap.c_allocator.create(Node) catch return null;
-    node.* = Node{ .Error = err };
-
-    return node;
-}
 
 // ===================
 // | TranslationUnit |
@@ -1291,10 +1279,6 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
 
     printIndent(indent);
     switch (node.*) {
-        .Error => {
-            const en = node.Error;
-            std.debug.print("{s}", .{en.msg});
-        },
         .Identifier => {
             const id_node = node.Identifier;
             std.debug.print("🟦 Identifier: {s}\n", .{id_node.name});
