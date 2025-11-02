@@ -6,7 +6,7 @@
 // FUNCTION DECLARATIONS: 
 // const char* yytext;
 enum yytokentype;
-int yydebug = 1;
+int yydebug = 0;
 // static char current_line[256];
 // static int current_line_length;
 int yylex(void);
@@ -17,7 +17,6 @@ void yyerror(const char *s);
 void zig_error(const char *hint, const char *msg);
 // So we can return generic node pointers and other values
 struct Node* node;
-struct Node* make_error_node(const char *msg, int loc);
 struct Node* make_identifier_node(const char *s);
 struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
 struct Node* make_constant_node(int s);
@@ -121,7 +120,7 @@ string
 	;
 
 generic_selection
-	: GENERIC '(' assignment_expression ',' generic_assoc_list ')' { $$ = make_error_node("Unsupported operation: GENERIC SELECTION\n", 0); }
+	: GENERIC '(' assignment_expression ',' generic_assoc_list ')' { zig_error("Unsupported feature [Generic]", "Create a normal non-generic variable."); }
 	;
 
 generic_assoc_list
@@ -173,7 +172,7 @@ unary_operator
 
 cast_expression
 	: unary_expression
-	| '(' type_name ')' cast_expression { $$ = make_error_node("Unsupported operation: GENERIC SELECTION\n", 0); }
+	| '(' type_name ')' cast_expression { zig_error("Unsupported feature: Typecasting.", "Rewrite your code to have the correct type."); }
 	;
 
 multiplicative_expression
@@ -297,12 +296,12 @@ init_declarator
 	;
 
 storage_class_specifier
-	: TYPEDEF { $$ = make_error_node("Unsupported Operation: TYPEDEF", 0); }	/* identifiers must be flagged as TYPEDEF_NAME */
-	| EXTERN { $$ = make_error_node("Unsupported Operation: EXTERN", 0); }
-	| STATIC { $$ = make_error_node("Unsupported Operation: STATIC", 0); }
-	| THREAD_LOCAL { $$ = make_error_node("Unsupported Operation: THREAD_LOCAL", 0); }
-	| AUTO { $$ = make_error_node("Unsupported Operation: AUTO", 0); }
-	| REGISTER { $$ = make_error_node("Unsupported Operation: REGISTER", 0); }
+	: TYPEDEF { zig_error("Unsupported Operation: [TypeDef]", "Remove TypeDef keyword."); }	/* identifiers must be flagged as TYPEDEF_NAME */
+	| EXTERN { zig_error("Unsupported Operation: [Extern]", "Remove Extern keyword."); }
+	| STATIC { zig_error("Unsupported Operation: [Static]", "Remove Static keyword."); }
+	| THREAD_LOCAL { zig_error("Unsupported Operation: [Thread_Local]", "Remove Thread_Local keyword."); }
+	| AUTO { zig_error("Unsupported Operation: [Auto]", "Remove Auto keyword."); }
+	| REGISTER { zig_error("Unsupported Operation: [Register]", "Remove Register keyword."); }
 	;
 
 type_specifier_list
