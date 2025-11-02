@@ -34,3 +34,8 @@ test "SymbolTable: current depth of table" {
     defer child2.destroy();
     try testing.expect(child2.current_depth() == 2);
 }
+
+// Uncomment for debugging the tester
+// test "should fail" {
+//     try std.testing.expect(false);
+// }
