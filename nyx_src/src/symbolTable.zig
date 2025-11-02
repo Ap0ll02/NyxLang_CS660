@@ -35,9 +35,11 @@ const Function = struct {
 
 pub const SymbolTable = struct {
 
-    // Symbol Table Fields
-    gpa: std.heap.GeneralPurposeAllocator(.{}),
-    allocator: std.mem.Allocator,
+    // Allocators
+    upstream: std.mem.Allocator,  // allocator that created this SymbolTable
+    arena: std.heap.ArenaAllocator,  // This SymbolTable's local allocator
+    allocator: std.mem.Allocator,  // derived from arena
+                                   //
     // Maps to hold types, variables, and functions
     type_map: std.AutoHashMap([]const u8, Type),
     variable_map: std.AutoHashMap([]const u8, Variable),
@@ -46,20 +48,20 @@ pub const SymbolTable = struct {
     // To support nested scopes, we keep a reference to the parent symbol table
     parent: ?*SymbolTable,
 
-    pub fn init(parent: ?*SymbolTable) SymbolTable {
-        // Build SymbolTable's allocator first
-        var self = SymbolTable{
-            .gpa = std.heap.GeneralPurposeAllocator(.{}){},
+    pub fn create(upstream: std.mem.Allocator, parent: ?*SymbolTable) !*SymbolTable {
+        // Allocate the struct from its upstream heap
+        const self = try upstream.create(SymbolTable);
+        self.* = .{
+            .gpa = std.heap.ArenaAllocator.init(upstream),
             .allocator = undefined,
             .type_map = undefined,
             .variable_map = undefined,
             .function_map = undefined,
             .parent = parent,
-            .owns_allocatpr = true,
         };
     
         // build our allocator 
-        self.allocator = self.gpa.allocator();
+        self.allocator = self.arena.allocator();
         // initialize and allocate
         self.type_map = std.AutoHashMap([]const u8, Type).init(self.allocator);
         self.variable_map = std.AutoHashMap([]const u8, Variable).init(self.allocator);
@@ -68,26 +70,32 @@ pub const SymbolTable = struct {
         return self;
     }
 
-    pub fn deinit(self: *SymbolTable) void {
+    // Full deinit of maps, local arena and 
+    // the SymbolTable using its upstream allocator
+    pub fn destroy(self: *SymbolTable) void {
         self.type_map.deinit();
         self.variable_map.deinit();
         self.function_map.deinit();
-
-        _ = self.gpa.deinit();
+        self.arena.deinit(); // frees everything allocated by self.allocator
+        self.upstream.destroy(self);
+    }
+    
+    pub fn push(self: *SymbolTable) !*SymbolTable {
+        return SymbolTable.create(self.upstream, self);
     }
 
-    // pub fn init(allocator: std.mem.Allocator) SymbolTable {
-    //     // create a global scope which will be the root of all scopes
-    //     const global = allocator.create(Scope) catch unreachable;
-    //     global.* = Scope{
-    //         // This is the global scope hash table
-    //         .symbols = std.StringHashMap(*Symbol).init(allocator),
-    //         // No parent for the global scope
-    //         .parent = null,
-    //     };
-    //     // return the symbol table with the global scope as the current scope
-    //     return SymbolTable{ .allocator = allocator, .current = global };
-    // }
+    // Destroys this table and returns the parent
+    pub fn pop(self: *SymbolTable) ?*SymbolTable {
+        const parent = self.parent;
+        self.destroy();
+        return parent;  // returns null if this is the root
+    }
+    
+    pub fn current_depth(self: *SymbolTable) u32 {
+        _ = self;
+        // Implementation here return the current depth of the symbol table
+    }
+
     // We need 3  Assign functions to add types, variables and functions to our symbol table
     // Param: string name, Node* node
     // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
@@ -147,23 +155,5 @@ pub const SymbolTable = struct {
             }
             current_table = table.parent;
         }
-    }
-
-    // *************Symbol Table Functions********************
-    // Symbol Table initilization function
-
-    pub fn push_table(self: *SymbolTable) *SymbolTable {
-        _ = self;
-        // Implementation here create a new symbol table and set the new table to self
-    }
-
-    pub fn pop_table(self: *SymbolTable) *SymbolTable {
-        _ = self;
-        // Implementation here set self to parent and deinitialize the current table
-    }
-
-    pub fn current_depth(self: *SymbolTable) u32 {
-        _ = self;
-        // Implementation here return the current depth of the symbol table
     }
 };
