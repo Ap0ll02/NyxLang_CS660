@@ -2,7 +2,7 @@ const std = @import("std");
 const ast = @import("ast.zig");
 
 const PointerType = struct {
-    base_type: *Type = null,
+    base_type: ?*Type,
     is_const: bool,
     indirection_level: usize,
 };
@@ -52,7 +52,8 @@ pub const SymbolTable = struct {
         // Allocate the struct from its upstream heap
         const self = try upstream.create(SymbolTable);
         self.* = .{
-            .gpa = std.heap.ArenaAllocator.init(upstream),
+            .upstream = upstream,
+            .arena = std.heap.ArenaAllocator.init(upstream),
             .allocator = undefined,
             .type_map = undefined,
             .variable_map = undefined,
@@ -90,10 +91,15 @@ pub const SymbolTable = struct {
         self.destroy();
         return parent;  // returns null if this is the root
     }
-    
-    pub fn current_depth(self: *SymbolTable) u32 {
-        _ = self;
-        // Implementation here return the current depth of the symbol table
+
+    pub fn current_depth(self: *SymbolTable) usize {
+        var idx: usize = 0;
+        var current_table = self.parent;
+        while (current_table) |ct| {
+            current_table = ct.parent;
+            idx += 1;
+        }
+        return idx;
     }
 
     // We need 3  Assign functions to add types, variables and functions to our symbol table
