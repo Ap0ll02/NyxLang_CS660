@@ -46,8 +46,34 @@ pub const SymbolTable = struct {
     // To support nested scopes, we keep a reference to the parent symbol table
     parent: ?*SymbolTable,
 
-    pub fn init(allocator: std.mem.Allocator, parent: *SymbolTable) void {
-        gpa = std.heap.GeneralPurposeAllocator  
+    pub fn init(parent: ?*SymbolTable) SymbolTable {
+        // Build SymbolTable's allocator first
+        var self = SymbolTable{
+            .gpa = std.heap.GeneralPurposeAllocator(.{}){},
+            .allocator = undefined,
+            .type_map = undefined,
+            .variable_map = undefined,
+            .function_map = undefined,
+            .parent = parent,
+            .owns_allocatpr = true,
+        };
+    
+        // build our allocator 
+        self.allocator = self.gpa.allocator();
+        // initialize and allocate
+        self.type_map = std.AutoHashMap([]const u8, Type).init(self.allocator);
+        self.variable_map = std.AutoHashMap([]const u8, Variable).init(self.allocator);
+        self.function_map = std.AutoHashMap([]const u8, Function).init(self.allocator);
+
+        return self;
+    }
+
+    pub fn deinit(self: *SymbolTable) void {
+        self.type_map.deinit();
+        self.variable_map.deinit();
+        self.function_map.deinit();
+
+        _ = self.gpa.deinit();
     }
 
     // pub fn init(allocator: std.mem.Allocator) SymbolTable {
@@ -125,11 +151,6 @@ pub const SymbolTable = struct {
 
     // *************Symbol Table Functions********************
     // Symbol Table initilization function
-
-    pub fn deinit(self: *SymbolTable) void {
-        _ = self;
-        // Implementation here
-    }
 
     pub fn push_table(self: *SymbolTable) *SymbolTable {
         _ = self;
