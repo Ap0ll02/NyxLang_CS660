@@ -19,10 +19,10 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const bison = b.addSystemCommand(&.{"bison", "-d", "-v"});
+    const bison = b.addSystemCommand(&.{"bison", "-d", "-Wnone"});
     bison.addFileArg(b.path("src/c11.y"));
 
-    const flex = b.addSystemCommand(&.{"flex", "-d"});
+    const flex = b.addSystemCommand(&.{"flex"});
     flex.addFileArg(b.path("src/c11.l"));
 
 
