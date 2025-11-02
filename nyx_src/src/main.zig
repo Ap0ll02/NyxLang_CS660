@@ -1,7 +1,7 @@
 const std = @import("std");
 const log = @import("Log.zig");
 const parse = @cImport(@cInclude("c11.tab.h"));
-// const sym_tab = @import("symbolTable.zig");
+const sym_tab = @import("symbolTable.zig");
 const ast = @import("ast.zig");
 const analyzer = @import("semanticAnalyzer.zig");
 const c = @cImport(@cInclude("c11.tab.h"));
@@ -14,9 +14,15 @@ export var root: ?*ast.Node = null;
 pub export var column: c_int = 1;
 pub export var line: c_int = 1;
 var source_code: []const u8 = undefined;
+
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
+
+    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa_state.deinit();
+    const gpa = gpa_state.allocator();
+
     defer std.process.argsFree(allocator, args);
 
     if (args.len == 1 or args.len > 3) {
@@ -33,7 +39,7 @@ pub fn main() !void {
             ast.debug_mode = true;
         }
     }
-    if(ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
+    if (ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 
@@ -46,9 +52,14 @@ pub fn main() !void {
 
     const result = yyparse();
 
+    // Create the symbol table
+    const symbol_table = try sym_tab.SymbolTable.create(gpa, null);
+    analyzer.setSymbolTable(symbol_table);
+    defer symbol_table.destroy();
+
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (root) |r| {
-        if(ast.debug_mode) {
+        if (ast.debug_mode) {
             std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});
             try ast.printNode(r, 0);
         }
@@ -74,7 +85,7 @@ pub fn diagnostic_source(myline: usize) []const u8 {
         }
         idx += 1;
     }
-    return source_code[line_length..idx-1];
+    return source_code[line_length .. idx - 1];
 }
 
 fn get_src() []const u8 {
@@ -89,7 +100,7 @@ fn get_src() []const u8 {
         idx += 1;
     }
     // WE ARE STOPPED AT THE CURRENT LINE!
-    return source_code[line_length..idx-1];
+    return source_code[line_length .. idx - 1];
 }
 
 export fn zig_error(hint: [*c]const u8, msg: [*c]const u8) void {

@@ -361,7 +361,7 @@ fn get_location() ?*Location {
 export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, expr2: *Node) ?*Node {
     const CondExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
 
-    if(debug_mode) std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
+    if (debug_mode) std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.GE_OP => {
             CondExpNodePtr.* = ConditionalExpressionNode{
@@ -550,7 +550,9 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
 export fn make_identifier_node(name: [*c]const u8) ?*Node {
     // We create the identifier node
     const id_node = std.heap.c_allocator.create(IdentifierNode) catch return null;
-    if (@TypeOf(name) != [*c]const u8) {return null;}
+    if (@TypeOf(name) != [*c]const u8) {
+        return null;
+    }
     const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(name)) catch return null;
 
     // We set the name for the identifier node
@@ -612,7 +614,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
         node.* = Node{ .StructDeclaration = decl_node };
         const n: *Node = @ptrCast(node);
         return n;
-    } else if (typeNode.* == .Type){
+    } else if (typeNode.* == .Type) {
         const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
         // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
         if (asgnNode) |n| {
@@ -802,7 +804,9 @@ export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
 }
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = std.heap.c_allocator.create(IntNode) catch return null;
-    if (@TypeOf(val) != i32) { return null; }
+    if (@TypeOf(val) != i32) {
+        return null;
+    }
 
     int_node.* = IntNode{ .val = val, .location = get_location() };
 
@@ -986,7 +990,9 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
         node.* = Node{ .ArgumentList = arg_list_node };
         return node;
     } else {
-        if (items.?.* != .ArgumentList) { return null; }
+        if (items.?.* != .ArgumentList) {
+            return null;
+        }
         const items_b = items;
         if (items_b) |items_bl| {
             const items_block = items_bl.ArgumentList;
@@ -1003,7 +1009,7 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
             // Wrap the items block in node and return
             const node = std.heap.c_allocator.create(Node) catch return null;
             node.* = Node{ .ArgumentList = args_list_node };
-            return node; 
+            return node;
         } else return null;
     }
 }

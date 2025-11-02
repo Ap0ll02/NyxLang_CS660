@@ -1,8 +1,19 @@
 const std = @import("std");
 const ast = @import("ast.zig");
+const sym_tab = @import("symbolTable.zig");
+var Symbol_Table: ?*sym_tab.SymbolTable = null;
+pub fn setSymbolTable(t: *sym_tab.SymbolTable) void {
+    Symbol_Table = t;
+}
+fn st() *sym_tab.SymbolTable {
+    return Symbol_Table orelse @panic("semanticAnalyzer: symbol table not set");
+}
 
 pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
-    if(node_opt == null) { return; }
+    const symbol_table = st();
+    if (node_opt == null) {
+        return;
+    }
     const node = node_opt.?;
     switch (node.*) {
         .Declaration => {
@@ -196,8 +207,20 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             }
         },
         // everything below this is an "atomic" node and doesn't call anymore nodes
-        .Identifier => {
+        .Identifier => |identifier| {
             if (ast.debug_mode) std.debug.print("Identifier node semantically analyzed!\n", .{});
+            symbol_table.assign_variable(identifier) catch {
+                // Use Jacks famous debug print here
+                std.debug.print("id: {s}\n", .{identifier.name});
+            };
+            if (ast.debug_mode) {
+                const var_ptr = symbol_table.get_variable(identifier.name);
+                if (var_ptr) |v| {
+                    std.debug.print("Variable '{s}' found in symbol table.\n", .{v.name});
+                } else {
+                    std.debug.print("Variable '{s}' NOT found in symbol table.\n", .{identifier.name});
+                }
+            }
         },
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});
