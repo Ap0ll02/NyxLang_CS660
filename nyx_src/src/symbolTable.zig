@@ -122,6 +122,7 @@ pub const SymbolTable = struct {
         const type_name_slice: []const u8 = std.mem.span(tn.type_name);
 
         const key = try self.allocator.dupe(u8, var_node.name);
+        std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
         try self.variable_map.put(key, Variable{
             .name = key,
             .var_type = self.get_type(type_name_slice) orelse return error.UnknownType,
@@ -145,6 +146,7 @@ pub const SymbolTable = struct {
         while (current_table) |tbl| : (current_table = tbl.parent) {
             if (tbl.type_map.getPtr(name)) |ptr| return ptr;
         }
+        std.debug.print("Type {s} not found in symbol table.\n", .{name});
         return null;
     }
 
@@ -153,6 +155,7 @@ pub const SymbolTable = struct {
         while (current_table) |table| : (current_table = table.parent) {
             if (table.variable_map.getPtr(name)) |var_ptr| return var_ptr;
         }
+        std.debug.print("Variable {s} not found in symbol table.\n", .{name});
         return null;
     }
 
@@ -161,6 +164,7 @@ pub const SymbolTable = struct {
         while (current_table) |table| : (current_table = table.parent) {
             if (table.function_map.getPtr(name)) |func_ptr| return func_ptr;
         }
+        std.debug.print("Function {s} not found in symbol table.\n", .{name});
         return null;
     }
 };
