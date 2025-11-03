@@ -40,7 +40,7 @@ pub fn main() !void {
             ast.debug_mode = true;
         }
     }
-    if (ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
+    if(ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 

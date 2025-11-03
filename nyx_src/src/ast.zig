@@ -803,10 +803,6 @@ export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
     return n;
 }
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
-    const int_node = std.heap.c_allocator.create(IntNode) catch return null;
-    if (@TypeOf(val) != i32) {
-        return null;
-    }
     const int_node = glob_alloc.create(IntNode) catch return null;
     if (@TypeOf(val) != i32) { return null; }
 
