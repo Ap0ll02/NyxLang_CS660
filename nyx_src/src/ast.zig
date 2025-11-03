@@ -359,7 +359,7 @@ fn get_location() ?*Location {
 }
 // expand this function to handle the multicharacter operators
 export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, expr2: *Node) ?*Node {
-    const CondExpNodePtr = std.heap.c_allocator.create(ConditionalExpressionNode) catch return null;
+    const CondExpNodePtr = glob_alloc.create(ConditionalExpressionNode) catch return null;
 
     if(debug_mode) std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
@@ -420,7 +420,7 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
             };
         },
     }
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .ConditionalExpression = CondExpNodePtr };
 
     return node;
@@ -431,7 +431,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     if (left_type == null) return right_type;
 
     // std.debug.print("Both Nodes Valid: Checking Details\n", .{});
-    const new_type = std.heap.c_allocator.create(TypeNode) catch return null;
+    const new_type = glob_alloc.create(TypeNode) catch return null;
     if (left_type != null and right_type != null) {
         const rt = right_type.?;
         const lt = left_type.?;
@@ -477,7 +477,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
         }
         const new_qual = rt.Type.qualifier + lt.Type.qualifier;
 
-        const alloc = std.heap.c_allocator;
+        const alloc = glob_alloc;
         var name_parts: std.ArrayList([]const u8) = .empty;
         if (new_const) _ = name_parts.append(alloc, "const") catch {};
         if (new_sign) _ = name_parts.append(alloc, "unsigned") catch {};
@@ -501,12 +501,12 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
         // std.debug.print("\n Type Node Created: {any}\n", .{new_base});
         new_type.* = TypeNode{ .base = new_base, .is_const = new_const, .is_unsigned = new_sign, .alignment = alignment, .size = size, .type_name = new_name.ptr, .qualifier = new_qual, .location = get_location() };
     }
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Type = new_type };
     return node;
 }
 export fn make_type_node(token: c.yytokentype) ?*Node {
-    const type_node_ptr = std.heap.c_allocator.create(TypeNode) catch return null;
+    const type_node_ptr = glob_alloc.create(TypeNode) catch return null;
     // std.debug.print("===> TYPE INFO FOR INPUT: {any}\n", .{token});
     if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
@@ -541,7 +541,7 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
         },
     }
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Type = type_node_ptr };
 
     return node;
@@ -549,15 +549,15 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
 
 export fn make_identifier_node(name: [*c]const u8) ?*Node {
     // We create the identifier node
-    const id_node = std.heap.c_allocator.create(IdentifierNode) catch return null;
+    const id_node = glob_alloc.create(IdentifierNode) catch return null;
     if (@TypeOf(name) != [*c]const u8) {return null;}
-    const name_copy = std.heap.c_allocator.dupe(u8, std.mem.span(name)) catch return null;
+    const name_copy = glob_alloc.dupe(u8, std.mem.span(name)) catch return null;
 
     // We set the name for the identifier node
     id_node.* = IdentifierNode{ .name = name_copy, .location = get_location() };
 
     // We create a *node that wraps a specific node type
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     // We set the union to be of type Identifier and assign the created identifier node
     node.* = Node{ .Identifier = id_node };
 
@@ -568,15 +568,15 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
 // if we want float constants
 export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
     // We create the constant node
-    const const_node = std.heap.c_allocator.create(ConstantNode) catch return null;
+    const const_node = glob_alloc.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
     if (@TypeOf(value) != [*c]const u8) return null;
-    const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(value)) catch return null;
+    const val_copy = glob_alloc.dupe(u8, std.mem.span(value)) catch return null;
 
     const_node.* = ConstantNode{ .value = val_copy, .typeNode = typeNode, .location = get_location() };
 
     // We create a *node that wraps a specific node type
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     // We set the union to be of type Constant and assign the created constant node
     node.* = Node{ .Constant = const_node };
 
@@ -586,10 +586,10 @@ export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
 }
 
 export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *Node) ?*Node {
-    const assignment_node = std.heap.c_allocator.create(AssignmentNode) catch return null;
+    const assignment_node = glob_alloc.create(AssignmentNode) catch return null;
     assignment_node.* = .{ .declarator = declarator, .initializer = initializer, .ass_op = ass_op, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Assignment = assignment_node };
     return node;
 }
@@ -601,26 +601,26 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     // std.debug.print("make_declaration_node function reached\n", .{});
     // We create the declaration node
     if (typeNode.* == .Struct) {
-        const decl_node = std.heap.c_allocator.create(StructDeclarationNode) catch return null;
+        const decl_node = glob_alloc.create(StructDeclarationNode) catch return null;
         if (asgnNode) |n| {
             decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n, .location = get_location() };
         } else {
             decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = null, .location = get_location() };
         } // We create a *node that wraps a specific node type
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         // We set the union to be of type Declaration and assign the created declaration node
         node.* = Node{ .StructDeclaration = decl_node };
         const n: *Node = @ptrCast(node);
         return n;
     } else if (typeNode.* == .Type){
-        const decl_node = std.heap.c_allocator.create(DeclarationNode) catch return null;
+        const decl_node = glob_alloc.create(DeclarationNode) catch return null;
         // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
         if (asgnNode) |n| {
             decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n, .location = get_location() };
         } else {
             decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null, .location = get_location() };
         } // We create a *node that wraps a specific node type
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         // We set the union to be of type Declaration and assign the created declaration node
         node.* = Node{ .Declaration = decl_node };
         const n: *Node = @ptrCast(node);
@@ -629,11 +629,11 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
 }
 
 export fn make_binary_node(lhs: *Node, op: c_char, rhs: *Node) ?*Node {
-    const binary_node = std.heap.c_allocator.create(BinaryNode) catch return null;
+    const binary_node = glob_alloc.create(BinaryNode) catch return null;
     const op_val: u8 = @intCast(op);
     binary_node.* = BinaryNode{ .lhs = lhs, .op = op_val, .rhs = rhs, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
     node.* = Node{ .Binary = binary_node };
 
@@ -642,11 +642,11 @@ export fn make_binary_node(lhs: *Node, op: c_char, rhs: *Node) ?*Node {
 }
 
 export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
-    const unary_node = std.heap.c_allocator.create(UnaryNode) catch return null;
+    const unary_node = glob_alloc.create(UnaryNode) catch return null;
 
     unary_node.* = UnaryNode{ .un_op = un_op, .val = val, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
     node.* = Node{ .Unary = unary_node };
 
@@ -655,7 +655,7 @@ export fn make_unary_node(un_op: u8, val: *Node) ?*Node {
 }
 
 export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
-    const ass_op_node = std.heap.c_allocator.create(AssignmentOpNode) catch return null;
+    const ass_op_node = glob_alloc.create(AssignmentOpNode) catch return null;
     if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.MUL_ASSIGN => {
@@ -715,14 +715,14 @@ export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
         },
     }
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .AssOp = ass_op_node };
     const n: *Node = @ptrCast(node);
     return n;
 }
 
 export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
-    const postfix_node = std.heap.c_allocator.create(PostFixNode) catch return null;
+    const postfix_node = glob_alloc.create(PostFixNode) catch return null;
     if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.INC_OP => {
@@ -748,14 +748,14 @@ export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
         },
     }
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .PostFix = postfix_node };
     const n: *Node = @ptrCast(node);
     return n;
 }
 
 export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
-    const prefix_node = std.heap.c_allocator.create(PreFixNode) catch return null;
+    const prefix_node = glob_alloc.create(PreFixNode) catch return null;
     if (@TypeOf(token) != c.yytokentype) return null;
 
     switch (token) {
@@ -782,18 +782,18 @@ export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
         },
     }
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .PreFix = prefix_node };
     const n: *Node = @ptrCast(node);
     return n;
 }
 
 export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
-    const fnode = std.heap.c_allocator.create(FloatNode) catch return null;
+    const fnode = glob_alloc.create(FloatNode) catch return null;
     if (@TypeOf(val) != f32) { return null; }
     fnode.* = FloatNode{ .val = val, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
     node.* = Node{ .Float = fnode };
 
@@ -801,12 +801,12 @@ export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
     return n;
 }
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
-    const int_node = std.heap.c_allocator.create(IntNode) catch return null;
+    const int_node = glob_alloc.create(IntNode) catch return null;
     if (@TypeOf(val) != i32) { return null; }
 
     int_node.* = IntNode{ .val = val, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
     node.* = Node{ .Int = int_node };
 
@@ -815,11 +815,11 @@ export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
 }
 export fn make_string_node(raw_val: [*c]const u8) ?*Node {
     if (@TypeOf(raw_val) != [*c]const u8) return null;
-    const string_node = std.heap.c_allocator.create(StringNode) catch return null;
-    const val_copy = std.heap.c_allocator.dupe(u8, std.mem.span(raw_val)) catch return null;
+    const string_node = glob_alloc.create(StringNode) catch return null;
+    const val_copy = glob_alloc.dupe(u8, std.mem.span(raw_val)) catch return null;
     string_node.* = StringNode{ .raw_val = val_copy, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .String = string_node };
     return node;
 }
@@ -832,14 +832,14 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node or statement node, create a new BlockItemsNode with the item as the first element
     if (items == null) {
         // std.debug.print("\nNEW BLOCK LIST CREATED:\n", .{});
-        const block_items_node = std.heap.c_allocator.create(BlockItemsNode) catch return null;
+        const block_items_node = glob_alloc.create(BlockItemsNode) catch return null;
 
-        const new_items = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        const new_items = glob_alloc.alloc(*Node, 1) catch return null;
         new_items[0] = item;
 
         block_items_node.* = BlockItemsNode{ .items = new_items, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .BlockItems = block_items_node }; // Wrap the BlockItemsNode in a Node
         return node;
     } else {
@@ -850,18 +850,18 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 
         // Append the new item to the list in items_block
         const new_len = items_block.items.len + 1;
-        const new_items = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+        const new_items = glob_alloc.alloc(*Node, new_len) catch return null;
         // Copy existing items
         @memcpy(new_items[0..items_block.items.len], items_block.items[0..items_block.items.len]);
         // std.mem.copy(*Node, new_items[0..items_block.items.len], items_block.items[0..items_block.items.len]);
         new_items[items_block.items.len] = item;
 
         // Create a new BlockItemsNode with the updated items
-        const block_list_node = std.heap.c_allocator.create(BlockItemsNode) catch return null;
+        const block_list_node = glob_alloc.create(BlockItemsNode) catch return null;
         block_list_node.* = BlockItemsNode{ .items = new_items[0..new_len], .location = get_location() };
 
         // Wrap the items block in node and return
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .BlockItems = block_list_node }; // Wrap the BlockItemsNode in a Node
         return node;
     }
@@ -883,17 +883,17 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
     if (items == null) {
         // std.debug.print("\nCREATING PARAM LIST:\n", .{});
         // create the ParameterListNode
-        const parameter_items_node = std.heap.c_allocator.create(ParameterListNode) catch return null;
+        const parameter_items_node = glob_alloc.create(ParameterListNode) catch return null;
         // initialize it with the single item which
 
         // Lets try doing a runtime array with space for one item
-        const new_params = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        const new_params = glob_alloc.alloc(*Node, 1) catch return null;
         new_params[0] = item;
 
         // Set the params field
         parameter_items_node.* = ParameterListNode{ .params = new_params, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .ParameterList = parameter_items_node };
         // std.debug.print("Param: {any}\n", .{item});
         return node;
@@ -905,7 +905,7 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
 
         // Append the new item to the list in items_block
         const new_len = items_block.params.len + 1;
-        const new_params = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+        const new_params = glob_alloc.alloc(*Node, new_len) catch return null;
 
         // Copy existing items
         @memcpy(new_params[0..items_block.params.len], items_block.params);
@@ -913,10 +913,10 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
         new_params[items_block.params.len] = item;
 
         // Create a new BlockItemsNode with the updated items
-        const parameter_list_node = std.heap.c_allocator.create(ParameterListNode) catch return null;
+        const parameter_list_node = glob_alloc.create(ParameterListNode) catch return null;
         parameter_list_node.* = ParameterListNode{ .params = new_params, .location = get_location() };
         // Wrap the items block in node and return
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .ParameterList = parameter_list_node };
         // std.debug.print("\nAdding to OLD LIST\n", .{});
         // std.debug.print("Param: {any}\n", .{item});
@@ -925,7 +925,7 @@ export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
 }
 
 export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
-    const name_param_node = std.heap.c_allocator.create(NameParameterNode) catch return null;
+    const name_param_node = glob_alloc.create(NameParameterNode) catch return null;
 
     if (parameterList) |pl| {
         name_param_node.* = NameParameterNode{
@@ -941,24 +941,24 @@ export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
         };
     }
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .NameParameterNode = name_param_node };
 
     return node;
 }
 
 export fn make_return_node(ret_val: ?*Node) ?*Node {
-    const ret_node = std.heap.c_allocator.create(ReturnNode) catch return null;
+    const ret_node = glob_alloc.create(ReturnNode) catch return null;
     ret_node.* = ReturnNode{ .val = ret_val, .location = get_location() };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .ReturnStmt = ret_node };
 
     return node;
 }
 
 export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) ?*Node {
-    const function_node = std.heap.c_allocator.create(FunctionNode) catch return null;
+    const function_node = glob_alloc.create(FunctionNode) catch return null;
     if (retType.* != .Type) return null;
     function_node.* = FunctionNode{
         .retType = retType.Type,
@@ -967,22 +967,22 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
         .location = get_location()
     };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Function = function_node };
 
     return node;
 }
 export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
     if (items == null) {
-        const arg_list_node = std.heap.c_allocator.create(ArgumentListNode) catch return null;
+        const arg_list_node = glob_alloc.create(ArgumentListNode) catch return null;
 
-        const new_args = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        const new_args = glob_alloc.alloc(*Node, 1) catch return null;
         new_args[0] = item;
 
         // Set the params field
         arg_list_node.* = ArgumentListNode{ .args = new_args, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .ArgumentList = arg_list_node };
         return node;
     } else {
@@ -991,17 +991,17 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
         if (items_b) |items_bl| {
             const items_block = items_bl.ArgumentList;
             const new_len = items_block.args.len + 1;
-            const new_args = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+            const new_args = glob_alloc.alloc(*Node, new_len) catch return null;
 
             // Copy existing items
             @memcpy(new_args[0..items_block.args.len], items_block.args);
             new_args[items_block.args.len] = item;
 
             // Create a new BlockItemsNode with the updated items
-            const args_list_node = std.heap.c_allocator.create(ArgumentListNode) catch return null;
+            const args_list_node = glob_alloc.create(ArgumentListNode) catch return null;
             args_list_node.* = ArgumentListNode{ .args = new_args, .location = get_location() };
             // Wrap the items block in node and return
-            const node = std.heap.c_allocator.create(Node) catch return null;
+            const node = glob_alloc.create(Node) catch return null;
             node.* = Node{ .ArgumentList = args_list_node };
             return node; 
         } else return null;
@@ -1009,7 +1009,7 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
 }
 
 export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
-    const fc_node = std.heap.c_allocator.create(FunctionCallNode) catch return null;
+    const fc_node = glob_alloc.create(FunctionCallNode) catch return null;
 
     fc_node.* = FunctionCallNode{
         .name = name,
@@ -1017,7 +1017,7 @@ export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
         .location = get_location()
     };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .FunctionCall = fc_node };
 
     return node;
@@ -1028,10 +1028,10 @@ export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
 // =================
 
 export fn make_expr_stmt(expr: *Node) ?*Node {
-    const expr_stmt = std.heap.c_allocator.create(ExpressionStmtNode) catch return null;
+    const expr_stmt = glob_alloc.create(ExpressionStmtNode) catch return null;
     expr_stmt.* = ExpressionStmtNode{ .expr = expr, .location = get_location() };
 
-    const stmt = std.heap.c_allocator.create(Node) catch return null;
+    const stmt = glob_alloc.create(Node) catch return null;
     stmt.* = Node{ .ExpressionStmt = expr_stmt };
 
     return stmt;
@@ -1040,7 +1040,7 @@ export fn make_expr_stmt(expr: *Node) ?*Node {
 export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node {
     // std.debug.print("make_if_stmt function reached\n", .{});
 
-    const if_node = std.heap.c_allocator.create(IfNode) catch return null;
+    const if_node = glob_alloc.create(IfNode) catch return null;
 
     if_node.* = IfNode{
         .cond = cond,
@@ -1049,7 +1049,7 @@ export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node 
         .location = get_location()
     };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .IfStmt = if_node };
 
     return node;
@@ -1069,7 +1069,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
     }
 
     // create while node
-    const while_node = std.heap.c_allocator.create(WhileNode) catch return null;
+    const while_node = glob_alloc.create(WhileNode) catch return null;
     while_node.* = WhileNode{
         .cond = cond,
         .body = new_body,
@@ -1077,7 +1077,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
         .location = get_location()
     };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .WhileStmt = while_node };
 
     return node;
@@ -1086,14 +1086,14 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // | Pointer     |
 // ===============
 export fn make_pointer_node(pointee: ?*Node) ?*Node {
-    const pointer_node = std.heap.c_allocator.create(PointerNode) catch return null;
+    const pointer_node = glob_alloc.create(PointerNode) catch return null;
 
     pointer_node.* = PointerNode{
         .pointee = pointee,
         .location = get_location()
     };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
     node.* = Node{ .Pointer = pointer_node };
 
@@ -1102,14 +1102,14 @@ export fn make_pointer_node(pointee: ?*Node) ?*Node {
 }
 
 export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
-    const pointer_node = std.heap.c_allocator.create(IdPointerNode) catch return null;
+    const pointer_node = glob_alloc.create(IdPointerNode) catch return null;
     pointer_node.* = IdPointerNode{
         .pointer = pointer,
         .identifier = id,
         .location = get_location()
     };
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .IdPointer = pointer_node };
     const n: *Node = @ptrCast(node);
     return n;
@@ -1130,8 +1130,8 @@ pub const StructUnionNode = struct {
 };
 
 export fn make_structunion_node(t: c.yytokentype) ?*Node {
-    const us = std.heap.c_allocator.create(StructUnionNode) catch return null;
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const us = glob_alloc.create(StructUnionNode) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
     switch (t) {
         c.UNION => {
@@ -1149,16 +1149,16 @@ export fn make_structunion_node(t: c.yytokentype) ?*Node {
     return node;
 }
 export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8, decl_list_node: ?*Node) ?*Node {
-    const struct_node = std.heap.c_allocator.create(StructNode) catch return null;
+    const struct_node = glob_alloc.create(StructNode) catch return null;
     var id: ?*Node = null;
     var decl_list: []*Node = undefined;
     if (identifier) |i| {
         id = make_identifier_node(i);
     } else {
         // Anonymous struct
-        const anon_name = std.heap.c_allocator.create(IdentifierNode) catch return null;
+        const anon_name = glob_alloc.create(IdentifierNode) catch return null;
         anon_name.* = IdentifierNode{ .name = "<anonymous>", .location = get_location() };
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .Identifier = anon_name };
         id = node;
     }
@@ -1167,7 +1167,7 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
         if (decl_list_node) |dl| {
             decl_list = dl.StructDeclList.decl_list;
         } else {
-            const empty_decl_list = std.heap.c_allocator.alloc(*StructNode, 0) catch return null;
+            const empty_decl_list = glob_alloc.alloc(*StructNode, 0) catch return null;
             decl_list = empty_decl_list;
         }
         var name: *Node = undefined;
@@ -1178,7 +1178,7 @@ export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8,
         }
         struct_node.* = StructNode{ .name = name, .decl_list = decl_list, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .Struct = struct_node };
         return node;
     } else {
@@ -1198,37 +1198,37 @@ pub const StructDeclListNode = struct {
 
 export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
     if (decls == null) {
-        const list_node = std.heap.c_allocator.create(StructDeclListNode) catch return null;
+        const list_node = glob_alloc.create(StructDeclListNode) catch return null;
 
-        const new_node = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        const new_node = glob_alloc.alloc(*Node, 1) catch return null;
         new_node[0] = decl;
 
         // Set the params field
         list_node.* = StructDeclListNode{ .decl_list = new_node, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .StructDeclList = list_node };
         return node;
     } else {
         const decls_block = decls.?.StructDeclList;
         const new_len = decls_block.decl_list.len + 1;
-        const new_node = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+        const new_node = glob_alloc.alloc(*Node, new_len) catch return null;
 
         // Copy existing decls
         @memcpy(new_node[0..decls_block.decl_list.len], decls_block.decl_list);
         new_node[decls_block.decl_list.len] = decl;
 
-        const list_node = std.heap.c_allocator.create(StructDeclListNode) catch return null;
+        const list_node = glob_alloc.create(StructDeclListNode) catch return null;
         list_node.* = StructDeclListNode{ .decl_list = new_node, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .StructDeclList = list_node };
         return node;
     }
 }
 
 export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Node {
-    const struct_node = std.heap.c_allocator.create(StructDeclNode) catch return null;
+    const struct_node = glob_alloc.create(StructDeclNode) catch return null;
 
     if (decl_list_node) |dl| {
         struct_node.* = StructDeclNode{
@@ -1238,7 +1238,7 @@ export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Nod
         };
     } else {
         // Struct reference (no body)
-        const empty_decl_list = std.heap.c_allocator.alloc(*Node, 0) catch return null;
+        const empty_decl_list = glob_alloc.alloc(*Node, 0) catch return null;
         struct_node.* = StructDeclNode{
             .type = identifier_node,
             .decl_list = empty_decl_list,
@@ -1246,7 +1246,7 @@ export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Nod
         };
     }
 
-    const node = std.heap.c_allocator.create(Node) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .StructDecl = struct_node };
 
     return node;
@@ -1258,31 +1258,31 @@ pub const StructDeclaratorListNode = struct {
 };
 export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) ?*Node {
     if (declarators == null) {
-        const declarators_list_node = std.heap.c_allocator.create(StructDeclaratorListNode) catch return null;
+        const declarators_list_node = glob_alloc.create(StructDeclaratorListNode) catch return null;
 
-        const new_declr = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        const new_declr = glob_alloc.alloc(*Node, 1) catch return null;
         new_declr[0] = declarator;
 
         // Set the params field
         declarators_list_node.* = StructDeclaratorListNode{ .declarators = new_declr, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .StructDeclaratorList = declarators_list_node };
         return node;
     } else {
         const declarators_block = declarators.?.StructDeclaratorList;
 
         const new_len = declarators_block.declarators.len + 1;
-        const new_declr = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+        const new_declr = glob_alloc.alloc(*Node, new_len) catch return null;
 
         // Copy existing declarators
         @memcpy(new_declr[0..declarators_block.declarators.len], declarators_block.declarators);
         new_declr[declarators_block.declarators.len] = declarator;
 
-        const declarators_list_node = std.heap.c_allocator.create(StructDeclaratorListNode) catch return null;
+        const declarators_list_node = glob_alloc.create(StructDeclaratorListNode) catch return null;
         declarators_list_node.* = StructDeclaratorListNode{ .declarators = new_declr, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .StructDeclaratorList = declarators_list_node };
         return node;
     }
@@ -1302,29 +1302,29 @@ export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
         const unit_block = p.TranslationUnitList;
 
         const new_len = unit_block.translationUnits.len + 1;
-        const new_unit = std.heap.c_allocator.alloc(*Node, new_len) catch return null;
+        const new_unit = glob_alloc.alloc(*Node, new_len) catch return null;
 
         // Copy existing declarators
         @memcpy(new_unit[0..unit_block.translationUnits.len], unit_block.translationUnits);
         new_unit[unit_block.translationUnits.len] = unit;
 
-        const unit_list_node = std.heap.c_allocator.create(TranslationUnitListNode) catch return null;
+        const unit_list_node = glob_alloc.create(TranslationUnitListNode) catch return null;
         unit_list_node.* = TranslationUnitListNode{ .translationUnits = new_unit, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .TranslationUnitList = unit_list_node };
         return node;
     } else {
         // starting a new list
-        const tul = std.heap.c_allocator.create(TranslationUnitListNode) catch return null;
+        const tul = glob_alloc.create(TranslationUnitListNode) catch return null;
 
-        const new_unit = std.heap.c_allocator.alloc(*Node, 1) catch return null;
+        const new_unit = glob_alloc.alloc(*Node, 1) catch return null;
         new_unit[0] = unit;
 
         // Set the params field
         tul.* = TranslationUnitListNode{ .translationUnits = new_unit, .location = get_location() };
 
-        const node = std.heap.c_allocator.create(Node) catch return null;
+        const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .TranslationUnitList = tul };
         return node;
     }
