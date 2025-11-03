@@ -1,7 +1,7 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
 const m = @import("main.zig");
-const glob_alloc = std.heap.c_allocator;
+const glob_alloc = m.parse_alloc;
 pub var debug_mode: bool = false;
 extern var yylineno: c_int;
 extern var yycolumn: c_int;
