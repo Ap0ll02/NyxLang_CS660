@@ -13,6 +13,7 @@ extern fn yyparse() c_int;
 export var root: ?*ast.Node = null;
 pub export var column: c_int = 1;
 pub export var line: c_int = 1;
+pub const parse_alloc = std.heap.c_allocator;
 var source_code: []const u8 = undefined;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
