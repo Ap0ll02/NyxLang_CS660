@@ -50,6 +50,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         .Function => {
             if (ast.debug_mode) std.debug.print("Function node semantically analyzed!\n", .{});
             const func = node.Function;
+
             semantic_analyze_node(func.nameParam);
             semantic_analyze_node(func.body);
         },
@@ -225,12 +226,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 std.debug.print("Identifier node semantically analyzed!\n", .{});
             }
             // Have a Jack Error log here eventually
-            symbol_table.get_variable(node.Identifier.name) orelse {
-                std.debug.print(
-                    "Semantic Error: Variable {s} used before declaration.\n",
-                    .{node.Identifier.name},
-                );
-            };
+            // symbol_table.get_variable(node.Identifier.name) orelse {
+            //     std.debug.print(
+            //         "Semantic Error: Variable {s} used before declaration.\n",
+            //         .{node.Identifier.name},
+            //     );
+            // };
         },
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});

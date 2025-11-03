@@ -118,11 +118,12 @@ pub const SymbolTable = struct {
     }
 
     pub fn assign_variable(self: *SymbolTable, var_node: *ast.IdentifierNode) !void {
-        const tn = var_node.typeNode orelse return error.MissingType;
+        const tn = var_node.typeNode;
         const type_name_slice: []const u8 = std.mem.span(tn.type_name);
 
         const key = try self.allocator.dupe(u8, var_node.name);
-        std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
+        if (ast.debug_mode)
+            std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
         try self.variable_map.put(key, Variable{
             .name = key,
             .var_type = self.get_type(type_name_slice) orelse return error.UnknownType,
