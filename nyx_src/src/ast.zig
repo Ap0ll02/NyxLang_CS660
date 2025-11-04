@@ -159,16 +159,13 @@ pub const FloatNode = struct {
     location: ?*Location = null,
 };
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
 pub const TypeNode = extern struct {
     is_unsigned: bool = false,
     is_const: bool = false,
     qualifier: usize = 0, // 0 none, 1 long, 2 long long
-    base: BaseType = .INT,
     type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
-    typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
 pub const AssignmentNode = struct {

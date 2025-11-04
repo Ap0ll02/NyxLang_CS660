@@ -1,25 +1,9 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 
-const PointerType = struct {
-    base_type: ?*Type,
-    is_const: bool,
-    indirection_level: usize,
-};
-
-pub const Type = struct {
-    is_unsigned: bool = false,
-    is_const: bool = false, // The Value its self is constant think of it as a Pointer to a constant int. You can’t modify the pointee const int* ptr;
-    qualifier: usize = 0, // 0 none, 1 long, 2 long long
-    //base: BaseType = .INT, We will later integrate this with our ast BaseType enum
-    type_name: []const u8 = "default_type",
-    size: usize = 0,
-    alignment: usize = 0,
-};
-
 pub const Variable = struct {
     name: []const u8,
-    var_type: ?*Type = null,
+    var_type: *ast.TypeNode = null,
     is_global: bool = false,
     is_const: bool = false,
     is_mutable: bool = false,
@@ -29,7 +13,7 @@ pub const Variable = struct {
 
 pub const Function = struct {
     name: []const u8,
-    return_type: *Type,
+    return_type: *ast.TypeNode = null,
     parameters: []Variable,
 };
 
@@ -42,7 +26,7 @@ pub const SymbolTable = struct {
     //
     // Maps to hold types, variables, and functions
 
-    type_map: std.StringHashMap(Type),
+    type_map: std.StringHashMap(ast.TypeNode),
     variable_map: std.StringHashMap(Variable),
     function_map: std.StringHashMap(Function),
 
@@ -64,9 +48,21 @@ pub const SymbolTable = struct {
         // build our allocator
         self.allocator = self.arena.allocator();
         // initialize and allocate
-        self.type_map = std.StringHashMap(Type).init(self.allocator);
+        self.type_map = std.StringHashMap(ast.Type).init(self.allocator);
         self.variable_map = std.StringHashMap(Variable).init(self.allocator);
         self.function_map = std.StringHashMap(Function).init(self.allocator);
+
+        if (parent == null) {
+            // This is the root symbol table
+            self.assign_type(ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "int",
+                .size = @sizeOf(i32),
+                .alignment = @alignOf(i32),
+            });
+        }
 
         return self;
     }
@@ -107,14 +103,7 @@ pub const SymbolTable = struct {
     // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
     pub fn assign_type(self: *SymbolTable, type_node: *ast.TypeNode) !void {
         const key = try self.allocator.dupe(u8, type_node.type_name);
-        try self.type_map.put(key, Type{
-            .is_unsigned = type_node.is_unsigned,
-            .is_const = type_node.is_const,
-            .qualifier = type_node.qualifier,
-            .type_name = key,
-            .size = type_node.size,
-            .alignment = type_node.alignment,
-        });
+        try self.type_map.put(key, type_node);
     }
 
     pub fn assign_variable(self: *SymbolTable, var_node: *ast.IdentifierNode) !void {
@@ -142,11 +131,12 @@ pub const SymbolTable = struct {
     // Param: string name
     // return the struct pointer if found, else return null
 
-    pub fn get_type(self: *SymbolTable, name: []const u8) ?*Type {
+    pub fn get_type(self: *SymbolTable, name: []const u8) ?*ast.TypeNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |tbl| : (current_table = tbl.parent) {
             if (tbl.type_map.getPtr(name)) |ptr| return ptr;
         }
+        // create and error message here
         std.debug.print("Type {s} not found in symbol table.\n", .{name});
         return null;
     }
