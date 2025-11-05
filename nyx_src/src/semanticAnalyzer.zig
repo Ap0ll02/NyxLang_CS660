@@ -1,7 +1,10 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 const sym_tab = @import("symbolTable.zig");
+<<<<<<< HEAD
 const m = @import("main.zig");
+=======
+>>>>>>> ed20399 (changed assign_function to accept FunctionNode instead of generic Node)
 const log = @import("Log.zig");
 var Symbol_Table: ?*sym_tab.SymbolTable = null;
 
@@ -37,7 +40,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 }
                 else if (n.* == .Identifier) {
                     const ident = n.Identifier;
-                    // Use Jacks Error log here eventually
+
+                    // TODO Use Jacks Error log here eventually
                     symbol_table.assign_variable(ident) catch |err| {
                         std.debug.print(
                             "Error assigning variable {s}: {s}\n",
@@ -64,12 +68,26 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) std.debug.print("Function node semantically analyzed!\n", .{});
             const func = node.Function;
 
+            // add function to symbol table
+            symbol_table.assign_function(func.nameParam.Identifier.name, func) catch {
+                log.Error(node.location.col, node.location.line, "Error assigning function to symbol table!", log.diagnostics_source(node.location.line), "");
+            };
+
             semantic_analyze_node(func.nameParam);
             semantic_analyze_node(func.body);
         },
         .FunctionCall => {
             if (ast.debug_mode) std.debug.print("FunctionCall node semantically analyzed!\n", .{});
             const funcCall = node.FunctionCall;
+
+            // check if function exists in symbol table
+            const func = symbol_table.get_function(funcCall.name.Identifier.name);
+            if (func != null) {
+                std.debug.print("found function!", .{});
+            } else {
+                std.debug.print("no function found!", .{});
+            }
+
             semantic_analyze_node(funcCall.name);
             if (funcCall.args) |argsNode| {
                 semantic_analyze_node(argsNode);

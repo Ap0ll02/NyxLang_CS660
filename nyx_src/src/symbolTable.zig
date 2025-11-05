@@ -210,11 +210,11 @@ pub const SymbolTable = struct {
         });
     }
 
-    pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.Node) !void {
+    pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.FunctionNode) !void {
         const key = try self.allocator.dupe(u8, name);
         try self.function_map.put(key, Function{
             .name = key,
-            .return_type = self.get_type(func_node.return_type.type_name) orelse null,
+            .return_type = self.get_type(func_node.retType.type_name) orelse null,
         });
     }
 
