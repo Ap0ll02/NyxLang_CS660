@@ -212,10 +212,27 @@ pub const SymbolTable = struct {
 
     pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.FunctionNode) !void {
         const key = try self.allocator.dupe(u8, name);
-        try self.function_map.put(key, Function{
-            .name = key,
-            .return_type = self.get_type(func_node.retType.type_name) orelse null,
-        });
+        const func_ret_type_name_slice: []const u8 = std.mem.span(func_node.retType.type_name);
+
+        // create a []Variable from the NameParameter node attached to the Function
+        if (func_node.nameParam.NameParameterNode.parameterList) |raw_parameter_list| {
+            const parameter_list = raw_parameter_list.ParameterList.params;
+            const param_count = parameter_list.len;
+            var params = try self.allocator.alloc(Variable, param_count);
+            var i: usize = 0;
+            for (parameter_list) |p| {
+                const param_type = p.Declaration.typeNode;
+                const param_type_name: []const u8 = std.mem.span(param_type.type_name);
+                const param_name = std.mem.span(p.Declaration.typeNode.type_name);
+                params[i] = Variable{
+                    .name = param_name,
+                    .var_type = self.get_type(param_type_name) orelse return error.UnknownType,
+                };
+                i += 1;
+            }
+
+            try self.function_map.put(key, Function{ .name = key, .return_type = self.get_type(func_ret_type_name_slice) orelse return error.UnknownType, .parameters = params });
+        }
     }
 
     // We need 3 Get functions to retrieve types, variables and functions from our symbol table

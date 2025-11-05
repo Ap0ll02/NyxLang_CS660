@@ -354,70 +354,35 @@ fn get_location() ?*Location {
     const column_loc: usize = @intCast(m.column);
     const line_loc: usize = @intCast(m.line);
     const loc_node = glob_alloc.create(Location) catch return null;
-    loc_node.* = Location { .col = column_loc, .line = line_loc };
+    loc_node.* = Location{ .col = column_loc, .line = line_loc };
     return loc_node;
 }
 // expand this function to handle the multicharacter operators
 export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, expr2: *Node) ?*Node {
     const CondExpNodePtr = glob_alloc.create(ConditionalExpressionNode) catch return null;
 
-    if(debug_mode) std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
+    if (debug_mode) std.debug.print("===> LOGICAL OPERATOR INFO FOR INPUT: {any}\n", .{token});
     switch (token) {
         c.GE_OP => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = ">=",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = ">=", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
         c.LE_OP => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "<=",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = "<=", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
         c.EQ_OP => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "==",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = "==", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
         c.NE_OP => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "!=",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = "!=", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
         c.AND_OP => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "&&",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = "&&", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
         c.OR_OP => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "||",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = "||", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
         else => {
-            CondExpNodePtr.* = ConditionalExpressionNode{
-                .logicalOperator = "Error_Unknown_Op",
-                .expr1 = expr1,
-                .expr2 = expr2,
-                .location = get_location()
-            };
+            CondExpNodePtr.* = ConditionalExpressionNode{ .logicalOperator = "Error_Unknown_Op", .expr1 = expr1, .expr2 = expr2, .location = get_location() };
         },
     }
     const node = glob_alloc.create(Node) catch return null;
@@ -550,7 +515,9 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
 export fn make_identifier_node(name: [*c]const u8) ?*Node {
     // We create the identifier node
     const id_node = glob_alloc.create(IdentifierNode) catch return null;
-    if (@TypeOf(name) != [*c]const u8) {return null;}
+    if (@TypeOf(name) != [*c]const u8) {
+        return null;
+    }
     const name_copy = glob_alloc.dupe(u8, std.mem.span(name)) catch return null;
 
     // We set the name for the identifier node
@@ -612,7 +579,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
         node.* = Node{ .StructDeclaration = decl_node };
         const n: *Node = @ptrCast(node);
         return n;
-    } else if (typeNode.* == .Type){
+    } else if (typeNode.* == .Type) {
         const decl_node = glob_alloc.create(DeclarationNode) catch return null;
         // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
         if (asgnNode) |n| {
@@ -659,59 +626,37 @@ export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
     if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.MUL_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "*=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "*=", .location = get_location() };
         },
         c.DIV_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "/=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "/=", .location = get_location() };
         },
         c.MOD_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "%=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "%=", .location = get_location() };
         },
         c.ADD_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "+=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "+=", .location = get_location() };
         },
         c.SUB_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "-=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "-=", .location = get_location() };
         },
         c.LEFT_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "<<=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "<<=", .location = get_location() };
         },
         c.RIGHT_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = ">>=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = ">>=", .location = get_location() };
         },
         c.AND_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "&=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "&=", .location = get_location() };
         },
         c.XOR_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "^=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "^=", .location = get_location() };
         },
         c.OR_ASSIGN => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "|=", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "|=", .location = get_location() };
         },
         else => {
-            ass_op_node.* = AssignmentOpNode{
-                .assign_op = "Error_Unknown_Op", .location = get_location()
-            };
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "Error_Unknown_Op", .location = get_location() };
         },
     }
 
@@ -726,25 +671,13 @@ export fn make_post_fix_node(val: *Node, token: c.yytokentype) ?*Node {
     if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
         c.INC_OP => {
-            postfix_node.* = PostFixNode{
-                .post_op = "++",
-                .val = val,
-                .location = get_location()
-            };
+            postfix_node.* = PostFixNode{ .post_op = "++", .val = val, .location = get_location() };
         },
         c.DEC_OP => {
-            postfix_node.* = PostFixNode{
-                .post_op = "--",
-                .val = val,
-                .location = get_location()
-            };
+            postfix_node.* = PostFixNode{ .post_op = "--", .val = val, .location = get_location() };
         },
         else => {
-            postfix_node.* = PostFixNode{
-                .post_op = "Error_Unknown_Op",
-                .val = val,
-                .location = get_location()
-            };
+            postfix_node.* = PostFixNode{ .post_op = "Error_Unknown_Op", .val = val, .location = get_location() };
         },
     }
 
@@ -760,25 +693,13 @@ export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
 
     switch (token) {
         c.INC_OP => {
-            prefix_node.* = PreFixNode{
-                .pre_op = "++",
-                .val = val,
-                .location = get_location()
-            };
+            prefix_node.* = PreFixNode{ .pre_op = "++", .val = val, .location = get_location() };
         },
         c.DEC_OP => {
-            prefix_node.* = PreFixNode{
-                .pre_op = "--",
-                .val = val,
-                .location = get_location()
-            };
+            prefix_node.* = PreFixNode{ .pre_op = "--", .val = val, .location = get_location() };
         },
         else => {
-            prefix_node.* = PreFixNode{
-                .pre_op = "Error_Unknown_Op",
-                .val = val,
-                .location = get_location()
-            };
+            prefix_node.* = PreFixNode{ .pre_op = "Error_Unknown_Op", .val = val, .location = get_location() };
         },
     }
 
@@ -790,7 +711,9 @@ export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
 
 export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
     const fnode = glob_alloc.create(FloatNode) catch return null;
-    if (@TypeOf(val) != f32) { return null; }
+    if (@TypeOf(val) != f32) {
+        return null;
+    }
     fnode.* = FloatNode{ .val = val, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
@@ -802,7 +725,9 @@ export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
 }
 export fn make_int_node(val: i32) ?*Node { // FOR DEBUGGING
     const int_node = glob_alloc.create(IntNode) catch return null;
-    if (@TypeOf(val) != i32) { return null; }
+    if (@TypeOf(val) != i32) {
+        return null;
+    }
 
     int_node.* = IntNode{ .val = val, .location = get_location() };
 
@@ -928,17 +853,9 @@ export fn make_name_parameter_node(name: *Node, parameterList: ?*Node) ?*Node {
     const name_param_node = glob_alloc.create(NameParameterNode) catch return null;
 
     if (parameterList) |pl| {
-        name_param_node.* = NameParameterNode{
-            .name = name,
-            .parameterList = pl,
-            .location = get_location()
-        };
+        name_param_node.* = NameParameterNode{ .name = name, .parameterList = pl, .location = get_location() };
     } else {
-        name_param_node.* = NameParameterNode{
-            .name = name,
-            .parameterList = null,
-            .location = get_location()
-        };
+        name_param_node.* = NameParameterNode{ .name = name, .parameterList = null, .location = get_location() };
     }
 
     const node = glob_alloc.create(Node) catch return null;
@@ -960,12 +877,7 @@ export fn make_return_node(ret_val: ?*Node) ?*Node {
 export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) ?*Node {
     const function_node = glob_alloc.create(FunctionNode) catch return null;
     if (retType.* != .Type) return null;
-    function_node.* = FunctionNode{
-        .retType = retType.Type,
-        .nameParam = nameParameter,
-        .body = body,
-        .location = get_location()
-    };
+    function_node.* = FunctionNode{ .retType = retType.Type, .nameParam = nameParameter, .body = body, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Function = function_node };
@@ -986,7 +898,9 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
         node.* = Node{ .ArgumentList = arg_list_node };
         return node;
     } else {
-        if (items.?.* != .ArgumentList) { return null; }
+        if (items.?.* != .ArgumentList) {
+            return null;
+        }
         const items_b = items;
         if (items_b) |items_bl| {
             const items_block = items_bl.ArgumentList;
@@ -1003,7 +917,7 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
             // Wrap the items block in node and return
             const node = glob_alloc.create(Node) catch return null;
             node.* = Node{ .ArgumentList = args_list_node };
-            return node; 
+            return node;
         } else return null;
     }
 }
@@ -1011,11 +925,7 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
 export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
     const fc_node = glob_alloc.create(FunctionCallNode) catch return null;
 
-    fc_node.* = FunctionCallNode{
-        .name = name,
-        .args = args,
-        .location = get_location()
-    };
+    fc_node.* = FunctionCallNode{ .name = name, .args = args, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .FunctionCall = fc_node };
@@ -1042,12 +952,7 @@ export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node 
 
     const if_node = glob_alloc.create(IfNode) catch return null;
 
-    if_node.* = IfNode{
-        .cond = cond,
-        .if_branch = if_branch,
-        .el_branch = el_branch,
-        .location = get_location()
-    };
+    if_node.* = IfNode{ .cond = cond, .if_branch = if_branch, .el_branch = el_branch, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .IfStmt = if_node };
@@ -1070,12 +975,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 
     // create while node
     const while_node = glob_alloc.create(WhileNode) catch return null;
-    while_node.* = WhileNode{
-        .cond = cond,
-        .body = new_body,
-        .init = init,
-        .location = get_location()
-    };
+    while_node.* = WhileNode{ .cond = cond, .body = new_body, .init = init, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .WhileStmt = while_node };
@@ -1088,10 +988,7 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 export fn make_pointer_node(pointee: ?*Node) ?*Node {
     const pointer_node = glob_alloc.create(PointerNode) catch return null;
 
-    pointer_node.* = PointerNode{
-        .pointee = pointee,
-        .location = get_location()
-    };
+    pointer_node.* = PointerNode{ .pointee = pointee, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
 
@@ -1103,11 +1000,7 @@ export fn make_pointer_node(pointee: ?*Node) ?*Node {
 
 export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
     const pointer_node = glob_alloc.create(IdPointerNode) catch return null;
-    pointer_node.* = IdPointerNode{
-        .pointer = pointer,
-        .identifier = id,
-        .location = get_location()
-    };
+    pointer_node.* = IdPointerNode{ .pointer = pointer, .identifier = id, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .IdPointer = pointer_node };
@@ -1231,19 +1124,11 @@ export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Nod
     const struct_node = glob_alloc.create(StructDeclNode) catch return null;
 
     if (decl_list_node) |dl| {
-        struct_node.* = StructDeclNode{
-            .type = identifier_node,
-            .decl_list = dl.StructDeclaratorList.declarators,
-            .location = get_location()
-        };
+        struct_node.* = StructDeclNode{ .type = identifier_node, .decl_list = dl.StructDeclaratorList.declarators, .location = get_location() };
     } else {
         // Struct reference (no body)
         const empty_decl_list = glob_alloc.alloc(*Node, 0) catch return null;
-        struct_node.* = StructDeclNode{
-            .type = identifier_node,
-            .decl_list = empty_decl_list,
-            .location = get_location()
-        };
+        struct_node.* = StructDeclNode{ .type = identifier_node, .decl_list = empty_decl_list, .location = get_location() };
     }
 
     const node = glob_alloc.create(Node) catch return null;
@@ -1296,7 +1181,7 @@ var myGlobalConst: i32 = 0;
 
 export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
     myGlobalConst += 1;
-    if(debug_mode) std.debug.print("COUNTER: {any}", .{myGlobalConst});
+    if (debug_mode) std.debug.print("COUNTER: {any}", .{myGlobalConst});
 
     if (prev) |p| {
         const unit_block = p.TranslationUnitList;
