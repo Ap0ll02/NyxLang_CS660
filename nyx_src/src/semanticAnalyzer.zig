@@ -1,10 +1,7 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 const sym_tab = @import("symbolTable.zig");
-<<<<<<< HEAD
 const m = @import("main.zig");
-=======
->>>>>>> ed20399 (changed assign_function to accept FunctionNode instead of generic Node)
 const log = @import("Log.zig");
 var Symbol_Table: ?*sym_tab.SymbolTable = null;
 
@@ -31,14 +28,14 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                     const ident = n.Assignment.declarator.Identifier;
                     symbol_table.assign_variable(ident) catch {
                         log.Error(
-                            ident.location.?.col, ident.location.?.line, 
+                            ident.location.?.col,
+                            ident.location.?.line,
                             "Could not assign variable",
                             m.diagnostic_source(ident.location.?.line),
                             "",
                         );
                     };
-                }
-                else if (n.* == .Identifier) {
+                } else if (n.* == .Identifier) {
                     const ident = n.Identifier;
 
                     // TODO Use Jacks Error log here eventually
@@ -48,8 +45,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                             .{ ident.name, @errorName(err) },
                         );
                     };
-                }
-                else semantic_analyze_node(n);
+                } else semantic_analyze_node(n);
             }
         },
         .Assignment => {
@@ -69,8 +65,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const func = node.Function;
 
             // add function to symbol table
-            symbol_table.assign_function(func.nameParam.Identifier.name, func) catch {
-                log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", log.diagnostics_source(func.location.?.line), "");
+            symbol_table.assign_function(func.nameParam.NameParameterNode.name.Identifier.name, func) catch {
+                log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
 
             semantic_analyze_node(func.nameParam);
