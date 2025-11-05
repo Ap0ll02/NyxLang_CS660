@@ -2,10 +2,11 @@ const std = @import("std");
 const ast = @import("ast.zig");
 const sym_tab = @import("symbolTable.zig");
 var Symbol_Table: ?*sym_tab.SymbolTable = null;
+
 pub fn setSymbolTable(t: *sym_tab.SymbolTable) void {
     Symbol_Table = t;
 }
-fn st() *sym_tab.SymbolTable {
+pub fn st() *sym_tab.SymbolTable {
     return Symbol_Table orelse @panic("semanticAnalyzer: symbol table not set");
 }
 
