@@ -67,7 +67,9 @@ pub fn main() !void {
 }
 
 export fn yyerror(msg: [*c]const u8) void {
-    log.Error(line, column, msg, get_src(), "Parsing error");
+    const line_u: usize = @intCast(line);
+    const col_u: usize = @intCast(column);
+    log.Error(col_u, line_u, msg, get_src(), "Parsing error");
 }
 
 pub fn diagnostic_source(myline: usize) []const u8 {
@@ -100,5 +102,7 @@ fn get_src() []const u8 {
 }
 
 export fn zig_error(hint: [*c]const u8, msg: [*c]const u8) void {
-    log.Error(column, line, msg, get_src(), hint);
+    const line_u: usize = @intCast(line);
+    const col_u: usize = @intCast(column);
+    log.Error(col_u, line_u, msg, get_src(), hint);
 }
