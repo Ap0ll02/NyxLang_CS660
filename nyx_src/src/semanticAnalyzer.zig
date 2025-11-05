@@ -1,6 +1,8 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 const sym_tab = @import("symbolTable.zig");
+const m = @import("main.zig");
+const log = @import("Log.zig");
 var Symbol_Table: ?*sym_tab.SymbolTable = null;
 
 pub fn setSymbolTable(t: *sym_tab.SymbolTable) void {
@@ -22,9 +24,19 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
 
             if (decl.assignNode) |n| {
-                if (n.* == .Identifier) {
+                if (n.* == .Assignment) {
+                    const ident = n.Assignment.declarator.Identifier;
+                    symbol_table.assign_variable(ident) catch |err| {
+                        log.Error(
+                            ident.location.?.col, ident.location.?.line, 
+                            "Could not assign variable",
+                            m.diagnostic_source(ident.location.?.line),
+                            "",
+                        );
+                    };
+                }
+                else if (n.* == .Identifier) {
                     const ident = n.Identifier;
-
                     // Use Jacks Error log here eventually
                     symbol_table.assign_variable(ident) catch |err| {
                         std.debug.print(
@@ -33,7 +45,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                         );
                     };
                 }
-                semantic_analyze_node(n);
+                else semantic_analyze_node(n);
             }
         },
         .Assignment => {
