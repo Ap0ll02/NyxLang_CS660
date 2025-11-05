@@ -1,15 +1,38 @@
 const std = @import("std");
 const ast = @import("ast.zig");
+const sym_tab = @import("symbolTable.zig");
+var Symbol_Table: ?*sym_tab.SymbolTable = null;
+pub fn setSymbolTable(t: *sym_tab.SymbolTable) void {
+    Symbol_Table = t;
+}
+fn st() *sym_tab.SymbolTable {
+    return Symbol_Table orelse @panic("semanticAnalyzer: symbol table not set");
+}
 
 pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
-    if(node_opt == null) { return; }
+    const symbol_table = st();
+    if (node_opt == null) {
+        return;
+    }
     const node = node_opt.?;
     switch (node.*) {
         .Declaration => {
-            if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
             const decl = node.Declaration;
-            if (decl.assignNode) |assgn| {
-                semantic_analyze_node(assgn);
+            if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
+
+            if (decl.assignNode) |n| {
+                if (n.* == .Identifier) {
+                    const ident = n.Identifier;
+
+                    // Use Jacks Error log here eventually
+                    symbol_table.assign_variable(ident) catch |err| {
+                        std.debug.print(
+                            "Error assigning variable {s}: {s}\n",
+                            .{ ident.name, @errorName(err) },
+                        );
+                    };
+                }
+                semantic_analyze_node(n);
             }
         },
         .Assignment => {
@@ -17,6 +40,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const assgn = node.Assignment;
             semantic_analyze_node(assgn.declarator);
             if (assgn.initializer) |init| {
+                // where we would check the box that
                 semantic_analyze_node(init);
             }
             if (assgn.ass_op) |op| {
@@ -26,6 +50,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         .Function => {
             if (ast.debug_mode) std.debug.print("Function node semantically analyzed!\n", .{});
             const func = node.Function;
+
             semantic_analyze_node(func.nameParam);
             semantic_analyze_node(func.body);
         },
@@ -197,7 +222,16 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         // everything below this is an "atomic" node and doesn't call anymore nodes
         .Identifier => {
-            if (ast.debug_mode) std.debug.print("Identifier node semantically analyzed!\n", .{});
+            if (ast.debug_mode) {
+                std.debug.print("Identifier node semantically analyzed!\n", .{});
+            }
+            // Have a Jack Error log here eventually
+            // symbol_table.get_variable(node.Identifier.name) orelse {
+            //     std.debug.print(
+            //         "Semantic Error: Variable {s} used before declaration.\n",
+            //         .{node.Identifier.name},
+            //     );
+            // };
         },
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});

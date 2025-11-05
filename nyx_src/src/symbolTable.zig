@@ -1,125 +1,161 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 
+pub const Variable = struct {
+    name: []const u8,
+    var_type: *ast.TypeNode,
+    is_global: bool = false,
+    is_const: bool = false,
+    is_mutable: bool = false,
+    is_initialized: bool = false,
+    scope_depth: u32 = 0, // which lexical depth this belongs to
+};
 
-struct SymbolTable
-{
-    
-    const var parent: ?*SymbolTable = null;
-    // Creating structs that we point to in our maps
-    // Type, Variable, Function Quinn
-    struct Type
-    {
-        name: []const u8,
-        size: usize,
-        allignment: usize,
-        is_pointer: bool,
+pub const Function = struct {
+    name: []const u8,
+    return_type: *ast.TypeNode,
+    parameters: []Variable,
+};
+
+pub const SymbolTable = struct {
+
+    // Allocators
+    upstream: std.mem.Allocator, // allocator that created this SymbolTable
+    arena: std.heap.ArenaAllocator, // This SymbolTable's local allocator
+    allocator: std.mem.Allocator, // derived from arena
+    //
+    // Maps to hold types, variables, and functions
+
+    type_map: std.StringHashMap(ast.TypeNode),
+    variable_map: std.StringHashMap(Variable),
+    function_map: std.StringHashMap(Function),
+
+    // To support nested scopes, we keep a reference to the parent symbol table
+    parent: ?*SymbolTable,
+
+    pub fn create(upstream: std.mem.Allocator, parent: ?*SymbolTable) !*SymbolTable {
+        // Allocate the struct from its upstream heap
+        const self = try upstream.create(SymbolTable);
+        self.* = .{
+            .upstream = upstream,
+            .arena = std.heap.ArenaAllocator.init(upstream),
+            .allocator = undefined,
+            .type_map = undefined,
+            .variable_map = undefined,
+            .function_map = undefined,
+            .parent = parent,
+        };
+        // build our allocator
+        self.allocator = self.arena.allocator();
+        // initialize and allocate
+        self.type_map = std.StringHashMap(ast.Type).init(self.allocator);
+        self.variable_map = std.StringHashMap(Variable).init(self.allocator);
+        self.function_map = std.StringHashMap(Function).init(self.allocator);
+
+        if (parent == null) {
+            // This is the root symbol table
+            self.assign_type(ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "int",
+                .size = @sizeOf(i32),
+                .alignment = @alignOf(i32),
+            });
+        }
+
+        return self;
     }
 
-    struct Variable
-    {
-        name: []const u8,
-        var_type: *Type,
-        is_mutable: bool,
-        is_contant: bool,
+    // Full deinit of maps, local arena and
+    // the SymbolTable using its upstream allocator
+    pub fn destroy(self: *SymbolTable) void {
+        self.type_map.deinit();
+        self.variable_map.deinit();
+        self.function_map.deinit();
+        self.arena.deinit(); // frees everything allocated by self.allocator
+        self.upstream.destroy(self);
     }
 
-    struct Function
-    {
-        name: []const u8,
-        return_type: *Type,
-        parameters: []Variable,
+    pub fn push(self: *SymbolTable) !*SymbolTable {
+        return SymbolTable.create(self.upstream, self);
     }
 
-    // Creating the maps that we will use in our symbol table
-
-    // To use our Allocator
-    // Quinn
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    // To free our allocated memory
-    defer {
-        const leaked = gpa.deinit();
-        if (leaked) {
-            std.debug.print("ERROR: Memory leak detected!\n", .{});
-        }
+    // Destroys this table and returns the parent
+    pub fn pop(self: *SymbolTable) ?*SymbolTable {
+        const parent = self.parent;
+        self.destroy();
+        return parent; // returns null if this is the root
     }
 
-        // Assign values to maps
-        var type_map = std.AutoHashMap([]const u8, Type).init(allocator);
-        var variable_map = std.AutoHashMap([]const u8, Variable).init(allocator);
-        var function_map = std.AutoHashMap([]const u8, Function).init(allocator);
-        defer {
-            type_map.deinit();
-            variable_map.deinit();
-            function_map.deinit();
+    pub fn current_depth(self: *SymbolTable) usize {
+        var idx: usize = 0;
+        var current_table = self.parent;
+        while (current_table) |ct| {
+            current_table = ct.parent;
+            idx += 1;
         }
-        
+        return idx;
+    }
 
-        // We need 3  Assign functions to add types, variables and functions to our symbol table
-        // Param: string name, Node* node
-        // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
-        fn assignType(name: []const u8, type_node: *ast.Node) void
-        {
-            // Implementation here
-        }
+    // We need 3  Assign functions to add types, variables and functions to our symbol table
+    // Param: string name, Node* node
+    // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
+    pub fn assign_type(self: *SymbolTable, type_node: *ast.TypeNode) !void {
+        const key = try self.allocator.dupe(u8, type_node.type_name);
+        try self.type_map.put(key, type_node);
+    }
 
-        fn assignVariable(name: []const u8, var_node: *ast.Node) void
-        {
-            // Implementation here
-        }
+    pub fn assign_variable(self: *SymbolTable, var_node: *ast.IdentifierNode) !void {
+        const type_ptr = var_node.typeNode orelse return error.UnknownType;
+        const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
 
-        fn assignFunction(name: []const u8, func_node: *ast.Node) void
-        {
-            // Implementation here
-        }
+        const key = try self.allocator.dupe(u8, var_node.name);
+        if (ast.debug_mode)
+            std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
+        try self.variable_map.put(key, Variable{
+            .name = key,
+            .var_type = self.get_type(type_name_slice) orelse return error.UnknownType,
+        });
+    }
 
-        // We need 3 Get functions to retrieve types, variables and functions from our symbol table
-        // Param: string name
-        // return the struct pointer if found, else return null
-        fn getType(name: []const u8) ?*Type
-        {
-            // Implementation here
-        }
-        fn getVariable(name: []const u8) ?*Variable
-        {
-            // Implementation here
-        }
-        fn getFunction(name: []const u8) ?*Function
-        {
-            // Implementation here
-        }
+    pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.Node) !void {
+        const key = try self.allocator.dupe(u8, name);
+        try self.function_map.put(key, Function{
+            .name = key,
+            .return_type = self.get_type(func_node.return_type.type_name) orelse null,
+        });
+    }
 
-        // *************Symbol Table Functions********************
-        // Symbol Table initilization function
-        fn initSymbolTable() void
-        {
-            // Implementation here
-        }
+    // We need 3 Get functions to retrieve types, variables and functions from our symbol table
+    // Param: string name
+    // return the struct pointer if found, else return null
 
-        // Symbol Table deinitilization function 
-        fn deinitSymbolTable() void
-        {
-            // Implementation here
+    pub fn get_type(self: *SymbolTable, name: []const u8) ?*ast.TypeNode {
+        var current_table: ?*SymbolTable = self;
+        while (current_table) |tbl| : (current_table = tbl.parent) {
+            if (tbl.type_map.getPtr(name)) |ptr| return ptr;
         }
-        // Symbol Table Push function Richie
-        fn pushSymbolTable() void
-        {
-            // Implementation here
+        // create and error message here
+        std.debug.print("Type {s} not found in symbol table.\n", .{name});
+        return null;
+    }
+
+    pub fn get_variable(self: *SymbolTable, name: []const u8) ?*Variable {
+        var current_table: ?*SymbolTable = self;
+        while (current_table) |table| : (current_table = table.parent) {
+            if (table.variable_map.getPtr(name)) |var_ptr| return var_ptr;
         }
-        // Symbol Table Pop function Richie 
-        fn popSymbolTable() void
-        {
-            // Implementation here
+        std.debug.print("Variable {s} not found in symbol table.\n", .{name});
+        return null;
+    }
+
+    pub fn get_function(self: *SymbolTable, name: []const u8) ?*Function {
+        var current_table: ?*SymbolTable = self;
+        while (current_table) |table| : (current_table = table.parent) {
+            if (table.function_map.getPtr(name)) |func_ptr| return func_ptr;
         }
-        // Symbol Table Get Depth function Richie and Quinn
-        fn getSymbolTableDepth() usize
-        {
-            // Implementation here
-        }
-
-
-}
-
-
+        std.debug.print("Function {s} not found in symbol table.\n", .{name});
+        return null;
+    }
+};
