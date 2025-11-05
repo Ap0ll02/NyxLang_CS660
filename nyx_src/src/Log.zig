@@ -5,27 +5,32 @@ const LogType = enum {
     WARN,
     ERROR
 };
-
-pub fn Info(this_column: i32, this_line: i32, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+const Location = struct { line: i32, col: i32 };
+pub fn InfoLoc(loc: Location, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+    const new_msg = std.mem.span(msg);
+    const new_hint = std.mem.span(hint);
+    log(loc.col, loc.line, new_msg, source, new_hint, .INFO);
+}
+pub fn Info(this_column: usize, this_line: usize, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_hint = std.mem.span(hint);
     log(this_column, this_line, new_msg, source, new_hint, .INFO);
 }
 
-pub fn Warn(this_column: i32, this_line: i32, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+pub fn Warn(this_column: usize, this_line: usize, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_hint = std.mem.span(hint);
     log(this_column, this_line, new_msg, source, new_hint, .WARN);
 }
 
-pub fn Error(this_column: i32, this_line: i32, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+pub fn Error(this_column: usize, this_line: usize, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_hint = std.mem.span(hint);
     log(this_column, this_line, new_msg, source, new_hint, .ERROR);
 }
 
-fn log(this_column: i32, this_line: i32, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
-    const ulen = @as(usize, @max(0, this_column));
+fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
+    const ulen = @max(0, this_column);
     // Line 1
     switch (l_type) {
         .INFO => std.debug.print("\x1b[1;32mNyxLang | Info: \x1b[0m", .{}),
