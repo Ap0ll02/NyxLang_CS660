@@ -26,7 +26,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (decl.assignNode) |n| {
                 if (n.* == .Assignment) {
                     const ident = n.Assignment.declarator.Identifier;
-                    symbol_table.assign_variable(ident) catch |err| {
+                    symbol_table.assign_variable(ident) catch {
                         log.Error(
                             ident.location.?.col, ident.location.?.line, 
                             "Could not assign variable",
