@@ -65,12 +65,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const func = node.Function;
 
             // add function to symbol table
-            symbol_table.assign_function(func.nameParam.NameParameterNode.name.Identifier.name, func) catch {
+            symbol_table.assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
 
-            semantic_analyze_node(func.nameParam);
-            semantic_analyze_node(func.body);
+            // semantic_analyze_node(func.nameParam);
+            // semantic_analyze_node(func.body);
 
             // TODO might need to add this later to type check
             // semantic_analyze_node(func.typeNode);
