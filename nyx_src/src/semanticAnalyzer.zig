@@ -76,7 +76,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 funcCall.spawner = func;
             } else {}
 
-            semantic_analyze_node(funcCall.name);
             if (funcCall.args) |argsNode| {
                 semantic_analyze_node(argsNode);
             }
