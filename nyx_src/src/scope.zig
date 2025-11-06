@@ -11,7 +11,7 @@ pub const SymbolTable = struct {
     // Maps to hold types, variables, and functions
 
     type_map: std.StringHashMap(ast.TypeNode),
-    variable_map: std.StringHashMap(ast.DeclarationNode),
+    variable_map: std.StringHashMap(*ast.DeclarationNode),
     function_map: std.StringHashMap(ast.FunctionNode),
 
     // To support nested scopes, we keep a reference to the parent symbol table
@@ -33,7 +33,7 @@ pub const SymbolTable = struct {
         self.allocator = self.arena.allocator();
         // initialize and allocate
         self.type_map = std.StringHashMap(ast.TypeNode).init(self.allocator);
-        self.variable_map = std.StringHashMap(ast.DeclarationNode).init(self.allocator);
+        self.variable_map = std.StringHashMap(*ast.DeclarationNode).init(self.allocator);
         self.function_map = std.StringHashMap(ast.FunctionNode).init(self.allocator);
 
         if (parent == null) {
@@ -181,50 +181,22 @@ pub const SymbolTable = struct {
         try self.type_map.put(key, type_node.*);
     }
 
-    pub fn assign_variable(self: *SymbolTable, var_node: *ast.DeclarationNode) !void {
-        const type_ptr = var_node.typeNode orelse return error.UnknownType;
+    pub fn assign_variable(self: *SymbolTable, decl_node: *ast.DeclarationNode) !void {
+        const type_ptr = decl_node.typeNode;
         const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
 
-        const key = try self.allocator.dupe(u8, var_node.name);
+        const key = decl_node.assignNode.?.Assignment.declarator.Identifier.name;
         if (ast.debug_mode)
             std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
-        try self.variable_map.put(key, ast.DeclarationNode{
-            .name = key,
-            .typeNode = self.get_type(type_name_slice) orelse return error.UnknownType,
-        });
+        try self.variable_map.put(key, decl_node);
+        if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
     }
 
     pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.FunctionNode) !void {
         const key = try self.allocator.dupe(u8, name);
+        _ = key; // autofix
         const func_ret_type_name_slice: []const u8 = std.mem.span(func_node.retType.type_name);
-
-        // create a []Variable from the NameParameter node attached to the Function
-        if (func_node.nameParam.NameParameterNode.parameterList) |raw_parameter_list| {
-            const parameter_list = raw_parameter_list.ParameterList.params;
-            const param_count = parameter_list.len;
-            var params = try self.allocator.alloc(Variable, param_count);
-            var i: usize = 0;
-            for (parameter_list) |p| {
-                const param_type = p.Declaration.typeNode;
-                const param_type_name: []const u8 = std.mem.span(param_type.type_name);
-                const param_name = std.mem.span(p.Declaration.typeNode.type_name);
-
-                // TODO this might be redundant? since we already have param_type so checking the name against symbol table might be unnecessary
-                if (self.get_type(param_type_name)) |st_param_type| {
-                    params[i] = Variable{
-                        .name = param_name,
-                        .var_type = st_param_type,
-                    };
-                } else {
-                    // TODO error here "Parameter type param_type_name not found in symbol table"
-                    // TODO params[i] might still need to be assigned something here
-                }
-
-                i += 1;
-            }
-
-            try self.function_map.put(key, Function{ .name = key, .return_type = self.get_type(func_ret_type_name_slice) orelse return error.UnknownType, .parameters = params });
-        }
+        _ = func_ret_type_name_slice; // autofix
     }
 
     // We need 3 Get functions to retrieve types, variables and functions from our symbol table
@@ -244,8 +216,9 @@ pub const SymbolTable = struct {
     pub fn get_variable(self: *SymbolTable, name: []const u8) ?*ast.DeclarationNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |table| : (current_table = table.parent) {
-            if (table.variable_map.getPtr(name)) |var_ptr| return var_ptr;
+            if (table.variable_map.get(name)) |var_ptr| return var_ptr;
         }
+        // TODO change to jack's error
         std.debug.print("Variable {s} not found in symbol table.\n", .{name});
         return null;
     }
