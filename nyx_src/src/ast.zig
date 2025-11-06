@@ -19,6 +19,7 @@ pub const IdentifierNode = struct {
     name: []const u8,
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
+    spawner: ?*DeclarationNode = null,
 };
 // Constant node represents literal values
 // It includes the value and its type information
@@ -52,6 +53,7 @@ pub const FunctionCallNode = struct {
     args: ?*Node,
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
+    spawner: ?*FunctionNode = null,
 };
 pub const ArgumentListNode = struct {
     args: []*Node,
