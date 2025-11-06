@@ -1,5 +1,8 @@
+int cool() {
+    int y = 10;
+}
+
 int main() {
-    float cats = 69.06;
-    char boys = 'c';
-    int x = 10;
+    char hello = '7';
+    int x = cool();
 }
