@@ -198,7 +198,7 @@ pub const SymbolTable = struct {
         const key = try self.allocator.dupe(u8, name);
         const func_ret_type_name_slice: []const u8 = std.mem.span(func_node.retType.type_name);
 
-        create a []Variable from the NameParameter node attached to the Function
+        // create a []Variable from the NameParameter node attached to the Function
         if (func_node.nameParam.NameParameterNode.parameterList) |raw_parameter_list| {
             const parameter_list = raw_parameter_list.ParameterList.params;
             const param_count = parameter_list.len;
@@ -241,7 +241,7 @@ pub const SymbolTable = struct {
         return null;
     }
 
-    pub fn get_variable(self: *SymbolTable, name: []const u8) ?*Variable {
+    pub fn get_variable(self: *SymbolTable, name: []const u8) ?*ast.DeclarationNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |table| : (current_table = table.parent) {
             if (table.variable_map.getPtr(name)) |var_ptr| return var_ptr;
@@ -250,7 +250,7 @@ pub const SymbolTable = struct {
         return null;
     }
 
-    pub fn get_function(self: *SymbolTable, name: []const u8) ?*Function {
+    pub fn get_function(self: *SymbolTable, name: []const u8) ?*ast.FunctionNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |table| : (current_table = table.parent) {
             if (table.function_map.getPtr(name)) |func_ptr| return func_ptr;
