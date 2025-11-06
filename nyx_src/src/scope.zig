@@ -218,8 +218,7 @@ pub const SymbolTable = struct {
         while (current_table) |table| : (current_table = table.parent) {
             if (table.variable_map.get(name)) |var_ptr| return var_ptr;
         }
-        // TODO change to jack's error
-        std.debug.print("Variable {s} not found in symbol table.\n", .{name});
+
         return null;
     }
 

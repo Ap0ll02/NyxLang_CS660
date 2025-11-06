@@ -249,7 +249,9 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             // Have a Jack Error log here eventually
             if (symbol_table.get_variable(node.Identifier.name)) |decl| {
                 ident.spawner = decl;
-            } else {}
+            } else {
+                log.Error(ident.location.?.col, ident.location.?.line, "Variable could not be found", m.diagnostic_source(ident.location.?.line), "");
+            }
         },
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});
