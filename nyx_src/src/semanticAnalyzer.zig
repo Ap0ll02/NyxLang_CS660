@@ -71,18 +71,19 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
 
             semantic_analyze_node(func.nameParam);
             semantic_analyze_node(func.body);
+
+            // TODO might need to add this later to type check
+            // semantic_analyze_node(func.typeNode);
+            // semantic_analyze_node(func.retType);
         },
         .FunctionCall => {
             if (ast.debug_mode) std.debug.print("FunctionCall node semantically analyzed!\n", .{});
             const funcCall = node.FunctionCall;
 
             // check if function exists in symbol table
-            const func = symbol_table.get_function(funcCall.name.Identifier.name);
-            if (func != null) {
-                std.debug.print("found function!", .{});
-            } else {
-                std.debug.print("no function found!", .{});
-            }
+            if (symbol_table.get_function(funcCall.name.Identifier.name)) |func| {
+                funcCall.spawner = func;
+            } else {}
 
             semantic_analyze_node(funcCall.name);
             if (funcCall.args) |argsNode| {
@@ -252,13 +253,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) {
                 std.debug.print("Identifier node semantically analyzed!\n", .{});
             }
+            const ident = node.Identifier;
+
             // Have a Jack Error log here eventually
-            // symbol_table.get_variable(node.Identifier.name) orelse {
-            //     std.debug.print(
-            //         "Semantic Error: Variable {s} used before declaration.\n",
-            //         .{node.Identifier.name},
-            //     );
-            // };
+            if (symbol_table.get_variable(node.Identifier.name)) |decl| {
+                ident.spawner = decl;
+            } else {}
         },
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});
