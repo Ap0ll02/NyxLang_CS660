@@ -5,6 +5,7 @@ const scope = @import("scope.zig");
 const ast = @import("ast.zig");
 const analyzer = @import("semanticAnalyzer.zig");
 const c = @cImport(@cInclude("c11.tab.h"));
+const bi = @import("builtin.zig");
 
 pub const YY_BUFFER_STATE = *opaque {};
 extern fn yylex() c_int; // from your lexer
@@ -52,16 +53,14 @@ pub fn main() !void {
         return;
     };
     analyzer.setSymbolTable(symbol_table);
-
+    const new_root = bi.built_in_types(root.?);
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
-    if (root) |r| {
-        if (ast.debug_mode) {
-            std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});
-            try ast.printNode(r, 0);
-        }
+    if (ast.debug_mode) {
+        std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});
+        try ast.printNode(new_root, 0);
+    }
+    if (new_root) |r| {
         analyzer.semantic_analyze_node(r);
-    } else {
-        std.debug.print("Completed, but NULL.", .{});
     }
     std.debug.print("\nParse {s}\n", .{if (result == 1) "failed." else "successful"});
 }
