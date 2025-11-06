@@ -23,29 +23,20 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const decl = node.Declaration;
             if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
 
-            if (decl.assignNode) |n| {
-                if (n.* == .Assignment) {
-                    const ident = n.Assignment.declarator.Identifier;
-                    symbol_table.assign_variable(ident) catch {
-                        log.Error(
-                            ident.location.?.col,
-                            ident.location.?.line,
-                            "Could not assign variable",
-                            m.diagnostic_source(ident.location.?.line),
-                            "",
-                        );
-                    };
-                } else if (n.* == .Identifier) {
-                    const ident = n.Identifier;
+            // add decl to symbol table
+            symbol_table.assign_variable(decl) catch {
+                log.Error(
+                    decl.location.?.col,
+                    decl.location.?.line,
+                    "Could not assign variable",
+                    m.diagnostic_source(decl.location.?.line),
+                    "",
+                );
+            };
 
-                    // TODO Use Jacks Error log here eventually
-                    symbol_table.assign_variable(ident) catch |err| {
-                        std.debug.print(
-                            "Error assigning variable {s}: {s}\n",
-                            .{ ident.name, @errorName(err) },
-                        );
-                    };
-                } else semantic_analyze_node(n);
+            // if there is an assignment attached to the Declaration then semantically analyze that node
+            if (decl.assignNode) |n| {
+                semantic_analyze_node(n);
             }
         },
         .Assignment => {

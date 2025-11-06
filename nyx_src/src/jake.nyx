@@ -1,9 +1,5 @@
-double voodoo() {
-    return 7.11;
-}
-
 int main() {
     char c = 't';
-    print("%.2f\n", voodoo());
+    print("%c\n", c);
     return 0;
 }
