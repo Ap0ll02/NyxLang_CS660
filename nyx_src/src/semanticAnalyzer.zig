@@ -56,6 +56,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const func = node.Function;
 
             // add function to symbol table
+            if(ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
             symbol_table.assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
@@ -74,7 +75,11 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             // check if function exists in symbol table
             if (symbol_table.get_function(funcCall.name.Identifier.name)) |func| {
                 funcCall.spawner = func;
-            } else {}
+            } else {
+                log.Error(funcCall.location.?.col, funcCall.location.?.line, 
+                    log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), 
+                    m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
+            }
 
             if (funcCall.args) |argsNode| {
                 semantic_analyze_node(argsNode);
