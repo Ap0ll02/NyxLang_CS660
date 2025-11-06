@@ -1,14 +1,14 @@
 const std = @import("std");
 const ast = @import("ast.zig");
-const sym_tab = @import("symbolTable.zig");
+const scope = @import("scope.zig");
 const m = @import("main.zig");
 const log = @import("Log.zig");
-var Symbol_Table: ?*sym_tab.SymbolTable = null;
+var Symbol_Table: ?*scope.SymbolTable = null;
 
-pub fn setSymbolTable(t: *sym_tab.SymbolTable) void {
+pub fn setSymbolTable(t: *scope.SymbolTable) void {
     Symbol_Table = t;
 }
-pub fn st() *sym_tab.SymbolTable {
+pub fn st() *scope.SymbolTable {
     return Symbol_Table orelse @panic("semanticAnalyzer: symbol table not set");
 }
 

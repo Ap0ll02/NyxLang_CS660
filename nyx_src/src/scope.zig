@@ -1,22 +1,6 @@
 const std = @import("std");
 const ast = @import("ast.zig");
 
-pub const Variable = struct {
-    name: []const u8,
-    var_type: *ast.TypeNode,
-    is_global: bool = false,
-    is_const: bool = false,
-    is_mutable: bool = false,
-    is_initialized: bool = false,
-    scope_depth: u32 = 0, // which lexical depth this belongs to
-};
-
-pub const Function = struct {
-    name: []const u8,
-    return_type: *ast.TypeNode,
-    parameters: []Variable,
-};
-
 pub const SymbolTable = struct {
 
     // Allocators
@@ -27,8 +11,8 @@ pub const SymbolTable = struct {
     // Maps to hold types, variables, and functions
 
     type_map: std.StringHashMap(ast.TypeNode),
-    variable_map: std.StringHashMap(Variable),
-    function_map: std.StringHashMap(Function),
+    variable_map: std.StringHashMap(ast.DeclarationNode),
+    function_map: std.StringHashMap(ast.FunctionNode),
 
     // To support nested scopes, we keep a reference to the parent symbol table
     parent: ?*SymbolTable,
@@ -49,8 +33,8 @@ pub const SymbolTable = struct {
         self.allocator = self.arena.allocator();
         // initialize and allocate
         self.type_map = std.StringHashMap(ast.TypeNode).init(self.allocator);
-        self.variable_map = std.StringHashMap(Variable).init(self.allocator);
-        self.function_map = std.StringHashMap(Function).init(self.allocator);
+        self.variable_map = std.StringHashMap(ast.DeclarationNode).init(self.allocator);
+        self.function_map = std.StringHashMap(ast.FunctionNode).init(self.allocator);
 
         if (parent == null) {
             // This is the root symbol table
@@ -197,16 +181,16 @@ pub const SymbolTable = struct {
         try self.type_map.put(key, type_node.*);
     }
 
-    pub fn assign_variable(self: *SymbolTable, var_node: *ast.IdentifierNode) !void {
+    pub fn assign_variable(self: *SymbolTable, var_node: *ast.DeclarationNode) !void {
         const type_ptr = var_node.typeNode orelse return error.UnknownType;
         const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
 
         const key = try self.allocator.dupe(u8, var_node.name);
         if (ast.debug_mode)
             std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
-        try self.variable_map.put(key, Variable{
+        try self.variable_map.put(key, ast.DeclarationNode{
             .name = key,
-            .var_type = self.get_type(type_name_slice) orelse return error.UnknownType,
+            .typeNode = self.get_type(type_name_slice) orelse return error.UnknownType,
         });
     }
 
@@ -214,7 +198,7 @@ pub const SymbolTable = struct {
         const key = try self.allocator.dupe(u8, name);
         const func_ret_type_name_slice: []const u8 = std.mem.span(func_node.retType.type_name);
 
-        // create a []Variable from the NameParameter node attached to the Function
+        create a []Variable from the NameParameter node attached to the Function
         if (func_node.nameParam.NameParameterNode.parameterList) |raw_parameter_list| {
             const parameter_list = raw_parameter_list.ParameterList.params;
             const param_count = parameter_list.len;

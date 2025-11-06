@@ -1,7 +1,7 @@
 const std = @import("std");
 const log = @import("Log.zig");
 const parse = @cImport(@cInclude("c11.tab.h"));
-const sym_tab = @import("symbolTable.zig");
+const scope = @import("scope.zig");
 const ast = @import("ast.zig");
 const analyzer = @import("semanticAnalyzer.zig");
 const c = @cImport(@cInclude("c11.tab.h"));
@@ -47,7 +47,7 @@ pub fn main() !void {
 
     const result = yyparse();
 
-    const symbol_table = sym_tab.SymbolTable.create(parse_alloc, null) catch {
+    const symbol_table = scope.SymbolTable.create(parse_alloc, null) catch {
         log.Error(0, 0, "Failed to create symbol table", "", "Symbol Table Initialization Error");
         return;
     };
