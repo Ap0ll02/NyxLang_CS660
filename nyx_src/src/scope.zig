@@ -12,7 +12,7 @@ pub const SymbolTable = struct {
     //
     // Maps to hold types, variables, and functions
 
-    type_map: std.StringHashMap(ast.TypeNode),
+    type_map: std.StringHashMap(*ast.TypeNode),
     variable_map: std.StringHashMap(*ast.DeclarationNode),
     function_map: std.StringHashMap(*ast.FunctionNode),
 
@@ -34,7 +34,7 @@ pub const SymbolTable = struct {
         // build our allocator
         self.allocator = self.arena.allocator();
         // initialize and allocate
-        self.type_map = std.StringHashMap(ast.TypeNode).init(self.allocator);
+        self.type_map = std.StringHashMap(*ast.TypeNode).init(self.allocator);
         self.variable_map = std.StringHashMap(*ast.DeclarationNode).init(self.allocator);
         self.function_map = std.StringHashMap(*ast.FunctionNode).init(self.allocator);
 
@@ -180,7 +180,7 @@ pub const SymbolTable = struct {
     pub fn assign_type(self: *SymbolTable, type_node: *ast.TypeNode) !void {
         const type_string: []const u8 = std.mem.span(type_node.type_name);
         const key = try self.allocator.dupe(u8, type_string);
-        try self.type_map.put(key, type_node.*);
+        try self.type_map.put(key, type_node);
     }
 
     pub fn assign_variable(self: *SymbolTable, decl_node: *ast.DeclarationNode) !void {
@@ -206,7 +206,7 @@ pub const SymbolTable = struct {
     pub fn get_type(self: *SymbolTable, name: []const u8) ?*ast.TypeNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |tbl| : (current_table = tbl.parent) {
-            if (tbl.type_map.getPtr(name)) |ptr| return ptr;
+            if (tbl.type_map.get(name)) |ptr| return ptr;
         }
         // create and error message here
         std.debug.print("Type {s} not found in symbol table.\n", .{name});
