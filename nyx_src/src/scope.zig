@@ -14,7 +14,7 @@ pub const SymbolTable = struct {
 
     type_map: std.StringHashMap(ast.TypeNode),
     variable_map: std.StringHashMap(*ast.DeclarationNode),
-    function_map: std.StringHashMap(ast.FunctionNode),
+    function_map: std.StringHashMap(*ast.FunctionNode),
 
     // To support nested scopes, we keep a reference to the parent symbol table
     parent: ?*SymbolTable,
@@ -36,7 +36,7 @@ pub const SymbolTable = struct {
         // initialize and allocate
         self.type_map = std.StringHashMap(ast.TypeNode).init(self.allocator);
         self.variable_map = std.StringHashMap(*ast.DeclarationNode).init(self.allocator);
-        self.function_map = std.StringHashMap(ast.FunctionNode).init(self.allocator);
+        self.function_map = std.StringHashMap(*ast.FunctionNode).init(self.allocator);
 
         if (parent == null) {
             // This is the root symbol table
@@ -225,7 +225,9 @@ pub const SymbolTable = struct {
     pub fn get_function(self: *SymbolTable, name: []const u8) ?*ast.FunctionNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |table| : (current_table = table.parent) {
-            if (table.function_map.getPtr(name)) |func_ptr| { return func_ptr; }
+            if (table.function_map.get(name)) |func_ptr| {
+                return func_ptr;
+            }
         }
         return null;
     }
