@@ -1,5 +1,7 @@
 const std = @import("std");
 const ast = @import("ast.zig");
+const log = @import("Log.zig");
+const m = @import("main.zig");
 
 pub const SymbolTable = struct {
 
@@ -89,11 +91,9 @@ pub const SymbolTable = struct {
         if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
     }
 
-    pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.FunctionNode) !void {
-        const key = try self.allocator.dupe(u8, name);
-        _ = key; // autofix
-        const func_ret_type_name_slice: []const u8 = std.mem.span(func_node.retType.type_name);
-        _ = func_ret_type_name_slice; // autofix
+    pub fn assign_function(self: *SymbolTable, func_node: *ast.FunctionNode) !void {
+        const key = func_node.nameParam.NameParameterNode.name.Identifier.name;
+        try self.function_map.put(key, func_node);
     }
 
     // We need 3 Get functions to retrieve types, variables and functions from our symbol table
@@ -122,9 +122,8 @@ pub const SymbolTable = struct {
     pub fn get_function(self: *SymbolTable, name: []const u8) ?*ast.FunctionNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |table| : (current_table = table.parent) {
-            if (table.function_map.getPtr(name)) |func_ptr| return func_ptr;
+            if (table.function_map.getPtr(name)) |func_ptr| { return func_ptr; }
         }
-        std.debug.print("Function {s} not found in symbol table.\n", .{name});
         return null;
     }
 };
