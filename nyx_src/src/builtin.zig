@@ -89,5 +89,10 @@ pub fn built_in_types(root: ast.Node) ast.Node {
         .size = @sizeOf(bool),
         .alignment = @alignOf(bool),
     };
-    return ast.BlockItemsNode{ .items = [_]ast.Node{ int32, int64, int128, uint32, uint64, uint128, float32, float64, charu8, VOID, catgirl, root }, .location = ast.Location{ .col = 0, .line = 0 }, .typeNode = null };
+    const printf = ast.FunctionNode {
+        .retType = *VOID,
+        .body = ast.ConstantNode { .value = "null", .typeNode = *VOID },
+        .nameParam = ast.ConstantNode { .value = "null", .typeNode = *VOID },
+    };
+    return ast.BlockItemsNode{ .items = [_]ast.Node{ int32, int64, int128, uint32, uint64, uint128, float32, float64, charu8, VOID, printf, catgirl, root }, .location = ast.Location{ .col = 0, .line = 0 }, .typeNode = null };
 }
