@@ -35,109 +35,6 @@ pub const SymbolTable = struct {
         self.type_map = std.StringHashMap(ast.TypeNode).init(self.allocator);
         self.variable_map = std.StringHashMap(ast.DeclarationNode).init(self.allocator);
         self.function_map = std.StringHashMap(ast.FunctionNode).init(self.allocator);
-
-        if (parent == null) {
-            // This is the root symbol table
-            var at: ast.TypeNode = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 0, // 0 none, 1 long, 2 long long
-                .type_name = "int",
-                .size = @sizeOf(i32),
-                .alignment = @alignOf(i32),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 1, // 0 none, 1 long, 2 long long
-                .type_name = "long",
-                .size = @sizeOf(i64),
-                .alignment = @alignOf(i64),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 2, // 0 none, 1 long, 2 long long
-                .type_name = "long long",
-                .size = @sizeOf(i64),
-                .alignment = @alignOf(i64),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = true,
-                .is_const = false,
-                .qualifier = 0, // 0 none, 1 long, 2 long long
-                .type_name = "uint",
-                .size = @sizeOf(u32),
-                .alignment = @alignOf(u32),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = true,
-                .is_const = false,
-                .qualifier = 1, // 0 none, 1 long, 2 long long
-                .type_name = "ulong",
-                .size = @sizeOf(u64),
-                .alignment = @alignOf(u64),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = true,
-                .is_const = false,
-                .qualifier = 2, // 0 none, 1 long, 2
-                .type_name = "ulong long",
-                .size = @sizeOf(u64),
-                .alignment = @alignOf(u64),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 0, // 0 none, 1 long, 2 long long
-                .type_name = "float",
-                .size = @sizeOf(f32),
-                .alignment = @alignOf(f32),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 1, // 0 none, 1 long, 2
-                .type_name = "double",
-                .size = @sizeOf(f64),
-                .alignment = @alignOf(f64),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 0, // 0 none, 1 long, 2 long long
-                .type_name = "char",
-                .size = @sizeOf(u8),
-                .alignment = @alignOf(u8),
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 0, // 0 none, 1 long, 2 long long
-                .type_name = "void",
-                .size = 0,
-                .alignment = 1,
-            };
-            try self.assign_type(&at);
-            at = ast.TypeNode{
-                .is_unsigned = false,
-                .is_const = false,
-                .qualifier = 0, // 0 none, 1 long, 2 long long
-                .type_name = "bool",
-                .size = @sizeOf(bool),
-                .alignment = @alignOf(bool),
-            };
-            try self.assign_type(&at);
-        }
         return self;
     }
 
@@ -178,7 +75,7 @@ pub const SymbolTable = struct {
     pub fn assign_type(self: *SymbolTable, type_node: *ast.TypeNode) !void {
         const type_string: []const u8 = std.mem.span(type_node.type_name);
         const key = try self.allocator.dupe(u8, type_string);
-        try self.type_map.put(key, type_node.*);
+        try self.type_map.put(key, type_node);
     }
 
     pub fn assign_variable(self: *SymbolTable, var_node: *ast.DeclarationNode) !void {
