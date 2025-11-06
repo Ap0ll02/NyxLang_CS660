@@ -61,7 +61,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             };
 
             // semantic_analyze_node(func.nameParam);
-            // semantic_analyze_node(func.body);
+            semantic_analyze_node(func.body);
 
             // TODO might need to add this later to type check
             // semantic_analyze_node(func.typeNode);
@@ -246,11 +246,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             }
             const ident = node.Identifier;
 
-            // Have a Jack Error log here eventually
             if (symbol_table.get_variable(node.Identifier.name)) |decl| {
                 ident.spawner = decl;
             } else {
-                log.Error(ident.location.?.col, ident.location.?.line, "Variable could not be found", m.diagnostic_source(ident.location.?.line), "");
+                log.Error(ident.location.?.col, ident.location.?.line, log.f_str("Variable {s} could not be found", .{node.Identifier.name}), m.diagnostic_source(ident.location.?.line), "");
             }
         },
         .Constant => {
