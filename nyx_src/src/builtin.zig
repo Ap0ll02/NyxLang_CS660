@@ -1,6 +1,7 @@
 const ast = @import("ast.zig");
+const m = @import("main.zig");
 
-pub fn built_in_types(root: ast.Node) ast.Node {
+pub fn built_in_types(root: *ast.Node) ?*ast.Node {
     const int32 = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
@@ -89,11 +90,24 @@ pub fn built_in_types(root: ast.Node) ast.Node {
         .size = @sizeOf(bool),
         .alignment = @alignOf(bool),
     };
-    const printf = ast.FunctionNode {
-        .typeNode = *VOID,
-        .retType = *VOID,
-        .body = ast.BlockItemsNode {},
-        .nameParam = ast.NameParameterNode { .typeNode = *VOID, .name = ast.IdentifierNode {.name = "printf"}},
-    };
-    return ast.BlockItemsNode{ .items = [_]ast.Node{ int32, int64, int128, uint32, uint64, uint128, float32, float64, charu8, VOID, printf, catgirl, root }, .location = ast.Location{ .col = 0, .line = 0 }, .typeNode = null };
+    const printf_node = m.parse_alloc.create(ast.FunctionNode) catch return null;
+    const nameparm = m.parse_alloc.create(ast.NameParameterNode) catch return null;
+    const p_ident = m.parse_alloc.create(ast.IdentifierNode) catch return null;
+    const body_node = m.parse_alloc.create(ast.Node) catch return null;
+    const ident_node = m.parse_alloc.create(ast.Node) catch return null;
+    p_ident.* = ast.IdentifierNode {.name = "printf"};
+    ident_node.* = ast.Node {.Identifier = p_ident};
+    nameparm.* = ast.NameParameterNode {.parameterList = null, .name = ident_node};
+    const nameparm_node = m.parse_alloc.create(ast.Node) catch return null;
+    nameparm_node.* = ast.Node { .NameParameterNode = nameparm };
+    printf_node.* = ast.FunctionNode {.retType = @constCast(&VOID), .nameParam = nameparm_node, .body = body_node};
+    const ret_node = m.parse_alloc.create(ast.Node) catch return null;
+    ret_node.* = ast.Node {.Function = printf_node};
+
+    const block_node = m.parse_alloc.create(ast.Node) catch return null;
+    const builtin_block = m.parse_alloc.create(ast.BlockItemsNode) catch return null;
+    builtin_block.* = ast.BlockItemsNode{ .items = [_]*ast.Node{ int32, int64, int128, uint32, uint64, uint128, float32, float64, charu8, VOID, ret_node, catgirl, root }};
+    block_node.* = ast.Node {.BlockItems = builtin_block };
+
+    return block_node;
 }
