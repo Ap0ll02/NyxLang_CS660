@@ -1,5 +1,5 @@
 int main() {
     char c = 't';
-    print("%c\n", some_char);
+    printf("%c\n", c);
     return 0;
 }
