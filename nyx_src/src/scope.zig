@@ -1,5 +1,7 @@
 const std = @import("std");
 const ast = @import("ast.zig");
+const log = @import("Log.zig");
+const m = @import("main.zig");
 
 pub const SymbolTable = struct {
 
@@ -194,37 +196,9 @@ pub const SymbolTable = struct {
         });
     }
 
-    pub fn assign_function(self: *SymbolTable, name: []const u8, func_node: *ast.FunctionNode) !void {
-        const key = try self.allocator.dupe(u8, name);
-        const func_ret_type_name_slice: []const u8 = std.mem.span(func_node.retType.type_name);
-
-        // create a []Variable from the NameParameter node attached to the Function
-        if (func_node.nameParam.NameParameterNode.parameterList) |raw_parameter_list| {
-            const parameter_list = raw_parameter_list.ParameterList.params;
-            const param_count = parameter_list.len;
-            var params = try self.allocator.alloc(Variable, param_count);
-            var i: usize = 0;
-            for (parameter_list) |p| {
-                const param_type = p.Declaration.typeNode;
-                const param_type_name: []const u8 = std.mem.span(param_type.type_name);
-                const param_name = std.mem.span(p.Declaration.typeNode.type_name);
-
-                // TODO this might be redundant? since we already have param_type so checking the name against symbol table might be unnecessary
-                if (self.get_type(param_type_name)) |st_param_type| {
-                    params[i] = Variable{
-                        .name = param_name,
-                        .var_type = st_param_type,
-                    };
-                } else {
-                    // TODO error here "Parameter type param_type_name not found in symbol table"
-                    // TODO params[i] might still need to be assigned something here
-                }
-
-                i += 1;
-            }
-
-            try self.function_map.put(key, Function{ .name = key, .return_type = self.get_type(func_ret_type_name_slice) orelse return error.UnknownType, .parameters = params });
-        }
+    pub fn assign_function(self: *SymbolTable, func_node: *ast.FunctionNode) !void {
+        const key = func_node.nameParam.NameParameterNode.name.Identifier.name;
+        try self.function_map.put(key, func_node);
     }
 
     // We need 3 Get functions to retrieve types, variables and functions from our symbol table
@@ -253,9 +227,8 @@ pub const SymbolTable = struct {
     pub fn get_function(self: *SymbolTable, name: []const u8) ?*ast.FunctionNode {
         var current_table: ?*SymbolTable = self;
         while (current_table) |table| : (current_table = table.parent) {
-            if (table.function_map.getPtr(name)) |func_ptr| return func_ptr;
+            if (table.function_map.getPtr(name)) |func_ptr| { return func_ptr; }
         }
-        std.debug.print("Function {s} not found in symbol table.\n", .{name});
         return null;
     }
 };
