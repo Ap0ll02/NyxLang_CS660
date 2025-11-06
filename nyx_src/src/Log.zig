@@ -1,12 +1,11 @@
 const std = @import("std");
-
+const ast = @import("ast.zig");
 const LogType = enum {
     INFO,
     WARN,
     ERROR
 };
-const Location = struct { line: i32, col: i32 };
-pub fn InfoLoc(loc: Location, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+pub fn InfoLoc(loc: *ast.Location, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
     const new_msg = std.mem.span(msg);
     const new_hint = std.mem.span(hint);
     log(loc.col, loc.line, new_msg, source, new_hint, .INFO);
