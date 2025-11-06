@@ -56,3 +56,8 @@ fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8
     // std.debug.print("\x1b[1;35m~~~^\x1b[0m\n", .{});
     if (hint.len >= 2) std.debug.print("\x1b[1;36mHint: \x1b[0m{s}\n", .{hint}); 
 }
+
+fn f_str(str: []const u8, args: anytype) []const u8 {
+    const alloc = std.heap.c_allocator;
+    return std.fmt.allocPrint(alloc, str, args) catch { return "Null"; };
+}
