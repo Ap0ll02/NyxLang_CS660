@@ -90,9 +90,10 @@ pub fn built_in_types(root: ast.Node) ast.Node {
         .alignment = @alignOf(bool),
     };
     const printf = ast.FunctionNode {
+        .typeNode = *VOID,
         .retType = *VOID,
-        .body = ast.ConstantNode { .value = "null", .typeNode = *VOID },
-        .nameParam = ast.ConstantNode { .value = "null", .typeNode = *VOID },
+        .body = ast.BlockItemsNode {},
+        .nameParam = ast.NameParameterNode { .typeNode = *VOID, .name = ast.IdentifierNode {.name = "printf"}},
     };
     return ast.BlockItemsNode{ .items = [_]ast.Node{ int32, int64, int128, uint32, uint64, uint128, float32, float64, charu8, VOID, printf, catgirl, root }, .location = ast.Location{ .col = 0, .line = 0 }, .typeNode = null };
 }
