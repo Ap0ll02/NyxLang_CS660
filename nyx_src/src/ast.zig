@@ -170,7 +170,6 @@ pub const TypeNode = extern struct {
     type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
-    typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
 pub const AssignmentNode = struct {
