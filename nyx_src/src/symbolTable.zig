@@ -224,10 +224,18 @@ pub const SymbolTable = struct {
                 const param_type = p.Declaration.typeNode;
                 const param_type_name: []const u8 = std.mem.span(param_type.type_name);
                 const param_name = std.mem.span(p.Declaration.typeNode.type_name);
-                params[i] = Variable{
-                    .name = param_name,
-                    .var_type = self.get_type(param_type_name) orelse return error.UnknownType,
-                };
+
+                // TODO this might be redundant? since we already have param_type so checking the name against symbol table might be unnecessary
+                if (self.get_type(param_type_name)) |st_param_type| {
+                    params[i] = Variable{
+                        .name = param_name,
+                        .var_type = st_param_type,
+                    };
+                } else {
+                    // TODO error here "Parameter type param_type_name not found in symbol table"
+                    // TODO params[i] might still need to be assigned something here
+                }
+
                 i += 1;
             }
 
