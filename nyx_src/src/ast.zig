@@ -1333,6 +1333,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 std.debug.print("(no initializer)\n", .{});
             }
         },
+        .ParameterList => {
+            const params = node.ParameterList;
+            for (params.params) |p| {
+                try printNode(p, indent + 2);
+            }
+        },
         .Function => {
             const func = node.Function;
             const type_str = std.mem.span(func.retType.type_name);
@@ -1340,6 +1346,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             std.debug.print("🟩 Function: {s} (returns {s})\n", .{
                 func.nameParam.NameParameterNode.name.Identifier.name, type_str,
             });
+
+            if (func.nameParam.NameParameterNode.parameterList) |params| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Parameters:\n", .{});
+                try printNode(params, indent);
+            }
 
             printIndent(indent + 1);
             std.debug.print("↳ Body:\n", .{});
