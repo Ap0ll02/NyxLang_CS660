@@ -52,6 +52,7 @@ pub fn main() !void {
         log.Error(0, 0, "Failed to create symbol table", "", "Symbol Table Initialization Error");
         return;
     };
+    if (ast.debug_mode) symbol_table.print_sym_tables();
     analyzer.setSymbolTable(symbol_table);
     const new_root = bi.built_in_types(root.?);
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});

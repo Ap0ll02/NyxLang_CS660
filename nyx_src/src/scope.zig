@@ -38,6 +38,7 @@ pub const SymbolTable = struct {
         self.variable_map = std.StringHashMap(*ast.DeclarationNode).init(self.allocator);
         self.function_map = std.StringHashMap(*ast.FunctionNode).init(self.allocator);
 
+        // Richie Q: why are we defining these (im guessing builtins) in the symbol table?
         if (parent == null) {
             // This is the root symbol table
             var at: ast.TypeNode = ast.TypeNode{
@@ -230,5 +231,54 @@ pub const SymbolTable = struct {
             }
         }
         return null;
+    }
+
+    pub fn print_sym_tables(self: *SymbolTable) void {
+        std.debug.print("\n\n--- Symbol Table ---\n", .{});
+        dumpMap("🐱types",     self.type_map);
+        dumpMap("🐈variables", self.variable_map);
+        dumpMap("😹functions", self.function_map);
+        std.debug.print("--------------------\n\n", .{});
+    }
+    fn dumpMap(comptime label: []const u8, map: anytype) void {
+        std.debug.print("{s}:\n", .{label});
+
+        // find the longest key
+        var max_key_len: usize = 0;
+        {
+            var it = map.iterator();
+            while (it.next()) |e| {
+                const key: []const u8 = e.key_ptr.*;
+                if (key.len > max_key_len) max_key_len = key.len;
+            }
+        }
+
+        // header + underline
+        std.debug.print("  key", .{});
+        var i: usize = "key".len;
+        while (i < max_key_len) : (i += 1) std.debug.print(" ", .{});
+            std.debug.print("  |  value\n", .{});
+
+            std.debug.print("  ", .{});
+            var j: usize = 0;
+            while (j < max_key_len) : (j += 1) std.debug.print("-", .{});
+            std.debug.print("-----\n", .{});
+
+            // print rows with manual padding
+            var it2 = map.iterator();
+            while (it2.next()) |e| {
+                const key = e.key_ptr.*;   // []const u8
+                const val = e.value_ptr.*; // pointer to your value
+
+                // key column
+                std.debug.print("  {s}", .{key});
+                var pad: usize = key.len;
+                while (pad < max_key_len) : (pad += 1) std.debug.print(" ", .{});
+
+                // separator + pointer value
+                std.debug.print("  |  {*}\n", .{val});
+            }
+
+            std.debug.print("\n", .{});
     }
 };
