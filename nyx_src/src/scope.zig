@@ -37,6 +37,110 @@ pub const SymbolTable = struct {
         self.type_map = std.StringHashMap(*ast.TypeNode).init(self.allocator);
         self.variable_map = std.StringHashMap(*ast.DeclarationNode).init(self.allocator);
         self.function_map = std.StringHashMap(*ast.FunctionNode).init(self.allocator);
+
+        // Richie Q: why are we defining these (im guessing builtins) in the symbol table?
+        if (parent == null) {
+            // This is the root symbol table
+            var at: ast.TypeNode = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "int",
+                .size = @sizeOf(i32),
+                .alignment = @alignOf(i32),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 1, // 0 none, 1 long, 2 long long
+                .type_name = "long",
+                .size = @sizeOf(i64),
+                .alignment = @alignOf(i64),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 2, // 0 none, 1 long, 2 long long
+                .type_name = "long long",
+                .size = @sizeOf(i64),
+                .alignment = @alignOf(i64),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = true,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "uint",
+                .size = @sizeOf(u32),
+                .alignment = @alignOf(u32),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = true,
+                .is_const = false,
+                .qualifier = 1, // 0 none, 1 long, 2 long long
+                .type_name = "ulong",
+                .size = @sizeOf(u64),
+                .alignment = @alignOf(u64),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = true,
+                .is_const = false,
+                .qualifier = 2, // 0 none, 1 long, 2
+                .type_name = "ulong long",
+                .size = @sizeOf(u64),
+                .alignment = @alignOf(u64),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "float",
+                .size = @sizeOf(f32),
+                .alignment = @alignOf(f32),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 1, // 0 none, 1 long, 2
+                .type_name = "double",
+                .size = @sizeOf(f64),
+                .alignment = @alignOf(f64),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "char",
+                .size = @sizeOf(u8),
+                .alignment = @alignOf(u8),
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "void",
+                .size = 0,
+                .alignment = 1,
+            };
+            try self.assign_type(&at);
+            at = ast.TypeNode{
+                .is_unsigned = false,
+                .is_const = false,
+                .qualifier = 0, // 0 none, 1 long, 2 long long
+                .type_name = "bool",
+                .size = @sizeOf(bool),
+                .alignment = @alignOf(bool),
+            };
+            try self.assign_type(&at);
+        }
         return self;
     }
 
@@ -127,5 +231,54 @@ pub const SymbolTable = struct {
             }
         }
         return null;
+    }
+
+    pub fn print_sym_tables(self: *SymbolTable) void {
+        std.debug.print("\n\n--- Symbol Table ---\n", .{});
+        dumpMap("🐱types",     self.type_map);
+        dumpMap("🐈variables", self.variable_map);
+        dumpMap("😹functions", self.function_map);
+        std.debug.print("--------------------\n\n", .{});
+    }
+    fn dumpMap(comptime label: []const u8, map: anytype) void {
+        std.debug.print("{s}:\n", .{label});
+
+        // find the longest key
+        var max_key_len: usize = 0;
+        {
+            var it = map.iterator();
+            while (it.next()) |e| {
+                const key: []const u8 = e.key_ptr.*;
+                if (key.len > max_key_len) max_key_len = key.len;
+            }
+        }
+
+        // header + underline
+        std.debug.print("  key", .{});
+        var i: usize = "key".len;
+        while (i < max_key_len) : (i += 1) std.debug.print(" ", .{});
+            std.debug.print("  |  value\n", .{});
+
+            std.debug.print("  ", .{});
+            var j: usize = 0;
+            while (j < max_key_len) : (j += 1) std.debug.print("-", .{});
+            std.debug.print("-----\n", .{});
+
+            // print rows with manual padding
+            var it2 = map.iterator();
+            while (it2.next()) |e| {
+                const key = e.key_ptr.*;   // []const u8
+                const val = e.value_ptr.*; // pointer to your value
+
+                // key column
+                std.debug.print("  {s}", .{key});
+                var pad: usize = key.len;
+                while (pad < max_key_len) : (pad += 1) std.debug.print(" ", .{});
+
+                // separator + pointer value
+                std.debug.print("  |  {*}\n", .{val});
+            }
+
+            std.debug.print("\n", .{});
     }
 };
