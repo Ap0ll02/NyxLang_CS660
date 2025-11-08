@@ -147,6 +147,7 @@ pub fn built_in_types(
     const body_node = try allocator.create(ast.Node);
     const ident_node = try allocator.create(ast.Node);
     p_ident.* = ast.IdentifierNode{ .name = "printf" };
+    body_node.* = ast.Node { .BlockItems = @constCast(&ast.BlockItemsNode { .items = &[_]*ast.Node{} }) };
     ident_node.* = ast.Node{ .Identifier = p_ident };
     nameparm.* = ast.NameParameterNode{ .parameterList = null, .name = ident_node };
     const nameparm_node = try allocator.create(ast.Node);
@@ -158,7 +159,15 @@ pub fn built_in_types(
     // ur shiii
     const block_node = try allocator.create(ast.Node);
     const builtin_block = try allocator.create(ast.BlockItemsNode);
-    builtin_block.* = ast.BlockItemsNode{ .items = @constCast(&[_]*ast.Node{ int32_Node, int64_node, int128_node, uint32_node, uint64_node, uint128_node, float32_node, float64_node, charu8_node, VOID_node, catgirl_node, ret_node, root }) };
+    var bl_items: std.ArrayList(*ast.Node) = .empty;
+    try bl_items.appendSlice(
+        allocator, 
+            &[_]*ast.Node{int32_Node, int64_node, int128_node, 
+            uint32_node, uint64_node, uint128_node, 
+            float32_node, float64_node, charu8_node, 
+            VOID_node, catgirl_node, ret_node, root}
+    );
+    builtin_block.* = ast.BlockItemsNode{ .items = try bl_items.toOwnedSlice(allocator) };
     block_node.* = ast.Node{ .BlockItems = builtin_block };
 
     return block_node;
