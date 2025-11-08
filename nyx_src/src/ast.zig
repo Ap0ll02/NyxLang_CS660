@@ -806,6 +806,16 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 // With a runtime array alloc(*Node, 1) allocates memory for 1 element at runtime
 // Returns a slice ([]*Node) that can be resized later
 // You can create new slices with different sizes and copy data between them
+export fn make_param_dec(declarator: *Node) ?*Node {
+    const assignment_node = glob_alloc.create(AssignmentNode) catch return null;
+    assignment_node.* = make_assignment_node(declarator, null, null);
+    const decl = glob_alloc.create(DeclarationNode) catch return null;
+    decl.* = make_declaration_node(assignment_node.typeNode, assignment_node);
+    const node = glob_alloc.create(Node) catch return null;
+    node.* = Node{ .Assignment = assignment_node };
+    return node;
+}
+
 export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node so we, create a new ParameterListNode with the item as the first element
     if (items == null) {
