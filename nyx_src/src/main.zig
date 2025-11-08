@@ -54,7 +54,7 @@ pub fn main() !void {
     };
     if (ast.debug_mode) symbol_table.print_sym_tables();
     analyzer.setSymbolTable(symbol_table);
-    const new_root = bi.built_in_types(root.?);
+    const new_root = try bi.built_in_types(parse_alloc, root.?);
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (ast.debug_mode) {
         std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});

@@ -185,12 +185,12 @@ pub const SymbolTable = struct {
     }
 
     pub fn assign_variable(self: *SymbolTable, decl_node: *ast.DeclarationNode) !void {
-        const type_ptr = decl_node.typeNode;
-        const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
+        // const type_ptr = decl_node.typeNode;
+        // const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
 
         const key = decl_node.assignNode.?.Assignment.declarator.Identifier.name;
         if (ast.debug_mode)
-            std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
+            // std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
         try self.variable_map.put(key, decl_node);
         if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
     }
@@ -210,7 +210,7 @@ pub const SymbolTable = struct {
             if (tbl.type_map.get(name)) |ptr| return ptr;
         }
         // create and error message here
-        std.debug.print("Type {s} not found in symbol table.\n", .{name});
+        // std.debug.print("Type {s} not found in symbol table.\n", .{name});
         return null;
     }
 
