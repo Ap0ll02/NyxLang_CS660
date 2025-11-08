@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @cImport(@cInclude("c11.tab.h"));
 const m = @import("main.zig");
+const log = @import("Log.zig");
 const glob_alloc = m.parse_alloc;
 pub var debug_mode: bool = false;
 extern var yylineno: c_int;
@@ -1286,11 +1287,13 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             printIndent(indent + 1);
             std.debug.print("↳ Body:\n", .{});
 
-            if (func.body.BlockItems.items.len == 0) {
+            if (func.body.BlockItems.items.len <= 0) {
                 printIndent(indent + 1);
                 std.debug.print("(empty block)\n", .{});
             } else {
-                for (func.body.BlockItems.items) |item| try printNode(item, indent + 1);
+                for (func.body.BlockItems.items) |item| printNode(item, indent + 1) catch |err| {
+                    if (debug_mode) log.Info(0, 0, log.f_str("Bad print: block item... {any}", .{err}), "", "");
+                };
             }
         },
         .FunctionCall => {
