@@ -1,8 +1,16 @@
+const std = @import("std");
 const ast = @import("ast.zig");
-const m = @import("main.zig");
 
-pub fn built_in_types(root: *ast.Node) ?*ast.Node {
-    const int32 = ast.TypeNode{
+pub fn built_in_types(
+    allocator: std.mem.Allocator,
+    root: *ast.Node,
+) !?*ast.Node {
+    // upstream = upstream;
+    // const arena = std.heap.ArenaAllocator.init(upstream);
+    // const allocator = arena.allocator();
+
+    const int32 = try allocator.create(ast.TypeNode);
+    int32.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
@@ -10,7 +18,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(i32),
         .alignment = @alignOf(i32),
     };
-    const int64 = ast.TypeNode{
+    const int32_Node = try allocator.create(ast.Node);
+    int32_Node.* = .{ .Type = int32 };
+
+    const int64 = try allocator.create(ast.TypeNode);
+    int64.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 1, // 0 none, 1 long, 2 long long
@@ -18,7 +30,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(i64),
         .alignment = @alignOf(i64),
     };
-    const int128 = ast.TypeNode{
+    const int64_node = try allocator.create(ast.Node);
+    int64_node.* = .{ .Type = int64 };
+
+    const int128 = try allocator.create(ast.TypeNode);
+    int128.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 2, // 0 none, 1 long, 2 long long
@@ -26,7 +42,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(i64),
         .alignment = @alignOf(i64),
     };
-    const uint32 = ast.TypeNode{
+    const int128_node = try allocator.create(ast.Node);
+    int128_node.* = .{ .Type = int128 };
+
+    const uint32 = try allocator.create(ast.TypeNode);
+    uint32.* = ast.TypeNode{
         .is_unsigned = true,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
@@ -34,7 +54,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(u32),
         .alignment = @alignOf(u32),
     };
-    const uint64 = ast.TypeNode{
+    const uint32_node = try allocator.create(ast.Node);
+    uint32_node.* = .{ .Type = uint32 };
+
+    const uint64 = try allocator.create(ast.TypeNode);
+    uint64.* = ast.TypeNode{
         .is_unsigned = true,
         .is_const = false,
         .qualifier = 1, // 0 none, 1 long, 2 long long
@@ -42,15 +66,23 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(u64),
         .alignment = @alignOf(u64),
     };
-    const uint128 = ast.TypeNode{
+    const uint64_node = try allocator.create(ast.Node);
+    uint64_node.* = .{ .Type = uint64 };
+
+    const uint128 = try allocator.create(ast.TypeNode);
+    uint128.* = ast.TypeNode{
         .is_unsigned = true,
         .is_const = false,
         .qualifier = 2, // 0 none, 1 long, 2
         .type_name = "ulong long",
-        .size = @sizeOf(u64),
-        .alignment = @alignOf(u64),
+        .size = @sizeOf(u128),
+        .alignment = @alignOf(u128),
     };
-    const float32 = ast.TypeNode{
+    const uint128_node = try allocator.create(ast.Node);
+    uint128_node.* = .{ .Type = uint128 };
+
+    const float32 = try allocator.create(ast.TypeNode);
+    float32.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
@@ -58,7 +90,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(f32),
         .alignment = @alignOf(f32),
     };
-    const float64 = ast.TypeNode{
+    const float32_node = try allocator.create(ast.Node);
+    float32_node.* = .{ .Type = float32 };
+
+    const float64 = try allocator.create(ast.TypeNode);
+    float64.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 1, // 0 none, 1 long, 2
@@ -66,7 +102,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(f64),
         .alignment = @alignOf(f64),
     };
-    const charu8 = ast.TypeNode{
+    const float64_node = try allocator.create(ast.Node);
+    float64_node.* = .{ .Type = float64 };
+
+    const charu8 = try allocator.create(ast.TypeNode);
+    charu8.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
@@ -74,7 +114,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(u8),
         .alignment = @alignOf(u8),
     };
-    const VOID = ast.TypeNode{
+    const charu8_node = try allocator.create(ast.Node);
+    charu8_node.* = .{ .Type = charu8 };
+
+    const VOID = try allocator.create(ast.TypeNode);
+    VOID.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
@@ -82,7 +126,11 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = 0,
         .alignment = 1,
     };
-    const catgirl = ast.TypeNode{
+    const VOID_node = try allocator.create(ast.Node);
+    VOID_node.* = .{ .Type = VOID };
+
+    const catgirl = try allocator.create(ast.TypeNode);
+    catgirl.* = ast.TypeNode{
         .is_unsigned = false,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
@@ -90,24 +138,28 @@ pub fn built_in_types(root: *ast.Node) ?*ast.Node {
         .size = @sizeOf(bool),
         .alignment = @alignOf(bool),
     };
-    const printf_node = m.parse_alloc.create(ast.FunctionNode) catch return null;
-    const nameparm = m.parse_alloc.create(ast.NameParameterNode) catch return null;
-    const p_ident = m.parse_alloc.create(ast.IdentifierNode) catch return null;
-    const body_node = m.parse_alloc.create(ast.Node) catch return null;
-    const ident_node = m.parse_alloc.create(ast.Node) catch return null;
-    p_ident.* = ast.IdentifierNode {.name = "printf"};
-    ident_node.* = ast.Node {.Identifier = p_ident};
-    nameparm.* = ast.NameParameterNode {.parameterList = null, .name = ident_node};
-    const nameparm_node = m.parse_alloc.create(ast.Node) catch return null;
-    nameparm_node.* = ast.Node { .NameParameterNode = nameparm };
-    printf_node.* = ast.FunctionNode {.retType = @constCast(&VOID), .nameParam = nameparm_node, .body = body_node};
-    const ret_node = m.parse_alloc.create(ast.Node) catch return null;
-    ret_node.* = ast.Node {.Function = printf_node};
+    const catgirl_node = try allocator.create(ast.Node);
+    catgirl_node.* = .{ .Type = catgirl };
 
-    const block_node = m.parse_alloc.create(ast.Node) catch return null;
-    const builtin_block = m.parse_alloc.create(ast.BlockItemsNode) catch return null;
-    builtin_block.* = ast.BlockItemsNode{ .items = [_]*ast.Node{ int32, int64, int128, uint32, uint64, uint128, float32, float64, charu8, VOID, ret_node, catgirl, root }};
-    block_node.* = ast.Node {.BlockItems = builtin_block };
+    const printf_node = try allocator.create(ast.FunctionNode);
+    const nameparm = try allocator.create(ast.NameParameterNode);
+    const p_ident = try allocator.create(ast.IdentifierNode);
+    const body_node = try allocator.create(ast.Node);
+    const ident_node = try allocator.create(ast.Node);
+    p_ident.* = ast.IdentifierNode{ .name = "printf" };
+    ident_node.* = ast.Node{ .Identifier = p_ident };
+    nameparm.* = ast.NameParameterNode{ .parameterList = null, .name = ident_node };
+    const nameparm_node = try allocator.create(ast.Node);
+    nameparm_node.* = ast.Node{ .NameParameterNode = nameparm };
+    printf_node.* = ast.FunctionNode{ .retType = VOID, .nameParam = nameparm_node, .body = body_node };
+    const ret_node = try allocator.create(ast.Node);
+    ret_node.* = ast.Node{ .Function = printf_node };
+
+    // ur shiii
+    const block_node = try allocator.create(ast.Node);
+    const builtin_block = try allocator.create(ast.BlockItemsNode);
+    builtin_block.* = ast.BlockItemsNode{ .items = @constCast(&[_]*ast.Node{ int32_Node, int64_node, int128_node, uint32_node, uint64_node, uint128_node, float32_node, float64_node, charu8_node, VOID_node, catgirl_node, ret_node, root }) };
+    block_node.* = ast.Node{ .BlockItems = builtin_block };
 
     return block_node;
 }
