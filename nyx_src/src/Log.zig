@@ -20,6 +20,11 @@ pub fn C_Warn(this_column: usize, this_line: usize, msg: [*c]const u8, source: [
     const new_hint = std.mem.span(hint);
     log(this_column, this_line, new_msg, source, new_hint, .WARN);
 }
+pub fn WarnLoc(loc: *ast.Location, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+    const new_msg = std.mem.span(msg);
+    const new_hint = std.mem.span(hint);
+    log(loc.col, loc.line, new_msg, source, new_hint, .WARN);
+}
 pub fn Warn(this_column: usize, this_line: usize, msg: []const u8, source: []const u8, hint: []const u8) void {
     log(this_column, this_line, msg, source, hint, .WARN);
 }
@@ -31,6 +36,11 @@ pub fn C_Error(this_column: usize, this_line: usize, msg: [*c]const u8, source: 
 }
 pub fn Error(this_column: usize, this_line: usize, msg: []const u8, source: []const u8, hint: []const u8) void {
     log(this_column, this_line, msg, source, hint, .ERROR);
+}
+pub fn ErrorLoc(loc: *ast.Location, msg: [*c]const u8, source: []const u8, hint: [*c]const u8) void {
+    const new_msg = std.mem.span(msg);
+    const new_hint = std.mem.span(hint);
+    log(loc.col, loc.line, new_msg, source, new_hint, .ERROR);
 }
 
 fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
