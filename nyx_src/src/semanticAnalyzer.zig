@@ -28,8 +28,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
 
             // add decl to symbol table
             st().assign_variable(decl) catch {
-            st().assign_variable(decl) catch {
-            st().assign_variable(decl) catch {
                 log.Error(
                     decl.location.?.col,
                     decl.location.?.line,
