@@ -250,15 +250,21 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         // everything below this is an "atomic" node and doesn't call anymore nodes
         .Identifier => {
-            if (ast.debug_mode) {
-                std.debug.print("Identifier node semantically analyzed!\n", .{});
-            }
             const ident = node.Identifier;
+            if (ast.debug_mode) {
+                std.debug.print("Identifier '{s}' BEFORE: spawner = {s}\n", .{ ident.name, if (ident.spawner == null) "null" else "set" });
+            }
 
             if (symbol_table.get_variable(node.Identifier.name)) |decl| {
                 ident.spawner = decl;
             } else {
                 log.Error(ident.location.?.col, ident.location.?.line, log.f_str("Variable {s} could not be found", .{node.Identifier.name}), m.diagnostic_source(ident.location.?.line), "");
+            }
+
+            if (ast.debug_mode) {
+                std.debug.print("Identifier '{s}' AFTER: spawner = {s}\n",
+                .{ ident.name, if (ident.spawner == null) "null" else "set"},
+                );
             }
         },
         .Constant => {
