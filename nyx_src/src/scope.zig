@@ -197,16 +197,6 @@ pub const SymbolTable = struct {
     pub fn assign_function(self: *SymbolTable, func_node: *ast.FunctionNode) !void {
         const key = func_node.nameParam.NameParameterNode.name.Identifier.name;
         try self.function_map.put(key, func_node);
-        if (func_node.nameParam.NameParameterNode.parameterList) |fp| {
-            for (fp.ParameterList.params) |p| {
-                switch (p.*) {
-                    .Declaration => |dp| {try assign_variable(self, dp);},
-                    else => {
-                        if(ast.debug_mode) std.debug.print("Non declaration node hit. {any}", .{p});
-                    },
-                }
-            }
-        }
     }
 
     // We need 3 Get functions to retrieve types, variables and functions from our symbol table
