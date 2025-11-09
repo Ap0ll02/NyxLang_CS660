@@ -13,7 +13,6 @@ pub fn st() *scope.SymbolTable {
 }
 
 pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
-    var symbol_table = st();
     if (node_opt == null) {
         return;
     }
@@ -24,6 +23,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
 
             // add decl to symbol table
+            st().assign_variable(decl) catch {
             st().assign_variable(decl) catch {
                 log.Error(
                     decl.location.?.col,
@@ -56,7 +56,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const func = node.Function;
 
             // add function to symbol table
-            if (ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
+            if(ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
             st().assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
@@ -97,8 +97,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
-            if (ast.debug_mode) symbol_table.print_sym_tables();
-            const new_table = symbol_table.push();
+            if (ast.debug_mode)  st().print_sym_tables();
+            const new_table = st().push();
             if (new_table) |nt| {
                 setSymbolTable(nt);
             }
@@ -108,7 +108,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 semantic_analyze_node(item);
             }
 
-            const prev_table = symbol_table.pop();
+            const prev_table = st().pop();
             if (prev_table) |pt| {
                 setSymbolTable(pt);
             }
