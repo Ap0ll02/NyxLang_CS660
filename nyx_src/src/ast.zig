@@ -205,6 +205,7 @@ pub const PointerNode = struct {
     pointee: ?*Node,
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
+    depth: u32 = 0,
 };
 
 pub const IdPointerNode = struct {
@@ -809,7 +810,7 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 // export fn make_param_dec(d_spec: *Node) ?*Node {
 //     if(make_assignment_node(d_spec, null, null)) |an| {
 //         const assignment_node = glob_alloc.create(AssignmentNode) catch return null;
-//         assignment_node.* = an.Assignment.*; 
+//         assignment_node.* = an.Assignment.*;
 //         const decl = glob_alloc.create(DeclarationNode) catch return null;
 //         decl.* = make_declaration_node(assignment_node);
 //         const node = glob_alloc.create(Node) catch return null;
@@ -1002,15 +1003,18 @@ export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr:
 // ===============
 export fn make_pointer_node(pointee: ?*Node) ?*Node {
     const pointer_node = glob_alloc.create(PointerNode) catch return null;
+    pointer_node.* = .{ .pointee = pointee, .location = get_location(), .depth = 1 };
 
-    pointer_node.* = PointerNode{ .pointee = pointee, .location = get_location() };
+    if (pointee) |p| {
+        if (p.* == .Pointer) {
+            const inner_pointer = p.Pointer;
+            pointer_node.depth = inner_pointer.depth + 1;
+        }
+    }
 
     const node = glob_alloc.create(Node) catch return null;
-
-    node.* = Node{ .Pointer = pointer_node };
-
-    const n: *Node = @ptrCast(node);
-    return n;
+    node.* = .{ .Pointer = pointer_node };
+    return node;
 }
 
 export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
