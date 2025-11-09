@@ -13,7 +13,6 @@ pub fn st() *scope.SymbolTable {
 }
 
 pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
-    var symbol_table = st();
     if (node_opt == null) {
         return;
     }
@@ -24,7 +23,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
 
             // add decl to symbol table
-            symbol_table.assign_variable(decl) catch {
+            st().assign_variable(decl) catch {
                 log.Error(
                     decl.location.?.col,
                     decl.location.?.line,
@@ -57,12 +56,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
 
             // add function to symbol table
             if(ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
-            symbol_table.assign_function(func) catch {
+            st().assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
             if(func.nameParam.NameParameterNode.parameterList) |fp| {
                 for (fp.ParameterList.params) |p| {
-                    symbol_table.assign_variable(p.Declaration) catch {
+                    st().assign_variable(p.Declaration) catch {
                         log.Error(func.location.?.col, func.location.?.line, "Error assigning parameters to symbol table", m.diagnostic_source(func.location.?.line), "");
                     };
                 }
@@ -78,7 +77,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const funcCall = node.FunctionCall;
 
             // check if function exists in symbol table
-            if (symbol_table.get_function(funcCall.name.Identifier.name)) |func| {
+            if (st().get_function(funcCall.name.Identifier.name)) |func| {
                 funcCall.spawner = func;
             } else {
                 log.Error(funcCall.location.?.col, funcCall.location.?.line, 
@@ -99,8 +98,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
-            if (ast.debug_mode) symbol_table.print_sym_tables();
-            const new_table = symbol_table.push();
+            if (ast.debug_mode)  st().print_sym_tables();
+            const new_table = st().push();
             if (new_table) |nt| {
                 setSymbolTable(nt);
             }
@@ -110,7 +109,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 semantic_analyze_node(item);
             }
 
-            const prev_table = symbol_table.pop();
+            const prev_table = st().pop();
             if (prev_table) |pt| {
                 setSymbolTable(pt);
             }
@@ -266,7 +265,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 std.debug.print("Identifier '{s}' BEFORE: spawner = {s}\n", .{ ident.name, if (ident.spawner == null) "null" else "set" });
             }
 
-            if (symbol_table.get_variable(node.Identifier.name)) |decl| {
+            if (st().get_variable(node.Identifier.name)) |decl| {
                 ident.spawner = decl;
             } else {
                 log.Error(ident.location.?.col, ident.location.?.line, log.f_str("Variable {s} could not be found", .{node.Identifier.name}), m.diagnostic_source(ident.location.?.line), "");
