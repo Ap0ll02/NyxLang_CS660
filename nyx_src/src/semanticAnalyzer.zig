@@ -60,8 +60,13 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             symbol_table.assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
-
-            // semantic_analyze_node(func.nameParam);
+            if(func.nameParam.NameParameterNode.parameterList) |fp| {
+                for (fp.ParameterList.params) |p| {
+                    symbol_table.assign_variable(p.Declaration) catch {
+                        log.Error(func.location.?.col, func.location.?.line, "Error assigning parameters to symbol table", m.diagnostic_source(func.location.?.line), "");
+                    };
+                }
+            }
             semantic_analyze_node(func.body);
 
             // TODO might need to add this later to type check
