@@ -33,7 +33,7 @@ pub const ConstantNode = struct {
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
     typeNode: *TypeNode, // Structs will return StructNode here, others return TypeNode
-    assignNode: ?*Node,
+    assignNode: ?*Node = null,
     location: ?*Location = null,
 };
 pub const StructDeclarationNode = struct {
@@ -171,13 +171,12 @@ pub const TypeNode = extern struct {
     type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
-    typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
-    initializer: ?*Node, // i.e. 5 in int x = 5;
-    ass_op: ?*Node, // i.e. *=
+    initializer: ?*Node = null, // i.e. 5 in int x = 5;
+    ass_op: ?*Node = null, // i.e. *=
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
@@ -555,7 +554,7 @@ export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
     return n;
 }
 
-export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *Node) ?*Node {
+export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: ?*Node) ?*Node {
     const assignment_node = glob_alloc.create(AssignmentNode) catch return null;
     assignment_node.* = .{ .declarator = declarator, .initializer = initializer, .ass_op = ass_op, .location = get_location() };
 
@@ -568,7 +567,8 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: *
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
 export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
-    // std.debug.print("make_declaration_node function reached\n", .{});
+    if (debug_mode) std.debug.print("Dec Node: {any}\n", .{typeNode});
+    if (debug_mode) std.debug.print("Dec Node Name?: {any}\n", .{typeNode.Type.type_name});
     // We create the declaration node
     if (typeNode.* == .Struct) {
         const decl_node = glob_alloc.create(StructDeclarationNode) catch return null;
@@ -806,15 +806,17 @@ export fn append_block_list(item: *Node, items: ?*Node) ?*Node {
 // With a runtime array alloc(*Node, 1) allocates memory for 1 element at runtime
 // Returns a slice ([]*Node) that can be resized later
 // You can create new slices with different sizes and copy data between them
-export fn make_param_dec(declarator: *Node) ?*Node {
-    const assignment_node = glob_alloc.create(AssignmentNode) catch return null;
-    assignment_node.* = make_assignment_node(declarator, null, null);
-    const decl = glob_alloc.create(DeclarationNode) catch return null;
-    decl.* = make_declaration_node(assignment_node.typeNode, assignment_node);
-    const node = glob_alloc.create(Node) catch return null;
-    node.* = Node{ .Assignment = assignment_node };
-    return node;
-}
+// export fn make_param_dec(d_spec: *Node) ?*Node {
+//     if(make_assignment_node(d_spec, null, null)) |an| {
+//         const assignment_node = glob_alloc.create(AssignmentNode) catch return null;
+//         assignment_node.* = an.Assignment.*; 
+//         const decl = glob_alloc.create(DeclarationNode) catch return null;
+//         decl.* = make_declaration_node(assignment_node);
+//         const node = glob_alloc.create(Node) catch return null;
+//         node.* = Node{ .Declaration = decl };
+//         return node;
+//     }
+// }
 
 export fn append_parameter_list(item: *Node, items: ?*Node) ?*Node {
     // If items is null, then we have a declaration node so we, create a new ParameterListNode with the item as the first element
