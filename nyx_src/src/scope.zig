@@ -188,7 +188,12 @@ pub const SymbolTable = struct {
         const type_ptr = decl_node.typeNode;
         const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
 
-        const key = decl_node.assignNode.?.Assignment.declarator.Identifier.name;
+        const test_key = decl_node.assignNode.?.Assignment.declarator;
+        const key = switch (test_key.*) {
+            .Identifier => |id| id.name,
+            .IdPointer => |id| id.identifier.Identifier.name,
+            else => "null",
+        };
         if (ast.debug_mode) std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
         try self.variable_map.put(key, decl_node);
         if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
