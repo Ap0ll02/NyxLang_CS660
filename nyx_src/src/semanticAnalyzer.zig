@@ -13,7 +13,7 @@ pub fn st() *scope.SymbolTable {
 }
 
 pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
-    const symbol_table = st();
+    var symbol_table = st();
     if (node_opt == null) {
         return;
     }
@@ -99,9 +99,20 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
+            if (ast.debug_mode) symbol_table.print_sym_tables();
+            const new_table = symbol_table.push();
+            if (new_table) |nt| {
+                setSymbolTable(nt);
+            }
+
             const block_items = node.BlockItems;
             for (block_items.items) |item| {
                 semantic_analyze_node(item);
+            }
+
+            const prev_table = symbol_table.pop();
+            if (prev_table) |pt| {
+                setSymbolTable(pt);
             }
         },
         // TODO everything below this gets to do cool fun stuff w/ type checking (probably others too)
