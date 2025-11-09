@@ -477,9 +477,15 @@ parameter_list
 	;
 
 parameter_declaration
-	: declaration_specifiers declarator { $$ = make_assignment_node($2, NULL, NULL); }
+	: declaration_specifiers declarator { 
+        struct Node *assign = make_assignment_node($2, NULL, NULL);
+        $$ = make_declaration_node($1, assign); 
+    }
 	| declaration_specifiers abstract_declarator
-	| declaration_specifiers { $$ = make_assignment_node($1, NULL, NULL); }
+	| declaration_specifiers { 
+        struct Node *assign = make_assignment_node($1, NULL, NULL);
+        $$ = make_declaration_node($1, assign); 
+    }
 	;
 
 identifier_list
