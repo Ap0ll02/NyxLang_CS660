@@ -1,8 +1,3 @@
-int cool() {
-    int y = 10;
-}
-
 int main() {
-    char hello = '7';
-    int x = cool();
+    char* name = "Jack";
 }
