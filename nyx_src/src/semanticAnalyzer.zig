@@ -13,6 +13,7 @@ pub fn st() *scope.SymbolTable {
 }
 
 pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
+    var symbol_table = st();
     if (node_opt == null) {
         return;
     }
@@ -129,8 +130,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
-            if (ast.debug_mode) st().print_sym_tables();
-            const new_table = st().push();
+            if (ast.debug_mode) symbol_table.print_sym_tables();
+            const new_table = symbol_table.push();
             if (new_table) |nt| {
                 setSymbolTable(nt);
             }
@@ -140,7 +141,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 semantic_analyze_node(item);
             }
 
-            const prev_table = st().pop();
+            const prev_table = symbol_table.pop();
             if (prev_table) |pt| {
                 setSymbolTable(pt);
             }
