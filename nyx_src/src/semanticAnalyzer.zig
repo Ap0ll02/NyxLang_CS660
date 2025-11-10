@@ -53,14 +53,16 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 switch(init.*) {
                     .Identifier => |id| {
                         const str1 = std.mem.span(id.typeNode.?.type_name);
-                        const str2 = std.mem.span(assgn.typeNode.?.type_name);
-                        if(!std.mem.eql(u8, str1, str2)) {
-                            log.WarnLoc(
-                                assgn.location.?, 
-                                "Mismatched types", 
-                                m.diagnostic_source(assgn.location.?.line),
-                                log.f_str("Change variable type to match initializer: {s}", .{id.typeNode.?.type_name} )
-                            );
+                        if (assgn.typeNode) |atn| {
+                            const str2 = std.mem.span(atn.type_name);
+                            if(!std.mem.eql(u8, str1, str2)) {
+                                log.WarnLoc(
+                                    assgn.location.?, 
+                                    "Mismatched types", 
+                                    m.diagnostic_source(assgn.location.?.line),
+                                    log.f_str("Change variable type to match initializer: {s}", .{id.typeNode.?.type_name} )
+                                );
+                            }
                         }
                     }, 
                     .Constant => |c| {
