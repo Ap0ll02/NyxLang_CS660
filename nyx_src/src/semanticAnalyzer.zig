@@ -119,20 +119,23 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             } else {
                 log.Error(funcCall.location.?.col, funcCall.location.?.line, log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
             }
-            if(funcCall.arity < funcCall.spawner.?.arity) {
-                log.ErrorLoc(
-                    funcCall.location.?, 
-                    "Too few arguments for function", 
-                    m.diagnostic_source(funcCall.location.?.line), 
-                    "Ensure argument arity matches function arity."
-                );
-            } else if(funcCall.arity > funcCall.spawner.?.arity) {
-                log.ErrorLoc(
-                    funcCall.location.?, 
-                    "Too many arguments for function", 
-                    m.diagnostic_source(funcCall.location.?.line), 
-                    "Ensure argument arity matches function arity."
-                );
+
+            if(funcCall.spawner.?.arity != 1000) {
+                if(funcCall.arity < funcCall.spawner.?.arity) {
+                    log.ErrorLoc(
+                        funcCall.location.?, 
+                        "Too few arguments for function", 
+                        m.diagnostic_source(funcCall.location.?.line), 
+                        "Ensure argument arity matches function arity."
+                    );
+                } else if(funcCall.arity > funcCall.spawner.?.arity) {
+                    log.ErrorLoc(
+                        funcCall.location.?, 
+                        "Too many arguments for function", 
+                        m.diagnostic_source(funcCall.location.?.line), 
+                        "Ensure argument arity matches function arity."
+                    );
+                }
             }
 
             if (funcCall.args) |argsNode| {
