@@ -1,0 +1,155 @@
+Starting Production:
+struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+
+Parsing the following code:
+struct Person {
+	int age;
+	float height;
+	struct Blood {
+		char* type;
+		float quantity;
+	};
+};
+
+---------------------------------------------------------------------------------------------------------
+STRUCT Person { struct_declaration_list }
+
+STRUCT Person { struct_declaration_list struct_declaration }
+
+STRUCT Person { struct_declaration_list struct_declaration struct_declaration }
+
+STRUCT Person { struct_declaration struct_declaration struct_declaration }
+
+STRUCT Person { struct_declaration struct_declaration struct_declaration }
+
+STRUCT Person { 
+	specifier_qualifier_list struct_declarator_list;
+	specifier_qualifier_list struct_declarator_list;
+	specifier_qualifier_list;
+}
+
+STRUCT Person { 
+	type_specifier struct_declarator_list;
+	type_specifier struct_declarator_list;
+	type_specifier;
+}
+
+STRUCT Person {
+	INT struct_declarator_list;
+	FLOAT struct_declarator_list;
+	type_specifier;
+}
+
+STRUCT Person {
+	INT struct_declarator;
+	FLOAT struct_declarator;
+	struct_or_union_specifier;
+}
+
+STRUCT Person {
+	INT declarator;
+	FLOAT declarator;
+	struct_or_union { struct_declaration_list };
+}
+
+STRUCT Person {
+	INT direct_declarator;
+	FLOAT direct_declarator;
+	STRUCT IDENTIFIER { struct_declaration_list };
+}
+
+STRUCT Person {
+	INT IDENTIFIER;
+	FLOAT IDENTIFIER;
+	STRUCT Blood { struct_declaration_list struct_declaration};
+}
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		struct_declaration
+		struct_declaration
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		specifier_qualifier_list struct_declarator_list;
+		specifier_qualifier_list struct_declarator_list;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		type_specifier struct_declarator_list;
+		type_specifier struct_declarator_list;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR struct_declarator_list;
+		FLOAT struct_declarator_list;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR struct_declarator;
+		FLOAT struct_declarator;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR declarator;
+		FLOAT declarator;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR pointer direct_declarator;
+		FLOAT direct_declarator;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR * direct_declarator;
+		FLOAT IDENTIFIER;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR * IDENTIFIER;
+		FLOAT quantity;
+	};
+};
+
+STRUCT Person {
+	INT age;
+	FLOAT height;
+	STRUCT Blood {
+		CHAR * type;
+		FLOAT quantity;
+	};
+};
