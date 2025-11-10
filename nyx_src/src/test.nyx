@@ -1,4 +1,6 @@
-int main() {
+int
+main() 
+{
     int *x = 0;
     int ***cat;
     unsigned long int hello = 400;
