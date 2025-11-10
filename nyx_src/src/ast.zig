@@ -165,6 +165,7 @@ pub const FloatNode = struct {
 pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
 pub const TypeNode = extern struct {
     is_unsigned: bool = false,
+    is_floating: bool = false,
     is_const: bool = false,
     qualifier: usize = 0, // 0 none, 1 long, 2 long long
     base: BaseType = .INT,
@@ -524,7 +525,7 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     const name_copy = glob_alloc.dupe(u8, std.mem.span(name)) catch return null;
 
     // We set the name for the identifier node
-    id_node.* = IdentifierNode{ .name = name_copy, .location = get_location() };
+    id_node.* = IdentifierNode{ .name = name_copy, .location = get_location()};
 
     // We create a *node that wraps a specific node type
     const node = glob_alloc.create(Node) catch return null;
@@ -536,14 +537,18 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     return n;
 }
 // if we want float constants
-export fn make_constant_node(value: [*c]const u8, typeNode: *TypeNode) ?*Node {
+export fn make_constant_node(value: [*c]const u8, typeval: c.yytokentype) ?*Node {
     // We create the constant node
     const const_node = glob_alloc.create(ConstantNode) catch return null;
     // We set the value and type information for the constant node
     if (@TypeOf(value) != [*c]const u8) return null;
     const val_copy = glob_alloc.dupe(u8, std.mem.span(value)) catch return null;
-
-    const_node.* = ConstantNode{ .value = val_copy, .typeNode = typeNode, .location = get_location() };
+    const type_node = make_type_node(typeval);
+    if(type_node) |tn| {
+        const_node.* = ConstantNode{ .value = val_copy, .typeNode = tn.Type, .location = get_location() };
+    } else {
+        const_node.* = ConstantNode{ .value = val_copy, .typeNode = make_type_node(c.INT).?.Type, .location = get_location() };
+    }
 
     // We create a *node that wraps a specific node type
     const node = glob_alloc.create(Node) catch return null;
@@ -714,15 +719,17 @@ export fn make_pre_fix_node(token: c.yytokentype, val: *Node) ?*Node {
 }
 
 export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
-    const fnode = glob_alloc.create(FloatNode) catch return null;
+    const fnode = glob_alloc.create(ConstantNode) catch return null;
     if (@TypeOf(val) != f32) {
         return null;
     }
-    fnode.* = FloatNode{ .val = val, .location = get_location() };
-
+    fnode.* = ConstantNode { 
+        .value = std.fmt.allocPrint(glob_alloc, "{d}", .{val}) catch return null,
+        .typeNode = make_type_node(c.FLOAT).?.Type,
+        .location = get_location()
+    };
     const node = glob_alloc.create(Node) catch return null;
-
-    node.* = Node{ .Float = fnode };
+    node.* = Node{ .Constant = fnode };
 
     const n: *Node = @ptrCast(node);
     return n;
