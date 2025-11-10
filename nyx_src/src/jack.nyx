@@ -1,3 +1,5 @@
 int main() {
-    char* name = "Jack";
+    int x = 20;
+    float y = 20.987;
+    int z = y + x;
 }
