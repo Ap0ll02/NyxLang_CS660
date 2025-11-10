@@ -154,7 +154,7 @@ pub fn built_in_types(
     nameparm.* = ast.NameParameterNode{ .parameterList = null, .name = ident_node };
     const nameparm_node = try allocator.create(ast.Node);
     nameparm_node.* = ast.Node{ .NameParameterNode = nameparm };
-    printf_node.* = ast.FunctionNode{ .retType = VOID, .nameParam = nameparm_node, .body = body_node };
+    printf_node.* = ast.FunctionNode{ .retType = VOID, .nameParam = nameparm_node, .body = body_node, .arity = 1000 };
     const ret_node = try allocator.create(ast.Node);
     ret_node.* = ast.Node{ .Function = printf_node };
 
