@@ -88,11 +88,11 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const func = node.Function;
 
             // add function to symbol table
-            if(ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
+            if (ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
             st().assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
-            if(func.nameParam.NameParameterNode.parameterList) |fp| {
+            if (func.nameParam.NameParameterNode.parameterList) |fp| {
                 for (fp.ParameterList.params) |p| {
                     st().assign_variable(p.Declaration) catch {
                         log.Error(func.location.?.col, func.location.?.line, "Error assigning parameters to symbol table", m.diagnostic_source(func.location.?.line), "");
@@ -113,9 +113,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (st().get_function(funcCall.name.Identifier.name)) |func| {
                 funcCall.spawner = func;
             } else {
-                log.Error(funcCall.location.?.col, funcCall.location.?.line, 
-                    log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), 
-                    m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
+                log.Error(funcCall.location.?.col, funcCall.location.?.line, log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
             }
 
             if (funcCall.args) |argsNode| {
@@ -131,7 +129,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
-            if (ast.debug_mode)  st().print_sym_tables();
+            if (ast.debug_mode) st().print_sym_tables();
             const new_table = st().push();
             if (new_table) |nt| {
                 setSymbolTable(nt);
@@ -320,8 +318,9 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             }
 
             if (ast.debug_mode) {
-                std.debug.print("Identifier '{s}' AFTER: spawner = {s}\n",
-                .{ ident.name, if (ident.spawner == null) "null" else "set"},
+                std.debug.print(
+                    "Identifier '{s}' AFTER: spawner = {s}\n",
+                    .{ ident.name, if (ident.spawner == null) "null" else "set" },
                 );
             }
         },

@@ -46,6 +46,7 @@ struct Node* make_struct_decl(struct Node* identifier_node, struct Node* decl_li
 struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
 struct Node* make_structunion_node(enum yytokentype t);
 struct Node* append_translation_unit(struct Node* unit, struct Node* prev);
+struct Node* make_array_node(struct Node* identifier_node, struct Node* constant_node);
 
 struct Node* make_assignment_op_node(enum yytokentype token);
 struct Node* make_float_node(float f);
@@ -268,7 +269,7 @@ constant_expression
 
 declaration
 	: declaration_specifiers ';' { $$ = make_declaration_node($1, NULL); }
-	| declaration_specifiers init_declarator_list ';' { $$ = make_declaration_node($1, $2); }
+	| declaration_specifiers init_declarator_list ';' { $$ = make_declaration_node($1, $2); } // we make decl node here
 	| static_assert_declaration { }
 	;
 
@@ -447,7 +448,7 @@ direct_declarator
 	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list ']'
-	| direct_declarator '[' assignment_expression ']'
+	| direct_declarator '[' assignment_expression ']' {$$ = make_array_node($1,$3); }
 	| direct_declarator '(' parameter_type_list ')' {$$ = make_name_parameter_node($1, $3); }
 	| direct_declarator '(' ')' { $$ = make_name_parameter_node($1, NULL); }
 	| direct_declarator '(' identifier_list ')'
