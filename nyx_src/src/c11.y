@@ -19,7 +19,7 @@ void zig_error(const char *hint, const char *msg);
 struct Node* node;
 struct Node* make_identifier_node(const char *s);
 struct Node* make_declaration_node(struct Node* typeNode, struct Node* asgnNode);
-struct Node* make_constant_node(int s);
+struct Node* make_constant_node(int s, enum yytokentype typeval);
 struct Node* make_type_node(enum yytokentype token);
 struct Node* make_assignment_node(struct Node* declarator, struct Node* initializer, struct Node* ass_op);
 struct Node* make_conditional_expression_node(struct Node* expr1, enum yytokentype token, struct Node* expr2);
@@ -105,7 +105,7 @@ primary_expression
 	;
 
 constant
-	: I_CONSTANT { $$ = make_constant_node($1); }		/* includes character_constant */
+	: I_CONSTANT { $$ = make_constant_node($1, INT); }		/* includes character_constant */
 	| F_CONSTANT { $$ = make_float_node($1); }
 	| ENUMERATION_CONSTANT { $$ = make_identifier_node($1); }	/* after it has been defined as such */
 	;
