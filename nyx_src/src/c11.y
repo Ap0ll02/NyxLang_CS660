@@ -42,7 +42,7 @@ struct Node* make_pre_fix_node(enum yytokentype operator, struct Node* base);
 struct Node* combine_type_node(struct Node* left, struct Node* right);
 struct Node* append_struct_decl_list(struct Node* decl, struct Node* decls);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
-struct Node* make_struct_decl(struct Node* identifier_node, struct Node* decl_list_node);
+struct Node* make_struct_declaration(struct Node* identifier_node, struct Node* decl_list_node);
 struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
 struct Node* make_structunion_node(enum yytokentype t);
 struct Node* append_translation_unit(struct Node* unit, struct Node* prev);
@@ -354,7 +354,7 @@ type_specifier
 	;
 
 struct_or_union_specifier
-	: struct_or_union '{' struct_declaration_list '}' // struct_declaration_list	// anonymous struct/union -> struct { int x; float y; ... }
+	: struct_or_union '{' struct_declaration_list '}' {$$ = make_struct_or_union($1, NULL, $3); } // struct_declaration_list	// anonymous struct/union -> struct { int x; float y; ... }
 	| struct_or_union IDENTIFIER '{' struct_declaration_list '}' {$$ = make_struct_or_union($1, $2, $4); }// named struct/union -> struct Foo { int x; float y; ... }
 	| struct_or_union IDENTIFIER  { $$ = make_struct_or_union($1, $2, NULL); } // make ident node? // reference to previously defined struct/union -> struct Foo
 	;
@@ -370,9 +370,9 @@ struct_declaration_list
 	;
 
 struct_declaration
-	: specifier_qualifier_list ';' { make_struct_decl($1, NULL); } /* for anonymous struct/union */
-	| specifier_qualifier_list struct_declarator_list ';' { make_struct_decl($1, $2); }	/* for named struct/union */
-	| static_assert_declaration {}
+	: specifier_qualifier_list ';' { make_struct_declaration($1, NULL); } /* for anonymous struct/union */
+	| specifier_qualifier_list struct_declarator_list ';' { make_struct_declaration($1, $2); }	/* for named struct/union */
+	| static_assert_declaration
 	;
 
 specifier_qualifier_list

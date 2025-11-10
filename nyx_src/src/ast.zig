@@ -36,12 +36,10 @@ pub const DeclarationNode = struct {
     assignNode: ?*Node = null,
     location: ?*Location = null,
 };
-pub const StructDeclarationNode = struct {
-    packedNode: *Node,
-    assignNode: ?*Node,
-    typeNode: ?*TypeNode = null,
-    location: ?*Location = null,
-};
+// pub const StructDeclarationNode = struct { packedNode: *Node,
+//     assignNode: ?*Node,
+//     location: ?*Location = null,
+// };
 pub const FunctionNode = struct {
     retType: *TypeNode,
     nameParam: *Node,
@@ -228,6 +226,30 @@ pub const TranslationUnitListNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
+pub const StructOrUnionSpecifierNode = struct {
+    identifier: ?*Node,
+    struct_declaration_list: ?[]*Node,
+    location: ?*Location = null,
+    // typeNode: ?*TypeNode = null,
+};
+pub const StructOrUnionNode = struct {
+    type: c.yytokentype,
+    location: ?*Location = null,
+};
+pub const StructDeclarationListNode = struct {
+    struct_declarations: []*Node,
+    location: ?*Location = null,
+};
+pub const StructDeclarationNode = struct {
+    specifier: *Node, // TODO need to support more complex specifiers
+    declarators: []*Node,
+    location: ?*Location = null,
+};
+pub const StructDeclaratorListNode = struct {
+    declarators: []*Node,
+    location: ?*Location = null,
+};
+
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -260,7 +282,7 @@ pub const NodeTag = enum {
 
     // Variables, Pointers and Arrays
     Declaration,
-    StructDeclaration,
+    // StructDeclaration, // name overlap w/ below, need to fix
     Assignment,
 
     // Control Flow (If, Loops)
@@ -288,11 +310,11 @@ pub const NodeTag = enum {
     Array,
 
     // Structs
-    StructDecl,
-    StructDeclList,
+    StructDeclaration,
+    StructDeclarationList,
     StructDeclaratorList,
-    Struct,
-    StructUnion,
+    StructOrUnionSpecifier,
+    StructOrUnion,
 };
 
 pub const Node = union(NodeTag) {
@@ -321,7 +343,7 @@ pub const Node = union(NodeTag) {
 
     // Vars
     Declaration: *DeclarationNode,
-    StructDeclaration: *StructDeclarationNode,
+    //?? where
     Assignment: *AssignmentNode,
 
     // Control Flow
@@ -349,11 +371,11 @@ pub const Node = union(NodeTag) {
     Array: *ArrayNode,
 
     // Structs
-    StructDecl: *StructDeclNode,
-    StructDeclList: *StructDeclListNode,
+    StructDeclarationList: *StructDeclarationListNode,
+    StructDeclaration: *StructDeclarationNode,
     StructDeclaratorList: *StructDeclaratorListNode,
-    Struct: *StructNode,
-    StructUnion: *StructUnionNode,
+    StructOrUnionSpecifierNode: *StructOrUnionSpecifierNode,
+    StructOrUnion: *StructOrUnionNode,
 };
 
 // Type information structure
@@ -588,7 +610,7 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: ?
 // int y;      // initializer is null
 export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     if (debug_mode) std.debug.print("Dec Node: {any}\n", .{typeNode});
-    if (debug_mode) std.debug.print("Dec Node Name?: {any}\n", .{typeNode.Type.type_name});
+    // if (debug_mode) std.debug.print("Dec Node Name?: {any}\n", .{typeNode.Type.type_name});
     // We create the declaration node
     if (typeNode.* == .Struct) {
         const decl_node = glob_alloc.create(StructDeclarationNode) catch return null;
@@ -1072,135 +1094,128 @@ export fn make_array_node(identifier_node: *Node, constant_node: *Node) ?*Node {
 // |   Structs   |
 // ===============
 
-pub const StructNode = struct {
-    name: ?*Node,
-    decl_list: ?[]*Node,
-    location: ?*Location = null,
-};
-pub const StructUnionNode = struct {
-    type: c.yytokentype,
-    location: ?*Location = null,
-};
+export fn make_struct_or_union(struct_or_union: *Node, identifier: ?[*c]const u8, struct_declarations: ?*Node) ?*Node {
+    var meow_node = undefined;
+    var identifier_node: *Node = undefined;
+    var struct_decls: []*Node = undefined;
 
-export fn make_structunion_node(t: c.yytokentype) ?*Node {
-    const us = glob_alloc.create(StructUnionNode) catch return null;
-    const node = glob_alloc.create(Node) catch return null;
-
-    switch (t) {
-        c.UNION => {
-            us.* = StructUnionNode{ .type = c.UNION, .location = get_location() };
-        },
+    if (identifier) |i| {
+        identifier_node = make_identifier_node(i);
+    } else {
+        // Anonymous StructDeclaration
+        const anon_id: [*c]const u8 = "<anonymous>";
+        identifier_node = make_identifier_node(anon_id);
+        // const anon_name = glob_alloc.create(IdentifierNode) catch return null;
+        // anon_name.* = IdentifierNode{ .name = "<anonymous>", .location = get_location() };
+        // const node = glob_alloc.create(Node) catch return null;
+        // node.* = Node{ .Identifier = anon_name };
+        // identifier_node = node;
+    }
+    // Handling for structs
+    switch (struct_or_union.type) {
         c.STRUCT => {
-            us.* = StructUnionNode{ .type = c.STRUCT, .location = get_location() };
+            meow_node = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
+
+            if (struct_declarations) |sdl| {
+                struct_decls = sdl;
+            } else {
+                // If no StructDeclarationListNode, make StructDeclarationListNode and only grab it's field
+                const empty_decl_list = glob_alloc.alloc(*StructDeclarationListNode, 0) catch return null;
+
+                const sdl_node = glob_alloc.create(Node) catch return null;
+                sdl_node.* = Node{ .StructDeclarationList = s };
+                struct_decls = empty_decl_list;
+            }
+
         },
         else => {
-            us.* = StructUnionNode{ .type = c.VOID, .location = get_location() };
+
         },
     }
+    if (struct_or_union.StructOrUnion.type == c.STRUCT) {
 
-    node.* = Node{ .StructUnion = us };
-    return node;
-}
-export fn make_struct_or_union(struct_or_union: *Node, identifier: [*c]const u8, decl_list_node: ?*Node) ?*Node {
-    const struct_node = glob_alloc.create(StructNode) catch return null;
-    var id: ?*Node = null;
-    var decl_list: []*Node = undefined;
-    if (identifier) |i| {
-        id = make_identifier_node(i);
-    } else {
-        // Anonymous struct
-        const anon_name = glob_alloc.create(IdentifierNode) catch return null;
-        anon_name.* = IdentifierNode{ .name = "<anonymous>", .location = get_location() };
-        const node = glob_alloc.create(Node) catch return null;
-        node.* = Node{ .Identifier = anon_name };
-        id = node;
-    }
-    // For now, we only handle struct
-    if (struct_or_union.StructUnion.type == c.STRUCT) {
-        if (decl_list_node) |dl| {
-            decl_list = dl.StructDeclList.decl_list;
-        } else {
-            const empty_decl_list = glob_alloc.alloc(*StructNode, 0) catch return null;
-            decl_list = empty_decl_list;
-        }
-        var name: *Node = undefined;
-        if (id) |ident| {
-            name = ident;
-        } else {
-            return null;
-        }
-        struct_node.* = StructNode{ .name = name, .decl_list = decl_list, .location = get_location() };
+        struct_node.* = StructOrUnionNode{ .name = name, .decl_list = decl_list, .location = get_location() };
 
         const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .Struct = struct_node };
         return node;
-    } else {
+    } else { // TODO implement union handling
         return null; //union later
     }
 }
 
-pub const StructDeclNode = struct {
-    type: *Node,
-    decl_list: []*Node,
-    location: ?*Location = null,
-};
-pub const StructDeclListNode = struct {
-    decl_list: []*Node,
-    location: ?*Location = null,
-};
+export fn make_struct_or_union_node(t: c.yytokentype) ?*Node {
+    const sn = glob_alloc.create(StructOrUnionNode) catch return null;
+    const node = glob_alloc.create(Node) catch return null;
 
-export fn append_struct_decl_list(decl: *Node, decls: ?*Node) ?*Node {
-    if (decls == null) {
-        const list_node = glob_alloc.create(StructDeclListNode) catch return null;
+    switch (t) {
+        // c.UNION => {
+        //     us.* = StructOrUnionNode{ .type = c.UNION, .location = get_location() };
+        // },
+        c.STRUCT => {
+            sn.* =  StructOrUnionNode{ .type = c.STRUCT, .location = get_location() };
+        },
+        else => {
+            sn.* = StructOrUnionNode{ .type = c.VOID, .location = get_location() };
+        },
+    }
+
+    node.* = Node{ .StructOrUnion = sn };
+    return node;
+}
+
+export fn append_struct_declaration_list(declaration: *Node, declarations: ?*Node) ?*Node {
+    if (declarations == null) {
+        const list_node = glob_alloc.create(StructDeclarationListNode) catch return null;
 
         const new_node = glob_alloc.alloc(*Node, 1) catch return null;
-        new_node[0] = decl;
+        new_node[0] = declaration;
 
         // Set the params field
-        list_node.* = StructDeclListNode{ .decl_list = new_node, .location = get_location() };
+        list_node.* = StructDeclarationListNode{ .struct_declarations = new_node, .location = get_location() };
 
         const node = glob_alloc.create(Node) catch return null;
-        node.* = Node{ .StructDeclList = list_node };
+        node.* = Node{ .StructDeclarationList = list_node };
         return node;
     } else {
-        const decls_block = decls.?.StructDeclList;
-        const new_len = decls_block.decl_list.len + 1;
+        const declarations_block = declarations.?.StructDeclarationList;
+        const new_len = declarations_block.struct_declarations.len + 1;
         const new_node = glob_alloc.alloc(*Node, new_len) catch return null;
 
         // Copy existing decls
-        @memcpy(new_node[0..decls_block.decl_list.len], decls_block.decl_list);
-        new_node[decls_block.decl_list.len] = decl;
+        @memcpy(new_node[0..declarations_block.struct_declarations.len], declarations_block.struct_declarations);
+        new_node[declarations_block.struct_declarations.len] = declaration;
 
-        const list_node = glob_alloc.create(StructDeclListNode) catch return null;
-        list_node.* = StructDeclListNode{ .decl_list = new_node, .location = get_location() };
+        const list_node = glob_alloc.create(StructDeclarationListNode) catch return null;
+        list_node.* = StructDeclarationListNode{ .struct_declarations= new_node, .location = get_location() };
 
         const node = glob_alloc.create(Node) catch return null;
-        node.* = Node{ .StructDeclList = list_node };
+        node.* = Node{ .StructDeclarationList = list_node };
         return node;
     }
 }
 
-export fn make_struct_decl(identifier_node: *Node, decl_list_node: ?*Node) ?*Node {
-    const struct_node = glob_alloc.create(StructDeclNode) catch return null;
+// good
+export fn make_struct_declaration(specifier: *Node, struct_declarators: ?*Node) ?*Node {
+    const struct_node = glob_alloc.create(StructDeclarationNode) catch return null;
 
-    if (decl_list_node) |dl| {
-        struct_node.* = StructDeclNode{ .type = identifier_node, .decl_list = dl.StructDeclaratorList.declarators, .location = get_location() };
+    if (struct_declarators) |sdl| {
+        // Unwrap declarators
+        const declarators = sdl.declarators;
+        struct_node.* = StructDeclarationNode{ .specifier = specifier, .declarators = declarators, .location = get_location() };
     } else {
         // Struct reference (no body)
         const empty_decl_list = glob_alloc.alloc(*Node, 0) catch return null;
-        struct_node.* = StructDeclNode{ .type = identifier_node, .decl_list = empty_decl_list, .location = get_location() };
+        struct_node.* = StructDeclarationNode{ .specifier = specifier , .declarators = empty_decl_list, .location = get_location() };
     }
 
     const node = glob_alloc.create(Node) catch return null;
-    node.* = Node{ .StructDecl = struct_node };
+    node.* = Node{ .StructDeclaration = struct_node };
 
     return node;
 }
 
-pub const StructDeclaratorListNode = struct {
-    declarators: []*Node,
-    location: ?*Location = null,
-};
+// good
 export fn append_struct_declarator_list(declarator: *Node, declarators: ?*Node) ?*Node {
     if (declarators == null) {
         const declarators_list_node = glob_alloc.create(StructDeclaratorListNode) catch return null;
@@ -1550,7 +1565,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             const s_node = node.Struct;
             try printNode(s_node.name, indent + 1);
         },
-        .StructDecl => {
+        .StructDeclNode => {
             const sd = node.StructDecl;
             try printNode(sd.type, indent);
             for (sd.decl_list) |item| {

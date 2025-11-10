@@ -1,4 +1,8 @@
-int main () {
-    int x = 0;
-    x *= 5;
+struct Josh {
+    int x;
+    float y;
+};
+
+int main() {
+    struct Josh josh1 = {10, 3.14};
 }
