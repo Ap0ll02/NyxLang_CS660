@@ -21,6 +21,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         .Declaration => {
             const decl = node.Declaration;
             if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
+            const dec_typename = std.mem.span(decl.typeNode.type_name);
+                const my_type = st().get_type(dec_typename);
+                if (my_type == null) { decl.typeNode = get_base_type(decl.typeNode.base).?; }
+                else decl.typeNode = my_type.?;
 
             // add decl to symbol table
             st().assign_variable(decl) catch {
@@ -35,6 +39,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
 
             // if there is an assignment attached to the Declaration then semantically analyze that node
             if (decl.assignNode) |n| {
+                n.Assignment.typeNode = decl.typeNode;
                 semantic_analyze_node(n);
             }
         },
@@ -45,7 +50,35 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (assgn.initializer) |init| {
                 // where we would check the box that
                 semantic_analyze_node(init);
-            }
+                switch(init.*) {
+                    .Identifier => |id| {
+                        const str1 = std.mem.span(id.typeNode.?.type_name);
+                        const str2 = std.mem.span(assgn.typeNode.?.type_name);
+                        if(!std.mem.eql(u8, str1, str2)) {
+                            log.WarnLoc(
+                                assgn.location.?, 
+                                "Mismatched types", 
+                                m.diagnostic_source(assgn.location.?.line),
+                                log.f_str("Change variable type to match initializer: {s}", .{id.typeNode.?.type_name} )
+                            );
+                        }
+                    }, 
+                    .Constant => |c| {
+                        const str1 = std.mem.span(c.typeNode.type_name);
+                        const str2 = std.mem.span(assgn.typeNode.?.type_name);
+                        if(!std.mem.eql(u8, str1, str2)) {
+                            log.WarnLoc(
+                                assgn.location.?, 
+                                "Mismatched types", 
+                                m.diagnostic_source(assgn.location.?.line),
+                                log.f_str("Change variable type to match initializer: {s}", .{c.typeNode.type_name} )
+                            );
+                        }
+                        
+                    },
+                    else => {}
+                }
+            }       
             if (assgn.ass_op) |op| {
                 semantic_analyze_node(op);
             }
@@ -116,10 +149,16 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         // TODO everything below this gets to do cool fun stuff w/ type checking (probably others too)
         .Binary => {
-            if (ast.debug_mode) std.debug.print("Binary node semantically analyzed!\n", .{});
             const binary = node.Binary;
             semantic_analyze_node(binary.lhs);
             semantic_analyze_node(binary.rhs);
+            binary.typeNode = resolve_common_type(binary.lhs, binary.rhs);
+            if(binary.typeNode) |bn| {
+                if (ast.debug_mode) std.debug.print("Binary Node ({s})\n", .{bn.type_name});
+            } else {
+                if (ast.debug_mode) log.InfoLoc(binary.location.?, "Binary node has no type", m.diagnostic_source(binary.location.?.line), "");
+            }
+            if (ast.debug_mode) std.debug.print("Binary node semantically analyzed!\n", .{});
         },
         .Unary => {
             if (ast.debug_mode) std.debug.print("Unary node semantically analyzed!\n", .{});
@@ -264,6 +303,15 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) {
                 std.debug.print("Identifier '{s}' BEFORE: spawner = {s}\n", .{ ident.name, if (ident.spawner == null) "null" else "set" });
             }
+            const dec_link = st().get_variable(ident.name);
+            if (dec_link) |dc| {
+                ident.typeNode = dc.typeNode;
+            } else {
+                log.ErrorLoc(
+                    ident.location.?, "Declaration of this identifier does not have a valid type.",
+                    m.diagnostic_source(ident.location.?.line), "Ensure variable declaration has a type"
+                );
+            }
 
             if (st().get_variable(node.Identifier.name)) |decl| {
                 ident.spawner = decl;
@@ -279,6 +327,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});
+            node.Constant.typeNode = get_base_type(node.Constant.typeNode.base).?;
         },
         .String => {
             if (ast.debug_mode) std.debug.print("String node semantically analyzed!\n", .{});
@@ -293,10 +342,87 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (ast.debug_mode) std.debug.print("Float node semantically analyzed!\n", .{});
         },
         .Type => {
+            st().assign_type(node.Type) catch {
+                log.Error(
+                    node.Type.location.?.col,
+                    node.Type.location.?.line,
+                    "Could not assign type",
+                    m.diagnostic_source(node.Type.location.?.line),
+                    "",
+                );
+            };
             if (ast.debug_mode) std.debug.print("Type node semantically analyzed!\n", .{});
         },
         else => |tag| {
             if (ast.debug_mode) std.debug.print("Unknown node type: {}\n", .{tag});
         },
     }
+}
+
+pub fn resolve_common_type(type1: ?*ast.Node, type2: ?*ast.Node) ?*ast.TypeNode {
+    // Hold the types temporarily for easy comparison
+    var type1_node: *ast.TypeNode = undefined;
+    var type2_node: *ast.TypeNode = undefined;
+
+    // Unwrap node to get inner type of lhs and rhs
+    if(type1) |t1| {
+        switch (t1.*) {
+            .Constant => |t| {
+                type1_node = t.typeNode;
+            },
+            .Identifier => |t| {
+                type1_node = t.typeNode.?;
+            },
+            else => return null,
+        }
+    } else return null;
+    if(type2) |t2| {
+        switch (t2.*) {
+            .Constant => |t| {
+                type2_node = t.typeNode;
+            },
+            .Identifier => |t| {
+                type2_node = t.typeNode.?;
+            },
+            else => return null,
+        }
+    } else return null;
+    const zig_str1: []const u8 = std.mem.span(type1_node.type_name);
+    const zig_str2: []const u8 = std.mem.span(type2_node.type_name);
+
+    // Compare types and promote or demote
+    // Floats win
+    if(type1_node.is_floating and !type2_node.is_floating) {
+        if(ast.debug_mode) std.debug.print("Float vs. NonFloat\n", .{});
+        return st().get_type(zig_str1);
+    } else if(!type1_node.is_floating and type2_node.is_floating) {
+        if(ast.debug_mode) std.debug.print("Nonfloat vs. Float\n", .{});
+        return st().get_type(zig_str2);
+    } else if (type2_node.size > type1_node.size) {
+        if(ast.debug_mode) std.debug.print("Type 1 Bytes < Type 2 Bytes\n", .{});
+        return st().get_type(zig_str2);
+    } else if (type1_node.size > type2_node.size) {
+        if(ast.debug_mode) std.debug.print("Type 1 Bytes > Type 2 Bytes\n", .{});
+        return st().get_type(zig_str1);
+    } else if(type1_node.is_unsigned and !type2_node.is_unsigned) {
+        if(ast.debug_mode) std.debug.print("Type 1 Unsigned promotes to Signed\n", .{});
+        return st().get_type(zig_str2);
+    } else {
+        if(ast.debug_mode) std.debug.print("Type 2 Unsigned promotes to Signed\n", .{});
+        // const my_type = st().get_type(zig_str1);
+        return st().get_type(zig_str1);
+    }
+}
+
+pub fn get_base_type(b: ast.BaseType) ?*ast.TypeNode {
+    return switch(b) {
+        .INT => st().get_type("int"),
+        .FLOAT => st().get_type("float"),
+        .BOOL => st().get_type("bool"),
+        .CHAR => st().get_type("char"),
+        .DOUBLE => st().get_type("double"),
+        .LONG => st().get_type("long"),
+        .STRING => st().get_type("string"),
+        else => st().get_type("int"),
+        };
 }
