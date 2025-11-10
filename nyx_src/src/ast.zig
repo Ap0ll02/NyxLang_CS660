@@ -45,12 +45,14 @@ pub const StructDeclarationNode = struct {
 pub const FunctionNode = struct {
     retType: *TypeNode,
     nameParam: *Node,
+    arity: usize = 0,
     body: *Node,
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
 pub const FunctionCallNode = struct {
     name: *Node,
+    arity: usize = 0,
     args: ?*Node,
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
@@ -912,7 +914,11 @@ export fn make_return_node(ret_val: ?*Node) ?*Node {
 export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) ?*Node {
     const function_node = glob_alloc.create(FunctionNode) catch return null;
     if (retType.* != .Type) return null;
-    function_node.* = FunctionNode{ .retType = retType.Type, .nameParam = nameParameter, .body = body, .location = get_location() };
+    var func_arity: usize = 0;
+    if(nameParameter.NameParameterNode.parameterList) |np| {
+        func_arity = np.ParameterList.params.len;
+    }
+    function_node.* = FunctionNode{ .retType = retType.Type, .nameParam = nameParameter, .body = body, .location = get_location(), .arity = func_arity };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Function = function_node };
@@ -959,8 +965,11 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
 
 export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
     const fc_node = glob_alloc.create(FunctionCallNode) catch return null;
-
-    fc_node.* = FunctionCallNode{ .name = name, .args = args, .location = get_location() };
+    var arg_arity: usize = 0;
+    if(args) |ar| {
+        arg_arity = ar.ArgumentList.args.len;
+    }
+    fc_node.* = FunctionCallNode{ .name = name, .arity = arg_arity, .args = args, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .FunctionCall = fc_node };
@@ -1335,13 +1344,17 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             printIndent(indent + 1);
             std.debug.print("↳ Body:\n", .{});
 
-            if (func.body.BlockItems.items.len <= 0) {
-                printIndent(indent + 1);
-                std.debug.print("(empty block)\n", .{});
-            } else {
-                for (func.body.BlockItems.items) |item| printNode(item, indent + 1) catch |err| {
-                    if (debug_mode) log.Info(0, 0, log.f_str("Bad print: block item... {any}", .{err}), "", "");
-                };
+            switch (func.body.*) {
+                .BlockItems => {
+                    for (func.body.BlockItems.items) |item| printNode(item, indent + 1) catch |err| {
+                        if (debug_mode) log.Info(0, 0, log.f_str("Bad print: block item... {any}", .{err}), "", "");
+                    };
+
+                },
+                else => {
+                    printIndent(indent + 1);
+                    std.debug.print("(empty block)\n", .{});
+                }
             }
         },
         .FunctionCall => {
