@@ -84,6 +84,7 @@ pub fn built_in_types(
     const float32 = try allocator.create(ast.TypeNode);
     float32.* = ast.TypeNode{
         .is_unsigned = false,
+        .is_floating = true,
         .is_const = false,
         .qualifier = 0, // 0 none, 1 long, 2 long long
         .type_name = "float",
@@ -96,6 +97,7 @@ pub fn built_in_types(
     const float64 = try allocator.create(ast.TypeNode);
     float64.* = ast.TypeNode{
         .is_unsigned = false,
+        .is_floating = true,
         .is_const = false,
         .qualifier = 1, // 0 none, 1 long, 2
         .type_name = "double",
