@@ -111,7 +111,7 @@ pub const SymbolTable = struct {
             if (tbl.type_map.get(name)) |ptr| return ptr;
         }
         // create and error message here
-        // std.debug.print("Type {s} not found in symbol table.\n", .{name});
+        if (ast.debug_mode) std.debug.print("Type {s} not found in symbol table.\n", .{name});
         return null;
     }
 
