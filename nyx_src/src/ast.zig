@@ -161,6 +161,12 @@ pub const FloatNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
+pub const ArrayNode = struct {
+    identifier: ?*Node = null,
+    constant: ?*Node = null,
+    length: u32 = 0,
+    align_bytes: u32 = 0,
+};
 // and additional fields for complex types (arrays, structs, etc.) in the future
 pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
 pub const TypeNode = extern struct {
@@ -275,6 +281,9 @@ pub const NodeTag = enum {
     Pointer,
     IdPointer,
 
+    // Arrays
+    Array,
+
     // Structs
     StructDecl,
     StructDeclList,
@@ -332,6 +341,9 @@ pub const Node = union(NodeTag) {
     // Pointers
     Pointer: *PointerNode,
     IdPointer: *IdPointerNode,
+
+    // Arrays
+    Array: *ArrayNode,
 
     // Structs
     StructDecl: *StructDeclNode,
@@ -1028,6 +1040,19 @@ export fn make_idpointer_node(pointer: *Node, id: *Node) ?*Node {
 }
 
 // ===============
+// |   Arrays    |
+// ===============
+
+export fn make_array_node(identifier_node: *Node, constant_node: *Node) ?*Node {
+    const array_node = glob_alloc.create(ArrayNode) catch return null;
+    array_node.* = .{ .identifier = identifier_node, .constant = constant_node };
+
+    const node = glob_alloc.create(Node) catch return null;
+    node.* = .{ .Array = array_node };
+    return node;
+}
+
+// ===============
 // |   Structs   |
 // ===============
 
@@ -1465,6 +1490,28 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             } else {
                 printIndent(indent + 1);
                 std.debug.print("Base\n", .{});
+            }
+        },
+        .Array => {
+            const arr = node.Array;
+            std.debug.print("🧮 Array\n", .{});
+
+            if (arr.identifier) |id| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Identifier:\n", .{});
+                try printNode(id, indent + 2);
+            } else {
+                printIndent(indent + 1);
+                std.debug.print("(no identifier)\n", .{});
+            }
+
+            if (arr.constant) |cnst| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Index / Constant:\n", .{});
+                try printNode(cnst, indent + 2);
+            } else {
+                printIndent(indent + 1);
+                std.debug.print("(no constant)\n", .{});
             }
         },
         .Struct => {
