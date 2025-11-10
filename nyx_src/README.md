@@ -36,7 +36,7 @@ https://ziglang.org/download/
 ### Step 2: Clone the repository
 
 ```fish
-git clone https://github.com/Ap0ll02/NyxLang_CS660
+git clone https://github.com/Ap0ll02/NyxLang_CS660/tree/GP4
 ```
 
 ```fish
