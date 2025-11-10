@@ -1,4 +1,4 @@
-# GP2 - Compiler Front End
+# GP4 - Compiler Front End
 
 ## Installation
 
@@ -66,14 +66,11 @@ Make sure to type valid c code for example
 
 #### Regular Question
 
-We are storing identifiers as a node, the tree can be traversed or walked and identifiers can be found. Currently identifiers are not stored separately for ease of lookup, we are choosing to defer this to semantic analysis, as it will need to walk the tree anyways.
-Our tree does not support linking a definition to an identifier yet, I do not think this a normal thing for the parser to do. This is actually a classic example of what semantic analysis is, where variable usage is analyzed.
+TBA
 
 #### Grad Question
 
-We chose to augment portions of our grammar for ease of use and printing. We wanted a better start rule, that only has one production, for flexibility in post-parsing actions. This helps with our print function for displaying our AST.
-The tree format is kept generic, allowing the grammar to pass a generic node throughout the parse. These generic nodes are finally unwrapped in printing to obtain specific variants, such as BinaryNodes, IdentifierNodes, and others.
-We kept our tree generic to play nicely with our grammar. The biggest benefit of this is easy extensibility.
+TBA
 
 
 ![catgirl](../CatGirl&CatBoyPictures/catgirl1.png)
