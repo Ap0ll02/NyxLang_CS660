@@ -101,7 +101,9 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                     };
                 }
             }
-            semantic_analyze_node(func.body);
+            if(func.body.* == .BlockItems) {
+                semantic_analyze_node(func.body);
+            }
 
             // TODO might need to add this later to type check
             // semantic_analyze_node(func.typeNode);
@@ -117,17 +119,32 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             } else {
                 log.Error(funcCall.location.?.col, funcCall.location.?.line, log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
             }
+            if(funcCall.arity < funcCall.spawner.?.arity) {
+                log.ErrorLoc(
+                    funcCall.location.?, 
+                    "Too few arguments for function", 
+                    m.diagnostic_source(funcCall.location.?.line), 
+                    "Ensure argument arity matches function arity."
+                );
+            } else if(funcCall.arity > funcCall.spawner.?.arity) {
+                log.ErrorLoc(
+                    funcCall.location.?, 
+                    "Too many arguments for function", 
+                    m.diagnostic_source(funcCall.location.?.line), 
+                    "Ensure argument arity matches function arity."
+                );
+            }
 
             if (funcCall.args) |argsNode| {
                 semantic_analyze_node(argsNode);
             }
         },
         .ArgumentList => {
-            if (ast.debug_mode) std.debug.print("ArgumentList node semantically analyzed!\n", .{});
             const arg_list = node.ArgumentList;
             for (arg_list.args) |arg| {
                 semantic_analyze_node(arg);
             }
+            if (ast.debug_mode) std.debug.print("ArgumentList node semantically analyzed!\n", .{});
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
