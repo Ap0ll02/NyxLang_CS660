@@ -1,4 +1,4 @@
-# GP2 - Compiler Front End
+# GP3 - Compiler Semantic Analysis
 
 ## Installation
 
@@ -53,7 +53,7 @@ zig build run <filename> [optional flag, -d]
 Here is a debug example: `zig build run -- test.nyx -d`
 
 ## Input and Running 
-we currently support functions, arthmetic operations, logical operations, variable assignment. you should see an AST generated at the end of your file use or whatever 
+You simply pass in the file as a flag, example above, with a .nyx file
 
 ### Examples and Runtime Notes
 
@@ -62,18 +62,23 @@ Please ensure you use `Ctrl + d` to send the end of file (EOF) signal. This is t
 Make sure to type valid c code for example 
 ```int main() { int 5;}```
 
-### README Questions 
+### README Questions
 
 #### Regular Question
 
-We are storing identifiers as a node, the tree can be traversed or walked and identifiers can be found. Currently identifiers are not stored separately for ease of lookup, we are choosing to defer this to semantic analysis, as it will need to walk the tree anyways.
-Our tree does not support linking a definition to an identifier yet, I do not think this a normal thing for the parser to do. This is actually a classic example of what semantic analysis is, where variable usage is analyzed.
+Nyaa~! For functions, I store a wefewence to their function node, nya, which wet me access detaiws wike their weturn type and pawametews when vewifying function cawws, meow~! For vawiabwes, I keep their decwawation node so I can ensuwe they'we defined befowe use and maintain consistency in type usage, purr~! For types, I wecowd their type node, which incwudes impowtant attwibutes wike whethew the type is signed ow const, its quawifiews, decwawatow, size, and awignment, nyaa~!
+
+<!-- For functions, I store a reference to their function node, which allows me to access details such as their return type and parameters when verifying function calls. For variables, I keep their declaration node so I can ensure they are defined before use and maintain consistency in type usage. For types, I record their type node, which includes important attributes like whether the type is signed or const, its qualifiers, declarator, size, and alignment.  -->
+
 
 #### Grad Question
 
-We chose to augment portions of our grammar for ease of use and printing. We wanted a better start rule, that only has one production, for flexibility in post-parsing actions. This helps with our print function for displaying our AST.
-The tree format is kept generic, allowing the grammar to pass a generic node throughout the parse. These generic nodes are finally unwrapped in printing to obtain specific variants, such as BinaryNodes, IdentifierNodes, and others.
-We kept our tree generic to play nicely with our grammar. The biggest benefit of this is easy extensibility.
+Compiler diagnostics are really important, and I think having location, 
+a description and a hint when applicable is really important. Extra good diagnostics
+like in Rust, involve squiggly lines ~~~~ and arrows ^ to help show where to insert hints
+and where to focus your attention in a line. Having the offending section of code is great.
+Bad ones do not contain an easy way to identify where the error is taking place. Bad diagnostics
+do not have good descriptions of an error, while good diagnostics have detailed error descriptions.
 
 
 ![catgirl](../CatGirl&CatBoyPictures/catgirl1.png)
