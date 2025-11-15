@@ -149,12 +149,16 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                         m.diagnostic_source(funcCall.location.?.line), 
                         "Ensure argument arity matches function arity."
                     );
+                } else {
+                    if (funcCall.args) |argsNode| {
+                        semantic_analyze_node(argsNode);
+                        for(argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params) |arg, par| {
+                            check_arg_par(arg, par);
+                        }
+                    }
                 }
             }
 
-            if (funcCall.args) |argsNode| {
-                semantic_analyze_node(argsNode);
-            }
         },
         .ArgumentList => {
             const arg_list = node.ArgumentList;
@@ -446,6 +450,32 @@ pub fn resolve_common_type(type1: ?*ast.Node, type2: ?*ast.Node) ?*ast.TypeNode 
         if(ast.debug_mode) std.debug.print("Type 2 Unsigned promotes to Signed\n", .{});
         // const my_type = st().get_type(zig_str1);
         return st().get_type(zig_str1);
+    }
+}
+
+pub fn check_arg_par(arg: *ast.Node, par: *ast.Node) void {
+    var type1: *ast.TypeNode = undefined;
+    var type2: *ast.TypeNode = undefined;
+
+    switch (arg.*) {
+        .Identifier => |a| { if(a.spawner) |as| { type1 = as.typeNode; } },
+        .Constant => |a| { type1 = a.typeNode; },
+        else => {}
+    }
+    switch (par.*) {
+        .Identifier => |a| { if(a.spawner) |as| { type2 = as.typeNode; } },
+        .Declaration => |a| { type2 = a.typeNode; },
+        else => {}
+    }
+    const name1: []const u8 = std.mem.span(type1.type_name);
+    const name2: []const u8 = std.mem.span(type2.type_name);
+    if(std.mem.eql(u8, name1, name2)) {
+        log.WarnLoc(
+            type1.location.?, 
+            "Mismatched types", 
+            m.diagnostic_source(type1.location.?.line),
+            log.f_str("Change variable type to match initializer: {s}", .{type1.type_name} )
+        );
     }
 }
 
