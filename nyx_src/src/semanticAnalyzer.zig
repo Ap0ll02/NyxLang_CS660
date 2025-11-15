@@ -65,6 +65,20 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                             }
                         }
                     }, 
+                    .FunctionCall => |fc| {
+                        const str1 = std.mem.span(fc.spawner.?.retType.type_name);
+                        if (assgn.typeNode) |atn| {
+                            const str2 = std.mem.span(atn.type_name);
+                            if(!std.mem.eql(u8, str1, str2)) {
+                                log.WarnLoc(
+                                    assgn.location.?, 
+                                    "Mismatched types", 
+                                    m.diagnostic_source(assgn.location.?.line),
+                                    log.f_str("Change variable type to match initializer: {s}", .{str1} )
+                                );
+                            }
+                        }
+                    },
                     .Constant => |c| {
                         const str1 = std.mem.span(c.typeNode.type_name);
                         const str2 = std.mem.span(assgn.typeNode.?.type_name);
