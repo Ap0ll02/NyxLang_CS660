@@ -152,8 +152,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 } else {
                     if (funcCall.args) |argsNode| {
                         semantic_analyze_node(argsNode);
-                        for(argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params) |arg, par| {
-                            check_arg_par(arg, par);
+                        for(argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params, 0..) |arg, par, i| {
+                            check_arg_par(arg, par, i+1, funcCall.name.Identifier.name);
                         }
                     }
                 }
@@ -453,28 +453,56 @@ pub fn resolve_common_type(type1: ?*ast.Node, type2: ?*ast.Node) ?*ast.TypeNode 
     }
 }
 
-pub fn check_arg_par(arg: *ast.Node, par: *ast.Node) void {
-    var type1: *ast.TypeNode = undefined;
-    var type2: *ast.TypeNode = undefined;
+pub fn check_arg_par(arg: *ast.Node, par: *ast.Node, arg_num: usize, func_name: []const u8) void {
+    var type1: ?*ast.TypeNode = null;
+    var type2: ?*ast.TypeNode = null;
+    var arg_loc: ?*ast.Location = null;
 
     switch (arg.*) {
-        .Identifier => |a| { if(a.spawner) |as| { type1 = as.typeNode; } },
-        .Constant => |a| { type1 = a.typeNode; },
+        .Identifier => |a| { 
+            if(a.spawner) |as| { 
+                type1 = as.typeNode; 
+            }
+            arg_loc = a.location;
+        },
+        .Constant => |a| { 
+            type1 = a.typeNode;
+            arg_loc = a.location;
+        },
+        .FunctionCall => |a| {
+            if(a.spawner) |as| {
+                type1 = as.retType;
+            }
+            arg_loc = a.location;
+        },
         else => {}
     }
+    
     switch (par.*) {
-        .Identifier => |a| { if(a.spawner) |as| { type2 = as.typeNode; } },
-        .Declaration => |a| { type2 = a.typeNode; },
+        .Identifier => |a| { 
+            if(a.spawner) |as| { 
+                type2 = as.typeNode; 
+            } 
+        },
+        .Declaration => |a| { 
+            type2 = a.typeNode; 
+        },
         else => {}
     }
-    const name1: []const u8 = std.mem.span(type1.type_name);
-    const name2: []const u8 = std.mem.span(type2.type_name);
-    if(std.mem.eql(u8, name1, name2)) {
+    
+    // Make sure we have both types before comparing
+    if (type1 == null or type2 == null) return;
+    
+    const name1: []const u8 = std.mem.span(type1.?.type_name);
+    const name2: []const u8 = std.mem.span(type2.?.type_name);
+    
+    // Warn if types DON'T match (inverted logic from original)
+    if(!std.mem.eql(u8, name1, name2)) {
         log.WarnLoc(
-            type1.location.?, 
-            "Mismatched types", 
-            m.diagnostic_source(type1.location.?.line),
-            log.f_str("Change variable type to match initializer: {s}", .{type1.type_name} )
+            arg_loc.?, 
+            log.f_str("Type mismatch in argument {d} to function '{s}'", .{arg_num, func_name}), 
+            m.diagnostic_source(arg_loc.?.line),
+            log.f_str("Expected '{s}' but got '{s}'", .{name2, name1})
         );
     }
 }
