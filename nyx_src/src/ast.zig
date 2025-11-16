@@ -174,7 +174,7 @@ pub const TypeNode = extern struct {
     is_const: bool = false,
     qualifier: usize = 0, // 0 none, 1 long, 2 long long
     base: BaseType = .INT,
-    type_name: [*c]const u8 = "int",
+    type_name: [*c]const u8 = "INT",
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
     location: ?*Location = null,
@@ -606,36 +606,16 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: ?
 // The initializer is optional, so it can be null if there is no initializer
 // int x = 5;  // initializer is present
 // int y;      // initializer is null
-export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
-    if (debug_mode) std.debug.print("Dec Node: {any}\n", .{typeNode});
-    // if (debug_mode) std.debug.print("Dec Node Name?: {any}\n", .{typeNode.Type.type_name});
-    // We create the declaration node
-    if (typeNode.* == .StructOrUnion) {
-        const decl_node = glob_alloc.create(StructDeclarationNode) catch return null;
-        if (asgnNode) |n| {
-            decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n, .location = get_location() };
-        } else {
-            decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = null, .location = get_location() };
-        } // We create a *node that wraps a specific node type
-        const node = glob_alloc.create(Node) catch return null;
-        // We set the union to be of type Declaration and assign the created declaration node
-        node.* = Node{ .StructDeclaration = decl_node };
-        const n: *Node = @ptrCast(node);
-        return n;
-    } else if (typeNode.* == .Type) {
-        const decl_node = glob_alloc.create(DeclarationNode) catch return null;
-        // std.debug.print("TypeNode in make_dec_node?: {any}\n", .{typeNode.Type.base});
-        if (asgnNode) |n| {
-            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = n, .location = get_location() };
-        } else {
-            decl_node.* = DeclarationNode{ .typeNode = typeNode.Type, .assignNode = null, .location = get_location() };
-        } // We create a *node that wraps a specific node type
-        const node = glob_alloc.create(Node) catch return null;
-        // We set the union to be of type Declaration and assign the created declaration node
-        node.* = Node{ .Declaration = decl_node };
-        const n: *Node = @ptrCast(node);
-        return n;
-    } else return null;
+export fn make_declaration_node(specifier: *Node, asgnNode: ?*Node) ?*Node {
+    const decl_node = glob_alloc.create(DeclarationNode) catch return null;
+    if (asgnNode) |n| {
+        decl_node.* = .{ .declaration_specifier = specifier, .assignNode = n, .location = get_location() };
+    } else {
+        decl_node.* = .{ .declaration_specifier = specifier, .assignNode = null, .location = get_location() };
+    }
+    const node = glob_alloc.create(Node) catch return null;
+    node.* = .{ .Declaration = decl_node };
+    return node;
 }
 
 export fn make_binary_node(lhs: *Node, op: c_char, rhs: *Node) ?*Node {
@@ -1361,8 +1341,8 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
         },
         .Declaration => {
             const decl_node = node.Declaration;
-            const type_str = std.mem.span(decl_node.typeNode.type_name);
-            std.debug.print("🌊 Declaration (Type: {s})\n", .{type_str});
+            //const type_str = std.mem.span(decl_node.typeNode.type_name);
+            std.debug.print("🌊 Declaration (Of: {any})\n", .{decl_node.*});
 
             if (decl_node.assignNode) |assgn| {
                 try printNode(assgn, indent + 1);
@@ -1389,12 +1369,6 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 std.debug.print("(no initializer)\n", .{});
             }
         },
-        .ParameterList => {
-            const params = node.ParameterList;
-            for (params.params) |p| {
-                try printNode(p, indent + 2);
-            }
-        },
         .Function => {
             const func = node.Function;
             const type_str = std.mem.span(func.retType.type_name);
@@ -1402,12 +1376,6 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             std.debug.print("🟩 Function: {s} (returns {s})\n", .{
                 func.nameParam.NameParameterNode.name.Identifier.name, type_str,
             });
-
-            if (func.nameParam.NameParameterNode.parameterList) |params| {
-                printIndent(indent + 1);
-                std.debug.print("↳ Parameters:\n", .{});
-                try printNode(params, indent);
-            }
 
             printIndent(indent + 1);
             std.debug.print("↳ Body:\n", .{});

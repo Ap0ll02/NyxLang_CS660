@@ -136,7 +136,7 @@ pub const SymbolTable = struct {
 
     pub fn print_sym_tables(self: *SymbolTable) void {
         std.debug.print("\n\n--- Symbol Table ---\n", .{});
-        dumpMap("🐱types",     self.type_map);
+        dumpMap("🐱types", self.type_map);
         dumpMap("🐈variables", self.variable_map);
         dumpMap("😹functions", self.function_map);
         std.debug.print("--------------------\n\n", .{});
@@ -158,28 +158,28 @@ pub const SymbolTable = struct {
         std.debug.print("  key", .{});
         var i: usize = "key".len;
         while (i < max_key_len) : (i += 1) std.debug.print(" ", .{});
-            std.debug.print("  |  value\n", .{});
+        std.debug.print("  |  value\n", .{});
 
-            std.debug.print("  ", .{});
-            var j: usize = 0;
-            while (j < max_key_len) : (j += 1) std.debug.print("-", .{});
-            std.debug.print("-----\n", .{});
+        std.debug.print("  ", .{});
+        var j: usize = 0;
+        while (j < max_key_len) : (j += 1) std.debug.print("-", .{});
+        std.debug.print("-----\n", .{});
 
-            // print rows with manual padding
-            var it2 = map.iterator();
-            while (it2.next()) |e| {
-                const key = e.key_ptr.*;   // []const u8
-                const val = e.value_ptr.*; // pointer to your value
+        // print rows with manual padding
+        var it2 = map.iterator();
+        while (it2.next()) |e| {
+            const key = e.key_ptr.*; // []const u8
+            const val = e.value_ptr.*; // pointer to your value
 
-                // key column
-                std.debug.print("  {s}", .{key});
-                var pad: usize = key.len;
-                while (pad < max_key_len) : (pad += 1) std.debug.print(" ", .{});
+            // key column
+            std.debug.print("  {s}", .{key});
+            var pad: usize = key.len;
+            while (pad < max_key_len) : (pad += 1) std.debug.print(" ", .{});
 
-                // separator + pointer value
-                std.debug.print("  |  {*}\n", .{val});
-            }
+            // separator + pointer value
+            std.debug.print("  |  {*}\n", .{val});
+        }
 
-            std.debug.print("\n", .{});
+        std.debug.print("\n", .{});
     }
 };

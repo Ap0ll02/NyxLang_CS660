@@ -33,9 +33,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                             // Maybe we report an error here instead
                         }
                     },
-                    .Struct => {
-                        // We handle structs here
-                        // I think we need to create a type node here then assign it to the struct name
+                    .Struct => |new_struct| {
+                        _ = new_struct;
                     },
                     else => {
                         // Oh fuck we encounterd an error here
