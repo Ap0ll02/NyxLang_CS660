@@ -20,27 +20,79 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
     switch (node.*) {
         .Declaration => {
             const decl = node.Declaration;
-            if (ast.debug_mode) std.debug.print("Declaration node semantically analyzed!\n", .{});
-            const dec_typename = std.mem.span(decl.typeNode.type_name);
-                const my_type = st().get_type(dec_typename);
-                if (my_type == null) { decl.typeNode = get_base_type(decl.typeNode.base).?; }
-                else decl.typeNode = my_type.?;
+            if (decl.declaration_specifier) |spec| {
+                switch (spec.*) {
+                    .Type => |newtype| {
+                        // We need to grab the name from the type
+                        const type_name: []u8 = std.mem.span(spec.type_name);
+                        // We should set the type based off the type table
+                        decl.declaration_specifier.Type = st().get_type(type_name);
+                        if (newtype == null) {
+                            if (ast.debug_mode) std.debug.print("IDK shits broke\n");
+                            // fall back to base type
+                            // Maybe we report an error here instead
+                        }
+                    },
+                    .Struct => {
+                        // We handle structs here
+                        // I think we need to create a type node here then assign it to the struct name
+                    },
+                    else => {
+                        // Oh fuck we encounterd an error here
+                    },
+                }
+            }
 
-            // add decl to symbol table
-            st().assign_variable(decl) catch {
-                log.Error(
-                    decl.location.?.col,
-                    decl.location.?.line,
-                    "Could not assign variable",
-                    m.diagnostic_source(decl.location.?.line),
-                    "",
-                );
-            };
-
-            // if there is an assignment attached to the Declaration then semantically analyze that node
-            if (decl.assignNode) |n| {
-                n.Assignment.typeNode = decl.typeNode;
-                semantic_analyze_node(n);
+            // For handling Variables Arrays and Pointers types is handled before this call so we should capture bad types before this point
+            if (decl.assignNode) |ass| {
+                switch (ass.*) {
+                    .Assignment => |assign| {
+                        // We assign it and then move to the next stage of type checking
+                        st().assign_variable(decl) catch {
+                            log.Error(
+                                decl.location.?.col,
+                                decl.location.?.line,
+                                "Could not assign variable",
+                                m.diagnostic_source(decl.location.?.line),
+                                "",
+                            );
+                        };
+                        semantic_analyze_node(assign);
+                    },
+                    .Array => |array| {
+                        // We have an array so we need to find the length size * array
+                        array.length = array.size.value * decl.declaration_specifier.type.alignment;
+                        // We can finally add the decl node and name to the map
+                        st().assign_variable(decl) catch {
+                            log.Error(
+                                decl.location.?.col,
+                                decl.location.?.line,
+                                "Could not assign Array variable",
+                                m.diagnostic_source(decl.location.?.line),
+                                "",
+                            );
+                        };
+                    },
+                    .Pointer => |pointer| // If its a pointer we just need to assign the pointer as a variable
+                    {
+                        _ = pointer;
+                        // Im not sure what we should do with the pointer.
+                        // There should be some sort of pointer depth check here
+                        st().assign_variable(decl) catch {
+                            log.Error(
+                                decl.location.?.col,
+                                decl.location.?.line,
+                                "Could not assign pointer variable",
+                                m.diagnostic_source(decl.location.?.line),
+                                "",
+                            );
+                        };
+                    },
+                    else => {
+                        // Unkown node type so we should just do some error handling
+                        if (ast.debug_mode) std.debug.print("unkown assign_node\n");
+                    },
+                }
             }
         },
         .Assignment => {
@@ -50,51 +102,35 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (assgn.initializer) |init| {
                 // where we would check the box that
                 semantic_analyze_node(init);
-                switch(init.*) {
+                switch (init.*) {
                     .Identifier => |id| {
                         const str1 = std.mem.span(id.typeNode.?.type_name);
                         if (assgn.typeNode) |atn| {
                             const str2 = std.mem.span(atn.type_name);
-                            if(!std.mem.eql(u8, str1, str2)) {
-                                log.WarnLoc(
-                                    assgn.location.?, 
-                                    "Mismatched types", 
-                                    m.diagnostic_source(assgn.location.?.line),
-                                    log.f_str("Change variable type to match initializer: {s}", .{id.typeNode.?.type_name} )
-                                );
+                            if (!std.mem.eql(u8, str1, str2)) {
+                                log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{id.typeNode.?.type_name}));
                             }
                         }
-                    }, 
+                    },
                     .FunctionCall => |fc| {
                         const str1 = std.mem.span(fc.spawner.?.retType.type_name);
                         if (assgn.typeNode) |atn| {
                             const str2 = std.mem.span(atn.type_name);
-                            if(!std.mem.eql(u8, str1, str2)) {
-                                log.WarnLoc(
-                                    assgn.location.?, 
-                                    "Mismatched types", 
-                                    m.diagnostic_source(assgn.location.?.line),
-                                    log.f_str("Change variable type to match initializer: {s}", .{str1} )
-                                );
+                            if (!std.mem.eql(u8, str1, str2)) {
+                                log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{str1}));
                             }
                         }
                     },
                     .Constant => |c| {
                         const str1 = std.mem.span(c.typeNode.type_name);
                         const str2 = std.mem.span(assgn.typeNode.?.type_name);
-                        if(!std.mem.eql(u8, str1, str2)) {
-                            log.WarnLoc(
-                                assgn.location.?, 
-                                "Mismatched types", 
-                                m.diagnostic_source(assgn.location.?.line),
-                                log.f_str("Change variable type to match initializer: {s}", .{c.typeNode.type_name} )
-                            );
+                        if (!std.mem.eql(u8, str1, str2)) {
+                            log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{c.typeNode.type_name}));
                         }
-                        
                     },
-                    else => {}
+                    else => {},
                 }
-            }       
+            }
             if (assgn.ass_op) |op| {
                 semantic_analyze_node(op);
             }
@@ -104,7 +140,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             const func = node.Function;
 
             // add function to symbol table
-            if(ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
+            if (ast.debug_mode) std.debug.print("Adding {s} in symbol table\n", .{func.nameParam.NameParameterNode.name.Identifier.name});
             st().assign_function(func) catch {
                 log.Error(func.location.?.col, func.location.?.line, "Error assigning function to symbol table!", m.diagnostic_source(func.location.?.line), "");
             };
@@ -115,7 +151,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                     };
                 }
             }
-            if(func.body.* == .BlockItems) {
+            if (func.body.* == .BlockItems) {
                 semantic_analyze_node(func.body);
             }
 
@@ -134,31 +170,20 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 log.Error(funcCall.location.?.col, funcCall.location.?.line, log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
             }
 
-            if(funcCall.spawner.?.arity != 1000) {
-                if(funcCall.arity < funcCall.spawner.?.arity) {
-                    log.ErrorLoc(
-                        funcCall.location.?, 
-                        "Too few arguments for function", 
-                        m.diagnostic_source(funcCall.location.?.line), 
-                        "Ensure argument arity matches function arity."
-                    );
-                } else if(funcCall.arity > funcCall.spawner.?.arity) {
-                    log.ErrorLoc(
-                        funcCall.location.?, 
-                        "Too many arguments for function", 
-                        m.diagnostic_source(funcCall.location.?.line), 
-                        "Ensure argument arity matches function arity."
-                    );
+            if (funcCall.spawner.?.arity != 1000) {
+                if (funcCall.arity < funcCall.spawner.?.arity) {
+                    log.ErrorLoc(funcCall.location.?, "Too few arguments for function", m.diagnostic_source(funcCall.location.?.line), "Ensure argument arity matches function arity.");
+                } else if (funcCall.arity > funcCall.spawner.?.arity) {
+                    log.ErrorLoc(funcCall.location.?, "Too many arguments for function", m.diagnostic_source(funcCall.location.?.line), "Ensure argument arity matches function arity.");
                 } else {
                     if (funcCall.args) |argsNode| {
                         semantic_analyze_node(argsNode);
-                        for(argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params, 0..) |arg, par, i| {
-                            check_arg_par(arg, par, i+1, funcCall.name.Identifier.name);
+                        for (argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params, 0..) |arg, par, i| {
+                            check_arg_par(arg, par, i + 1, funcCall.name.Identifier.name);
                         }
                     }
                 }
             }
-
         },
         .ArgumentList => {
             const arg_list = node.ArgumentList;
@@ -169,7 +194,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});
-            if (ast.debug_mode)  st().print_sym_tables();
+            if (ast.debug_mode) st().print_sym_tables();
             const new_table = st().push();
             if (new_table) |nt| {
                 setSymbolTable(nt);
@@ -191,7 +216,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             semantic_analyze_node(binary.lhs);
             semantic_analyze_node(binary.rhs);
             binary.typeNode = resolve_common_type(binary.lhs, binary.rhs);
-            if(binary.typeNode) |bn| {
+            if (binary.typeNode) |bn| {
                 if (ast.debug_mode) std.debug.print("Binary Node ({s})\n", .{bn.type_name});
             } else {
                 if (ast.debug_mode) log.InfoLoc(binary.location.?, "Binary node has no type", m.diagnostic_source(binary.location.?.line), "");
@@ -345,10 +370,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
             if (dec_link) |dc| {
                 ident.typeNode = dc.typeNode;
             } else {
-                log.ErrorLoc(
-                    ident.location.?, "Declaration of this identifier does not have a valid type.",
-                    m.diagnostic_source(ident.location.?.line), "Ensure variable declaration has a type"
-                );
+                log.ErrorLoc(ident.location.?, "Declaration of this identifier does not have a valid type.", m.diagnostic_source(ident.location.?.line), "Ensure variable declaration has a type");
             }
 
             if (st().get_variable(node.Identifier.name)) |decl| {
@@ -404,7 +426,7 @@ pub fn resolve_common_type(type1: ?*ast.Node, type2: ?*ast.Node) ?*ast.TypeNode 
     var type2_node: *ast.TypeNode = undefined;
 
     // Unwrap node to get inner type of lhs and rhs
-    if(type1) |t1| {
+    if (type1) |t1| {
         switch (t1.*) {
             .Constant => |t| {
                 type1_node = t.typeNode;
@@ -415,7 +437,7 @@ pub fn resolve_common_type(type1: ?*ast.Node, type2: ?*ast.Node) ?*ast.TypeNode 
             else => return null,
         }
     } else return null;
-    if(type2) |t2| {
+    if (type2) |t2| {
         switch (t2.*) {
             .Constant => |t| {
                 type2_node = t.typeNode;
@@ -431,23 +453,23 @@ pub fn resolve_common_type(type1: ?*ast.Node, type2: ?*ast.Node) ?*ast.TypeNode 
 
     // Compare types and promote or demote
     // Floats win
-    if(type1_node.is_floating and !type2_node.is_floating) {
-        if(ast.debug_mode) std.debug.print("Float vs. NonFloat\n", .{});
+    if (type1_node.is_floating and !type2_node.is_floating) {
+        if (ast.debug_mode) std.debug.print("Float vs. NonFloat\n", .{});
         return st().get_type(zig_str1);
-    } else if(!type1_node.is_floating and type2_node.is_floating) {
-        if(ast.debug_mode) std.debug.print("Nonfloat vs. Float\n", .{});
+    } else if (!type1_node.is_floating and type2_node.is_floating) {
+        if (ast.debug_mode) std.debug.print("Nonfloat vs. Float\n", .{});
         return st().get_type(zig_str2);
     } else if (type2_node.size > type1_node.size) {
-        if(ast.debug_mode) std.debug.print("Type 1 Bytes < Type 2 Bytes\n", .{});
+        if (ast.debug_mode) std.debug.print("Type 1 Bytes < Type 2 Bytes\n", .{});
         return st().get_type(zig_str2);
     } else if (type1_node.size > type2_node.size) {
-        if(ast.debug_mode) std.debug.print("Type 1 Bytes > Type 2 Bytes\n", .{});
+        if (ast.debug_mode) std.debug.print("Type 1 Bytes > Type 2 Bytes\n", .{});
         return st().get_type(zig_str1);
-    } else if(type1_node.is_unsigned and !type2_node.is_unsigned) {
-        if(ast.debug_mode) std.debug.print("Type 1 Unsigned promotes to Signed\n", .{});
+    } else if (type1_node.is_unsigned and !type2_node.is_unsigned) {
+        if (ast.debug_mode) std.debug.print("Type 1 Unsigned promotes to Signed\n", .{});
         return st().get_type(zig_str2);
     } else {
-        if(ast.debug_mode) std.debug.print("Type 2 Unsigned promotes to Signed\n", .{});
+        if (ast.debug_mode) std.debug.print("Type 2 Unsigned promotes to Signed\n", .{});
         // const my_type = st().get_type(zig_str1);
         return st().get_type(zig_str1);
     }
@@ -459,56 +481,51 @@ pub fn check_arg_par(arg: *ast.Node, par: *ast.Node, arg_num: usize, func_name: 
     var arg_loc: ?*ast.Location = null;
 
     switch (arg.*) {
-        .Identifier => |a| { 
-            if(a.spawner) |as| { 
-                type1 = as.typeNode; 
+        .Identifier => |a| {
+            if (a.spawner) |as| {
+                type1 = as.typeNode;
             }
             arg_loc = a.location;
         },
-        .Constant => |a| { 
+        .Constant => |a| {
             type1 = a.typeNode;
             arg_loc = a.location;
         },
         .FunctionCall => |a| {
-            if(a.spawner) |as| {
+            if (a.spawner) |as| {
                 type1 = as.retType;
             }
             arg_loc = a.location;
         },
-        else => {}
+        else => {},
     }
-    
+
     switch (par.*) {
-        .Identifier => |a| { 
-            if(a.spawner) |as| { 
-                type2 = as.typeNode; 
-            } 
+        .Identifier => |a| {
+            if (a.spawner) |as| {
+                type2 = as.typeNode;
+            }
         },
-        .Declaration => |a| { 
-            type2 = a.typeNode; 
+        .Declaration => |a| {
+            type2 = a.typeNode;
         },
-        else => {}
+        else => {},
     }
-    
+
     // Make sure we have both types before comparing
     if (type1 == null or type2 == null) return;
-    
+
     const name1: []const u8 = std.mem.span(type1.?.type_name);
     const name2: []const u8 = std.mem.span(type2.?.type_name);
-    
+
     // Warn if types DON'T match (inverted logic from original)
-    if(!std.mem.eql(u8, name1, name2)) {
-        log.WarnLoc(
-            arg_loc.?, 
-            log.f_str("Type mismatch in argument {d} to function '{s}'", .{arg_num, func_name}), 
-            m.diagnostic_source(arg_loc.?.line),
-            log.f_str("Expected '{s}' but got '{s}'", .{name2, name1})
-        );
+    if (!std.mem.eql(u8, name1, name2)) {
+        log.WarnLoc(arg_loc.?, log.f_str("Type mismatch in argument {d} to function '{s}'", .{ arg_num, func_name }), m.diagnostic_source(arg_loc.?.line), log.f_str("Expected '{s}' but got '{s}'", .{ name2, name1 }));
     }
 }
 
 pub fn get_base_type(b: ast.BaseType) ?*ast.TypeNode {
-    return switch(b) {
+    return switch (b) {
         .INT => st().get_type("int"),
         .FLOAT => st().get_type("float"),
         .BOOL => st().get_type("bool"),
@@ -517,5 +534,5 @@ pub fn get_base_type(b: ast.BaseType) ?*ast.TypeNode {
         .LONG => st().get_type("long"),
         .STRING => st().get_type("string"),
         else => st().get_type("int"),
-        };
+    };
 }
