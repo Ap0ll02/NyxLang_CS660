@@ -32,9 +32,8 @@ pub const ConstantNode = struct {
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    typeNode: *TypeNode, // Structs will return StructNode here, others return TypeNode
+    declaration_specifier: *Node, // Structs will return StructNode here, others return TypeNode
     assignNode: ?*Node = null,
-    location: ?*Location = null,
 };
 // pub const StructDeclarationNode = struct { packedNode: *Node,
 //     assignNode: ?*Node,
@@ -560,7 +559,7 @@ export fn make_identifier_node(name: [*c]const u8) ?*Node {
     const name_copy = glob_alloc.dupe(u8, std.mem.span(name)) catch return null;
 
     // We set the name for the identifier node
-    id_node.* = IdentifierNode{ .name = name_copy, .location = get_location()};
+    id_node.* = IdentifierNode{ .name = name_copy, .location = get_location() };
 
     // We create a *node that wraps a specific node type
     const node = glob_alloc.create(Node) catch return null;
@@ -579,7 +578,7 @@ export fn make_constant_node(value: [*c]const u8, typeval: c.yytokentype) ?*Node
     if (@TypeOf(value) != [*c]const u8) return null;
     const val_copy = glob_alloc.dupe(u8, std.mem.span(value)) catch return null;
     const type_node = make_type_node(typeval);
-    if(type_node) |tn| {
+    if (type_node) |tn| {
         const_node.* = ConstantNode{ .value = val_copy, .typeNode = tn.Type, .location = get_location() };
     } else {
         const_node.* = ConstantNode{ .value = val_copy, .typeNode = make_type_node(c.INT).?.Type, .location = get_location() };
@@ -758,11 +757,7 @@ export fn make_float_node(val: f32) ?*Node { // FOR DEBUGGING
     if (@TypeOf(val) != f32) {
         return null;
     }
-    fnode.* = ConstantNode { 
-        .value = std.fmt.allocPrint(glob_alloc, "{d}", .{val}) catch return null,
-        .typeNode = make_type_node(c.FLOAT).?.Type,
-        .location = get_location()
-    };
+    fnode.* = ConstantNode{ .value = std.fmt.allocPrint(glob_alloc, "{d}", .{val}) catch return null, .typeNode = make_type_node(c.FLOAT).?.Type, .location = get_location() };
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Constant = fnode };
 
@@ -936,7 +931,7 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
     const function_node = glob_alloc.create(FunctionNode) catch return null;
     if (retType.* != .Type) return null;
     var func_arity: usize = 0;
-    if(nameParameter.NameParameterNode.parameterList) |np| {
+    if (nameParameter.NameParameterNode.parameterList) |np| {
         func_arity = np.ParameterList.params.len;
     }
     function_node.* = FunctionNode{ .retType = retType.Type, .nameParam = nameParameter, .body = body, .location = get_location(), .arity = func_arity };
@@ -987,7 +982,7 @@ export fn append_argument_list(item: *Node, items: ?*Node) ?*Node {
 export fn make_function_call_node(name: *Node, args: ?*Node) ?*Node {
     const fc_node = glob_alloc.create(FunctionCallNode) catch return null;
     var arg_arity: usize = 0;
-    if(args) |ar| {
+    if (args) |ar| {
         arg_arity = ar.ArgumentList.args.len;
     }
     fc_node.* = FunctionCallNode{ .name = name, .arity = arg_arity, .args = args, .location = get_location() };
@@ -1422,12 +1417,11 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                     for (func.body.BlockItems.items) |item| printNode(item, indent + 1) catch |err| {
                         if (debug_mode) log.Info(0, 0, log.f_str("Bad print: block item... {any}", .{err}), "", "");
                     };
-
                 },
                 else => {
                     printIndent(indent + 1);
                     std.debug.print("(empty block)\n", .{});
-                }
+                },
             }
         },
         .FunctionCall => {
