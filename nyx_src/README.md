@@ -50,7 +50,7 @@ cd nyx_src/src
 zig build run <filename> [optional flag, -d]
 ```
 
-Here is a debug example: `zig build run -- test.nyx -d`
+Here is a debug example: `zig build run -- jack.nyx -d`
 
 ## Input and Running 
 we currently support functions, arthmetic operations, logical operations, variable assignment. you should see an AST generated at the end of your file use or whatever 
