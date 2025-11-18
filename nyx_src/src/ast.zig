@@ -32,8 +32,9 @@ pub const ConstantNode = struct {
 // Declaration node represents variable declarations
 // It includes the variable name, type, and optional initializer
 pub const DeclarationNode = struct {
-    declaration_specifier: *Node, // Structs will return StructNode here, others return TypeNode
-    assignNode: ?*Node = null,
+    declaration_specifier: ?*Node = null, // Structs will return StructNode here, others return TypeNode
+    assign_node: ?*Node = null,
+    location: ?*Location = null,
 };
 // pub const StructDeclarationNode = struct { packedNode: *Node,
 //     assignNode: ?*Node,
@@ -609,9 +610,9 @@ export fn make_assignment_node(declarator: *Node, initializer: ?*Node, ass_op: ?
 export fn make_declaration_node(specifier: *Node, asgnNode: ?*Node) ?*Node {
     const decl_node = glob_alloc.create(DeclarationNode) catch return null;
     if (asgnNode) |n| {
-        decl_node.* = .{ .declaration_specifier = specifier, .assignNode = n, .location = get_location() };
+        decl_node.* = .{ .declaration_specifier = specifier, .assign_node = n, .location = get_location() };
     } else {
-        decl_node.* = .{ .declaration_specifier = specifier, .assignNode = null, .location = get_location() };
+        decl_node.* = .{ .declaration_specifier = specifier, .assign_node = null, .location = get_location() };
     }
     const node = glob_alloc.create(Node) catch return null;
     node.* = .{ .Declaration = decl_node };
@@ -1344,7 +1345,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             //const type_str = std.mem.span(decl_node.typeNode.type_name);
             std.debug.print("🌊 Declaration (Of: {any})\n", .{decl_node.*});
 
-            if (decl_node.assignNode) |assgn| {
+            if (decl_node.assign_node) |assgn| {
                 try printNode(assgn, indent + 1);
             }
         },

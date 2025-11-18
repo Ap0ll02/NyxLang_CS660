@@ -24,16 +24,79 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                 switch (spec.*) {
                     .Type => |newtype| {
                         // We need to grab the name from the type
-                        const type_name: []u8 = std.mem.span(spec.type_name);
-                        // We should set the type based off the type table
-                        decl.declaration_specifier.Type = st().get_type(type_name);
+                        const decl_type_name = std.mem.span(newtype.type_name);
+                        // We need to check if this type exist
+                        const my_type = st().get_type(decl_type_name);
+                        // Check to see if the get type function returned a null for error checking
                         if (newtype == null) {
                             if (ast.debug_mode) std.debug.print("IDK shits broke\n");
-                            // fall back to base type
-                            // Maybe we report an error here instead
+                            // We should report an error here
+                        } else {
+                            if (ast.debug_mode) std.debug.print("Type has been found: {any}", .{newtype});
+                            // Now that we have a non null type we can assign it to the type struct
+                            decl.declaration_specifier = my_type.?; // now assign the retrived type struct to the type struct of our decl_node
                         }
                     },
                     .Struct => |new_struct| {
+                        // st.assign_type(type); problem how do we turn struct into a type node
+                        
+                        // We have to make structs a new user define type
+                        // We should also figure out 2 things about structs
+
+                        // Part One Finding the SIZE multiply the size of all fields with in the struct
+                        // struct point {
+                        // int x;
+                        // int y;
+                        // }
+                        // size = 8 bytes
+                        // allignment = 4 bytes
+
+                        // How to find Alignment?
+                        // Structs with different types (Just have to be a multiple of their own alignment)
+                        // Example
+                        // struct Example1 {
+                        // char  a;     size 1, align 1
+                        // short b;     size 2, align 2
+                        // int   c;     size 4, align 4
+                        // };
+                        // Field a (char)
+                        // offset must be multiple of 1 → OK at 0
+                        // placed at offset 0–0
+                        // Next = 1
+                        // Field b (short)
+                        // alignment = 2
+                        // current offset = 1 → not divisible by 2
+                        // pad 1 byte (offset 1)
+                        // place at offset 2–3
+                        // Next = 4
+                        // Field c (int)
+                        // alignment = 4
+                        // current offset = 4 → OK
+                        // place at offset 4–7
+                        // Next = 8
+
+                        // Some rules to remember
+                        // 1. What struct padding is doing
+                        // Struct padding exists for two reasons:
+                        // Per-field padding
+                        // So each field starts at an offset that satisfies its own alignment requirement.
+                        // End padding
+                        // So the total struct size is a multiple of the struct’s overall alignment.
+                        // This is required so arrays of that struct are correctly aligned.
+                        // No magic beyond that.
+                        // 2. Key facts you need for each field
+                        // For each field type you must know:
+                        // field_size (e.g. sizeof(int) == 4)
+                        // field_align (e.g. alignof(int) == 4)
+                        // For the struct as a whole, you compute:
+
+                        // struct_align = max of all field_align
+
+                        // struct_size = computed via offsets + final padding
+                        // 3. Padding only occurs between fields
+                        // 4. Final struct padding aligns whole struct
+                        // 5. Fields align to their own alignment, NOT the struct’s
+
                         _ = new_struct;
                     },
                     else => {
