@@ -38,8 +38,15 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                         }
                     },
                     .Struct => |new_struct| {
+                        // try to find out what the type_struct needs?
+                        // we know it needs
+                        // 1. size
+                        // 2. alignment
+                        // 3. a padding function
+                        // 4. and to some how be wrapped into a fucking type node
+
                         // st.assign_type(type); problem how do we turn struct into a type node
-                        
+
                         // We have to make structs a new user define type
                         // We should also figure out 2 things about structs
 
@@ -49,8 +56,9 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                         // int y;
                         // }
                         // size = 8 bytes
-                        // allignment = 4 bytes
+                        // alignment = 4 bytes
 
+                        // Now we have user defined type that has a size field
                         // How to find Alignment?
                         // Structs with different types (Just have to be a multiple of their own alignment)
                         // Example
@@ -97,6 +105,19 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                         // 4. Final struct padding aligns whole struct
                         // 5. Fields align to their own alignment, NOT the struct’s
 
+                        // We create the declaration node
+                        // if (typeNode.* == .Struct) {
+                        //     const decl_node = glob_alloc.create(StructDeclarationNode) catch return null;
+                        //     if (asgnNode) |n| {
+                        //         decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n, .location = get_location() };
+                        //     } else {
+                        //         decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = null, .location = get_location() };
+                        //     } // We create a *node that wraps a specific node type
+                        //     const node = glob_alloc.create(Node) catch return null;
+                        //     // We set the union to be of type Declaration and assign the created declaration node
+                        //     node.* = Node{ .StructDeclaration = decl_node };
+                        //     const n: *Node = @ptrCast(node);
+                        //     return n;
                         _ = new_struct;
                     },
                     else => {
