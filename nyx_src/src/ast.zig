@@ -1117,56 +1117,6 @@ export fn make_struct_or_union(
     }
 }
 
-// export fn make_struct_or_union(struct_or_union: *Node, identifier: ?[*c]const u8, struct_declarations: ?*Node) ?*Node {
-//     var meow_node = undefined;
-//     var identifier_node: *Node = undefined;
-//     var struct_decls: []*Node = undefined;
-//
-//     if (identifier) |i| {
-//         identifier_node = make_identifier_node(i);
-//     } else {
-//         // Anonymous StructDeclaration
-//         const anon_id: [*c]const u8 = "<anonymous>";
-//         identifier_node = make_identifier_node(anon_id);
-//         // const anon_name = glob_alloc.create(IdentifierNode) catch return null;
-//         // anon_name.* = IdentifierNode{ .name = "<anonymous>", .location = get_location() };
-//         // const node = glob_alloc.create(Node) catch return null;
-//         // node.* = Node{ .Identifier = anon_name };
-//         // identifier_node = node;
-//     }
-//     // Handling for structs
-//     switch (struct_or_union.type) {
-//         c.STRUCT => {
-//             meow_node = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
-//
-//             if (struct_declarations) |sdl| {
-//                 struct_decls = sdl;
-//             } else {
-//                 // If no StructDeclarationListNode, make StructDeclarationListNode and only grab it's field
-//                 const empty_decl_list = glob_alloc.alloc(*StructDeclarationListNode, 0) catch return null;
-//
-//                 const sdl_node = glob_alloc.create(Node) catch return null;
-//                 sdl_node.* = Node{ .StructDeclarationList = s };
-//                 struct_decls = empty_decl_list;
-//             }
-//
-//         },
-//         else => {
-//
-//         },
-//     }
-//     if (struct_or_union.StructOrUnion.type == c.STRUCT) {
-//
-//         struct_node.* = StructOrUnionNode{ .name = name, .decl_list = decl_list, .location = get_location() };
-//
-//         const node = glob_alloc.create(Node) catch return null;
-//         node.* = Node{ .Struct = struct_node };
-//         return node;
-//     } else { // TODO implement union handling
-//         return null; //union later
-//     }
-// }
-
 export fn make_struct_or_union_node(t: c.yytokentype) ?*Node {
     const sn = glob_alloc.create(StructOrUnionNode) catch return null;
     const node = glob_alloc.create(Node) catch return null;
