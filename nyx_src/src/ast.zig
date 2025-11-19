@@ -36,10 +36,6 @@ pub const DeclarationNode = struct {
     assign_node: ?*Node = null,
     location: ?*Location = null,
 };
-// pub const StructDeclarationNode = struct { packedNode: *Node,
-//     assignNode: ?*Node,
-//     location: ?*Location = null,
-// };
 pub const FunctionNode = struct {
     retType: *TypeNode,
     nameParam: *Node,
@@ -77,7 +73,6 @@ pub const BlockItemsNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 }; // A list of statements/declarations in a block
-
 pub const BinaryNode = struct {
     lhs: *Node,
     op: u8,
@@ -226,7 +221,12 @@ pub const TranslationUnitListNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
+pub const UnifyStructOrUnion = enum {
+    Struct,
+    Union,
+};
 pub const StructOrUnionSpecifierNode = struct {
+    kind: UnifyStructOrUnion,
     identifier: ?*Node,
     struct_declaration_list: ?[]*Node,
     location: ?*Location = null,
@@ -1098,11 +1098,18 @@ export fn make_struct_or_union(
         struct_decl_slice = sdl.struct_declarations;
     }
 
+    const kind = switch (struct_or_union.StructOrUnion.type) {
+        c.STRUCT => UnifyStructOrUnion.Struct,
+        // Later for Union 
+        else => return null,
+    };
+
     // For now we only support "struct", not "union"
     switch (struct_or_union.StructOrUnion.type) {
         c.STRUCT => {
             const sus = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
             sus.* = StructOrUnionSpecifierNode{
+                .kind = kind,
                 .identifier = identifier_node,
                 .struct_declaration_list = struct_decl_slice,
                 .location = get_location(),
