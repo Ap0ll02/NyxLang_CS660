@@ -282,7 +282,6 @@ pub const NodeTag = enum {
 
     // Variables, Pointers and Arrays
     Declaration,
-    // StructDeclaration, // name overlap w/ below, need to fix
     Assignment,
 
     // Control Flow (If, Loops)
@@ -371,10 +370,10 @@ pub const Node = union(NodeTag) {
     Array: *ArrayNode,
 
     // Structs
-    StructDeclarationList: *StructDeclarationListNode,
     StructDeclaration: *StructDeclarationNode,
+    StructDeclarationList: *StructDeclarationListNode,
     StructDeclaratorList: *StructDeclaratorListNode,
-    StructOrUnionSpecifierNode: *StructOrUnionSpecifierNode,
+    StructOrUnionSpecifier: *StructOrUnionSpecifierNode,
     StructOrUnion: *StructOrUnionNode,
 };
 
@@ -612,7 +611,7 @@ export fn make_declaration_node(typeNode: *Node, asgnNode: ?*Node) ?*Node {
     if (debug_mode) std.debug.print("Dec Node: {any}\n", .{typeNode});
     // if (debug_mode) std.debug.print("Dec Node Name?: {any}\n", .{typeNode.Type.type_name});
     // We create the declaration node
-    if (typeNode.* == .Struct) {
+    if (typeNode.* == .StructOrUnion) {
         const decl_node = glob_alloc.create(StructDeclarationNode) catch return null;
         if (asgnNode) |n| {
             decl_node.* = StructDeclarationNode{ .packedNode = typeNode, .assignNode = n, .location = get_location() };
@@ -1094,55 +1093,102 @@ export fn make_array_node(identifier_node: *Node, constant_node: *Node) ?*Node {
 // |   Structs   |
 // ===============
 
-export fn make_struct_or_union(struct_or_union: *Node, identifier: ?[*c]const u8, struct_declarations: ?*Node) ?*Node {
-    var meow_node = undefined;
-    var identifier_node: *Node = undefined;
-    var struct_decls: []*Node = undefined;
+export fn make_struct_or_union(
+    struct_or_union: *Node,
+    identifier: ?[*c]const u8,
+    struct_declarations: ?*Node,
+) ?*Node {
+    // We only know how to deal with a Node that actually is StructOrUnion
+    if (struct_or_union.* != .StructOrUnion)
+        return null;
 
+    // Build identifier node (or an anonymous one)
+    var identifier_node: ?*Node = null;
     if (identifier) |i| {
-        identifier_node = make_identifier_node(i);
+        identifier_node = make_identifier_node(i) orelse return null;
     } else {
-        // Anonymous StructDeclaration
         const anon_id: [*c]const u8 = "<anonymous>";
-        identifier_node = make_identifier_node(anon_id);
-        // const anon_name = glob_alloc.create(IdentifierNode) catch return null;
-        // anon_name.* = IdentifierNode{ .name = "<anonymous>", .location = get_location() };
-        // const node = glob_alloc.create(Node) catch return null;
-        // node.* = Node{ .Identifier = anon_name };
-        // identifier_node = node;
+        identifier_node = make_identifier_node(anon_id) orelse return null;
     }
-    // Handling for structs
-    switch (struct_or_union.type) {
+
+    // Extract the slice of struct declarations (if any)
+    var struct_decl_slice: ?[]*Node = null;
+    if (struct_declarations) |decls_node| {
+        if (decls_node.* != .StructDeclarationList)
+            return null;
+
+        const sdl = decls_node.StructDeclarationList;
+        struct_decl_slice = sdl.struct_declarations;
+    }
+
+    // For now we only support "struct", not "union"
+    switch (struct_or_union.StructOrUnion.type) {
         c.STRUCT => {
-            meow_node = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
+            const sus = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
+            sus.* = StructOrUnionSpecifierNode{
+                .identifier = identifier_node,
+                .struct_declaration_list = struct_decl_slice,
+                .location = get_location(),
+            };
 
-            if (struct_declarations) |sdl| {
-                struct_decls = sdl;
-            } else {
-                // If no StructDeclarationListNode, make StructDeclarationListNode and only grab it's field
-                const empty_decl_list = glob_alloc.alloc(*StructDeclarationListNode, 0) catch return null;
-
-                const sdl_node = glob_alloc.create(Node) catch return null;
-                sdl_node.* = Node{ .StructDeclarationList = s };
-                struct_decls = empty_decl_list;
-            }
-
+            const node = glob_alloc.create(Node) catch return null;
+            node.* = Node{ .StructOrUnionSpecifierNode = sus };
+            return node;
         },
-        else => {
-
-        },
-    }
-    if (struct_or_union.StructOrUnion.type == c.STRUCT) {
-
-        struct_node.* = StructOrUnionNode{ .name = name, .decl_list = decl_list, .location = get_location() };
-
-        const node = glob_alloc.create(Node) catch return null;
-        node.* = Node{ .Struct = struct_node };
-        return node;
-    } else { // TODO implement union handling
-        return null; //union later
+        // TODO: implement union handling
+        else => return null,
     }
 }
+
+// export fn make_struct_or_union(struct_or_union: *Node, identifier: ?[*c]const u8, struct_declarations: ?*Node) ?*Node {
+//     var meow_node = undefined;
+//     var identifier_node: *Node = undefined;
+//     var struct_decls: []*Node = undefined;
+//
+//     if (identifier) |i| {
+//         identifier_node = make_identifier_node(i);
+//     } else {
+//         // Anonymous StructDeclaration
+//         const anon_id: [*c]const u8 = "<anonymous>";
+//         identifier_node = make_identifier_node(anon_id);
+//         // const anon_name = glob_alloc.create(IdentifierNode) catch return null;
+//         // anon_name.* = IdentifierNode{ .name = "<anonymous>", .location = get_location() };
+//         // const node = glob_alloc.create(Node) catch return null;
+//         // node.* = Node{ .Identifier = anon_name };
+//         // identifier_node = node;
+//     }
+//     // Handling for structs
+//     switch (struct_or_union.type) {
+//         c.STRUCT => {
+//             meow_node = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
+//
+//             if (struct_declarations) |sdl| {
+//                 struct_decls = sdl;
+//             } else {
+//                 // If no StructDeclarationListNode, make StructDeclarationListNode and only grab it's field
+//                 const empty_decl_list = glob_alloc.alloc(*StructDeclarationListNode, 0) catch return null;
+//
+//                 const sdl_node = glob_alloc.create(Node) catch return null;
+//                 sdl_node.* = Node{ .StructDeclarationList = s };
+//                 struct_decls = empty_decl_list;
+//             }
+//
+//         },
+//         else => {
+//
+//         },
+//     }
+//     if (struct_or_union.StructOrUnion.type == c.STRUCT) {
+//
+//         struct_node.* = StructOrUnionNode{ .name = name, .decl_list = decl_list, .location = get_location() };
+//
+//         const node = glob_alloc.create(Node) catch return null;
+//         node.* = Node{ .Struct = struct_node };
+//         return node;
+//     } else { // TODO implement union handling
+//         return null; //union later
+//     }
+// }
 
 export fn make_struct_or_union_node(t: c.yytokentype) ?*Node {
     const sn = glob_alloc.create(StructOrUnionNode) catch return null;
