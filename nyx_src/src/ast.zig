@@ -1071,7 +1071,8 @@ export fn make_array_node(identifier_node: *Node, constant_node: *Node) ?*Node {
 
 export fn make_struct_or_union(
     struct_or_union: *Node,
-    identifier: ?[*c]const u8,
+    identifier: [*c]const u8, // TODO zig doesn't support optional *c, might be
+                              // weird later if this is null
     struct_declarations: ?*Node,
 ) ?*Node {
     // We only know how to deal with a Node that actually is StructOrUnion
@@ -1108,7 +1109,7 @@ export fn make_struct_or_union(
             };
 
             const node = glob_alloc.create(Node) catch return null;
-            node.* = Node{ .StructOrUnionSpecifierNode = sus };
+            node.* = Node{ .StructOrUnionSpecifier = sus };
             return node;
         },
         // TODO: implement union handling
@@ -1223,7 +1224,7 @@ export fn make_struct_declaration(specifier: *Node, struct_declarators: ?*Node) 
 
     if (struct_declarators) |sdl| {
         // Unwrap declarators
-        const declarators = sdl.declarators;
+        const declarators = sdl.StructDeclaration.declarators;
         struct_node.* = StructDeclarationNode{ .specifier = specifier, .declarators = declarators, .location = get_location() };
     } else {
         // Struct reference (no body)
@@ -1311,6 +1312,8 @@ export fn append_translation_unit(unit: *Node, prev: ?*Node) ?*Node {
         return node;
     }
 }
+
+// bottom
 
 // ===============
 // | AST Printer |
@@ -1570,33 +1573,67 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 std.debug.print("(no constant)\n", .{});
             }
         },
-        .Struct => {
-            const s_node = node.Struct;
-            try printNode(s_node.name, indent + 1);
-        },
-        .StructDeclNode => {
-            const sd = node.StructDecl;
-            try printNode(sd.type, indent);
-            for (sd.decl_list) |item| {
-                try printNode(item, indent);
-            }
-        },
         .StructDeclaration => {
             const sd = node.StructDeclaration;
-            try printNode(sd.packedNode, indent);
-            try printNode(sd.assignNode, indent);
+            std.debug.print("🏗 StructDeclaration\n", .{});
+
+            // specifier: usually a StructOrUnionSpecifier or type
+            printIndent(indent + 1);
+            std.debug.print("↳ Specifier:\n", .{});
+            try printNode(sd.specifier, indent + 2);
+
+            // declarators: []*Node
+            if (sd.declarators.len > 0) {
+                printIndent(indent + 1);
+                std.debug.print("↳ Declarators:\n", .{});
+                for (sd.declarators) |decl| {
+                    try printNode(decl, indent + 2);
+                }
+            }
+        },
+        .StructDeclarationList => {
+            const sdl = node.StructDeclarationList;
+            std.debug.print("📚 StructDeclarationList ({} declarations)\n", .{sdl.struct_declarations.len});
+            for (sdl.struct_declarations) |decl| {
+                try printNode(decl, indent + 1);
+            }
         },
         .StructDeclaratorList => {
-            const sd = node.StructDeclaratorList;
-            for (sd.declarators) |item| {
+            const sdl = node.StructDeclaratorList;
+            std.debug.print("📃 StructDeclaratorList ({} declarators)\n", .{sdl.declarators.len});
+            for (sdl.declarators) |item| {
                 try printNode(item, indent + 1);
             }
         },
-        .StructDeclList => {
-            const s = node.StructDeclList;
-            for (s.decl_list) |item| {
-                try printNode(item, indent + 1);
+        .StructOrUnionSpecifier => {
+            const sus = node.StructOrUnionSpecifier;
+            std.debug.print("🏛 StructOrUnionSpecifier\n", .{});
+
+            // optional identifier
+            if (sus.identifier) |id| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Name:\n", .{});
+                try printNode(id, indent + 2);
             }
+
+            // optional list of struct_declarations: ?[]*Node
+            if (sus.struct_declaration_list) |decls| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Declarations:\n", .{});
+                for (decls) |d| {
+                    try printNode(d, indent + 2);
+                }
+            }
+        },
+        .StructOrUnion => {
+            const su = node.StructOrUnion;
+            // just the keyword node: "struct" or "union"
+            const kind = switch (su.type) {
+                c.STRUCT => "struct",
+                // c.UNION => "union", // enable once you support unions
+                else => "unknown-struct-or-union",
+            };
+            std.debug.print("🏗 Keyword: {s}\n", .{kind});
         },
         .TranslationUnitList => {
             const tul = node.TranslationUnitList;
