@@ -221,12 +221,7 @@ pub const TranslationUnitListNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
-pub const UnifyStructOrUnion = enum {
-    Struct,
-    Union,
-};
-pub const StructOrUnionSpecifierNode = struct {
-    kind: UnifyStructOrUnion,
+pub const StructSpecifierNode = struct {
     identifier: ?*Node,
     struct_declaration_list: ?[]*Node,
     location: ?*Location = null,
@@ -312,7 +307,7 @@ pub const NodeTag = enum {
     StructDeclaration,
     StructDeclarationList,
     StructDeclaratorList,
-    StructOrUnionSpecifier,
+    StructSpecifier,
     StructOrUnion,
 };
 
@@ -373,7 +368,7 @@ pub const Node = union(NodeTag) {
     StructDeclaration: *StructDeclarationNode,
     StructDeclarationList: *StructDeclarationListNode,
     StructDeclaratorList: *StructDeclaratorListNode,
-    StructOrUnionSpecifier: *StructOrUnionSpecifierNode,
+    StructSpecifier: *StructSpecifierNode,
     StructOrUnion: *StructOrUnionNode,
 };
 
@@ -1098,25 +1093,18 @@ export fn make_struct_or_union(
         struct_decl_slice = sdl.struct_declarations;
     }
 
-    const kind = switch (struct_or_union.StructOrUnion.type) {
-        c.STRUCT => UnifyStructOrUnion.Struct,
-        // Later for Union 
-        else => return null,
-    };
-
     // For now we only support "struct", not "union"
     switch (struct_or_union.StructOrUnion.type) {
         c.STRUCT => {
-            const sus = glob_alloc.create(StructOrUnionSpecifierNode) catch return null;
-            sus.* = StructOrUnionSpecifierNode{
-                .kind = kind,
+            const sus = glob_alloc.create(StructSpecifierNode) catch return null;
+            sus.* = StructSpecifierNode{
                 .identifier = identifier_node,
                 .struct_declaration_list = struct_decl_slice,
                 .location = get_location(),
             };
 
             const node = glob_alloc.create(Node) catch return null;
-            node.* = Node{ .StructOrUnionSpecifier = sus };
+            node.* = Node{ .StructSpecifier = sus };
             return node;
         },
         // TODO: implement union handling
@@ -1534,7 +1522,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
             const sd = node.StructDeclaration;
             std.debug.print("🏗 StructDeclaration\n", .{});
 
-            // specifier: usually a StructOrUnionSpecifier or type
+            // specifier: usually a StructSpecifier or type
             printIndent(indent + 1);
             std.debug.print("↳ Specifier:\n", .{});
             try printNode(sd.specifier, indent + 2);
@@ -1562,14 +1550,9 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 try printNode(item, indent + 1);
             }
         },
-        .StructOrUnionSpecifier => {
-            const sus = node.StructOrUnionSpecifier;
-            const kind_str = switch (sus.kind) {
-                .Struct => "struct",
-                // add union later
-                else => "null",
-            };
-            std.debug.print("🏛 {s} specifier\n", .{kind_str});
+        .StructSpecifier => {
+            const sus = node.StructSpecifier;
+            std.debug.print("🏛 StructSpecifier\n", .{});
 
             // optional identifier
             if (sus.identifier) |id| {
