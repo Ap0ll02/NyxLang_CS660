@@ -1564,7 +1564,12 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
         },
         .StructOrUnionSpecifier => {
             const sus = node.StructOrUnionSpecifier;
-            std.debug.print("🏛 StructOrUnionSpecifier\n", .{});
+            const kind_str = switch (sus.kind) {
+                .Struct => "struct",
+                // add union later
+                else => "null",
+            };
+            std.debug.print("🏛 {s} specifier\n", .{kind_str});
 
             // optional identifier
             if (sus.identifier) |id| {
