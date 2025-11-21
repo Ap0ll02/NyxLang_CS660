@@ -174,7 +174,14 @@ pub const TypeNode = extern struct {
     size: usize = @sizeOf(i32),
     alignment: usize = @alignOf(i32),
     location: ?*Location = null,
+    field_map: ?*StructFieldMap = null,
 };
+const StructFieldMap = std.StringHashMap(*StructsFieldInfo);
+pub const StructsFieldInfo = struct {
+    name: ?[]const u8,
+    type: ?*TypeNode = null,
+    offset: ?usize = null,
+};  // should a struct field point to it's struct?
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
     initializer: ?*Node = null, // i.e. 5 in int x = 5;
@@ -182,7 +189,6 @@ pub const AssignmentNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
-
 pub const AssignmentOpNode = struct {
     assign_op: []const u8,
     typeNode: ?*TypeNode = null,
@@ -196,7 +202,6 @@ pub const ConditionalExpressionNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
-
 pub const ExpressionStmtNode = struct {
     expr: ?*Node,
     typeNode: ?*TypeNode = null,
@@ -209,7 +214,6 @@ pub const PointerNode = struct {
     location: ?*Location = null,
     depth: u32 = 0,
 };
-
 pub const IdPointerNode = struct {
     pointer: *Node,
     identifier: *Node,
@@ -225,7 +229,7 @@ pub const StructSpecifierNode = struct {
     identifier: ?*Node,
     struct_declaration_list: ?[]*Node,
     location: ?*Location = null,
-    // typeNode: ?*TypeNode = null,
+    typeNode: ?*TypeNode = null,
 };
 pub const StructOrUnionNode = struct {
     type: c.yytokentype,
@@ -239,12 +243,12 @@ pub const StructDeclarationNode = struct {
     specifier: *Node, // TODO need to support more complex specifiers
     declarators: []*Node,
     location: ?*Location = null,
+    typeNode: ?TypeNode = null,
 };
 pub const StructDeclaratorListNode = struct {
     declarators: []*Node,
     location: ?*Location = null,
 };
-
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
