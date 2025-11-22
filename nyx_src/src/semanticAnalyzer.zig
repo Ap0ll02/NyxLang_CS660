@@ -169,9 +169,11 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             );
                         };
                     },
-                    .Array => {
+                    .Array => |array_node| {
                         // We have an array so we need to find the length size * array
-                        // array.length = array.constant.value * decl.declaration_specifier.type.alignment;
+                        if (array_node.constant) |size| {
+                            array_node.length = size.Constant.value * decl.declaration_specifier.?.Type.size;
+                        }
                         // We can finally add the decl node and name to the map
                         st().assign_variable(decl) catch {
                             log.Error(
