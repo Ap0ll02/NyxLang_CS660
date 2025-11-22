@@ -52,16 +52,21 @@ pub fn main() !void {
         log.Error(0, 0, "Failed to create symbol table", "", "Symbol Table Initialization Error");
         return;
     };
+
     analyzer.setSymbolTable(symbol_table);
+
     const new_root = try bi.built_in_types(parse_alloc, root.?);
-    
+
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (ast.debug_mode) {
         std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});
         try ast.printNode(new_root, 0);
     }
     if (new_root) |r| {
-        analyzer.semantic_analyze_node(r);
+        analyzer.semantic_analyze_node(r) catch |err| {
+            std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
+            return;
+        };
     }
     std.debug.print("\nParse {s}\n", .{if (result == 1) "failed." else "successful"});
 }

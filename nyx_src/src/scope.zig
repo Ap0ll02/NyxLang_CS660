@@ -82,18 +82,20 @@ pub const SymbolTable = struct {
     }
 
     pub fn assign_variable(self: *SymbolTable, decl_node: *ast.DeclarationNode) !void {
-        const type_ptr = decl_node.typeNode;
-        const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
+        if (decl_node.declaration_specifier) |node| {
+            const type_ptr = node.Type;
+            const type_name_slice: []const u8 = std.mem.span(type_ptr.type_name);
 
-        const test_key = decl_node.assignNode.?.Assignment.declarator;
-        const key = switch (test_key.*) {
-            .Identifier => |id| id.name,
-            .IdPointer => |id| id.identifier.Identifier.name,
-            else => "null",
-        };
-        if (ast.debug_mode) std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
-        try self.variable_map.put(key, decl_node);
-        if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
+            const test_key = decl_node.assign_node.?.Assignment.declarator;
+            const key = switch (test_key.*) {
+                .Identifier => |id| id.name,
+                .IdPointer => |id| id.identifier.Identifier.name,
+                else => "null",
+            };
+            if (ast.debug_mode) std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
+            try self.variable_map.put(key, decl_node);
+            if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
+        }
     }
 
     pub fn assign_function(self: *SymbolTable, func_node: *ast.FunctionNode) !void {
