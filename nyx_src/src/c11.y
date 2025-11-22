@@ -37,14 +37,13 @@ struct Node* make_function_call_node(struct Node* name, struct Node* args);
 struct Node* append_argument_list(struct Node* item, struct Node* items);
 struct Node* make_string_node(const char* s);
 struct Node* make_return_node(struct Node* ret_val);
-struct Node* make_post_fix_node(struct NNode* base, enum yytokentype operator);
+struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
 struct Node* make_pre_fix_node(enum yytokentype operator, struct Node* base);
 struct Node* combine_type_node(struct Node* left, struct Node* right);
-struct Node* append_struct_decl_list(struct Node* decl, struct Node* decls);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
 struct Node* make_struct_declaration(struct Node* identifier_node, struct Node* decl_list_node);
 struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
-struct Node* make_structunion_node(enum yytokentype t);
+struct Node* make_struct_or_union_node(enum yytokentype t);
 struct Node* append_translation_unit(struct Node* unit, struct Node* prev);
 struct Node* make_array_node(struct Node* identifier_node, struct Node* constant_node);
 
@@ -360,13 +359,13 @@ struct_or_union_specifier
 	;
 
 struct_or_union
-	: STRUCT { $$ = make_structunion_node(STRUCT); }
-	| UNION { $$ = make_structunion_node(UNION); }
+	: STRUCT { $$ = make_struct_or_union_node(STRUCT); }
+	| UNION { $$ = make_struct_or_union_node(UNION); }
 	;
 
 struct_declaration_list
-	: struct_declaration { $$ = append_struct_decl_list($1, NULL); } // append_struct_declaration
-	| struct_declaration_list struct_declaration { $$ = append_struct_decl_list($2, $1); }
+	: struct_declaration { $$ = append_struct_declaration_list($1, NULL); } // append_struct_declaration
+	| struct_declaration_list struct_declaration { $$ = append_struct_declaration_list($2, $1); }
 	;
 
 struct_declaration
