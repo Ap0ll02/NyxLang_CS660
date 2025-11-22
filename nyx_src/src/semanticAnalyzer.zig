@@ -172,7 +172,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     .Array => |array_node| {
                         // We have an array so we need to find the length size * array
                         if (array_node.constant) |size| {
-                            array_node.length = size.Constant.value * decl.declaration_specifier.?.Type.size;
+                            array_node.length = @intCast(size.Constant.typeNode.size * decl.declaration_specifier.?.Type.size);
                         }
                         // We can finally add the decl node and name to the map
                         st().assign_variable(decl) catch {
@@ -211,12 +211,15 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             if (ast.debug_mode) std.debug.print("Assignment node semantically analyzed!\n", .{});
             const assgn = node.Assignment;
             semantic_analyze_node(assgn.declarator) catch |err| {
-                std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
+                if (ast.debug_mode) std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
                 return;
             };
             if (assgn.initializer) |init| {
                 // where we would check the box that
-                semantic_analyze_node(init);
+                semantic_analyze_node(init) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+            };
                 switch (init.*) {
                     .Identifier => |id| {
                         const str1 = std.mem.span(id.typeNode.?.type_name);
@@ -247,7 +250,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 }
             }
             if (assgn.ass_op) |op| {
-                semantic_analyze_node(op);
+                semantic_analyze_node(op) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         .Function => {
@@ -267,7 +273,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 }
             }
             if (func.body.* == .BlockItems) {
-                semantic_analyze_node(func.body);
+                semantic_analyze_node(func.body) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
 
             // TODO might need to add this later to type check
@@ -292,7 +301,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     log.ErrorLoc(funcCall.location.?, "Too many arguments for function", m.diagnostic_source(funcCall.location.?.line), "Ensure argument arity matches function arity.");
                 } else {
                     if (funcCall.args) |argsNode| {
-                        semantic_analyze_node(argsNode);
+                        semantic_analyze_node(argsNode) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
                         for (argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params, 0..) |arg, par, i| {
                             check_arg_par(arg, par, i + 1, funcCall.name.Identifier.name);
                         }
@@ -303,7 +315,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         .ArgumentList => {
             const arg_list = node.ArgumentList;
             for (arg_list.args) |arg| {
-                semantic_analyze_node(arg);
+                semantic_analyze_node(arg) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
             if (ast.debug_mode) std.debug.print("ArgumentList node semantically analyzed!\n", .{});
         },
@@ -317,7 +332,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
 
             const block_items = node.BlockItems;
             for (block_items.items) |item| {
-                semantic_analyze_node(item);
+                semantic_analyze_node(item) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
 
             const prev_table = st().pop();
@@ -328,8 +346,14 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         // TODO everything below this gets to do cool fun stuff w/ type checking (probably others too)
         .Binary => {
             const binary = node.Binary;
-            semantic_analyze_node(binary.lhs);
-            semantic_analyze_node(binary.rhs);
+            semantic_analyze_node(binary.lhs) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
+            semantic_analyze_node(binary.rhs) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
             binary.typeNode = resolve_common_type(binary.lhs, binary.rhs);
             if (binary.typeNode) |bn| {
                 if (ast.debug_mode) std.debug.print("Binary Node ({s})\n", .{bn.type_name});
@@ -341,17 +365,26 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         .Unary => {
             if (ast.debug_mode) std.debug.print("Unary node semantically analyzed!\n", .{});
             const unary = node.Unary;
-            semantic_analyze_node(unary.val);
+            semantic_analyze_node(unary.val) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
         },
         .PostFix => {
             if (ast.debug_mode) std.debug.print("PostFix node semantically analyzed!\n", .{});
             const postfix = node.PostFix;
-            semantic_analyze_node(postfix.val);
+            semantic_analyze_node(postfix.val) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
         },
         .PreFix => {
             if (ast.debug_mode) std.debug.print("PreFix node semantically analyzed!\n", .{});
             const prefix = node.PreFix;
-            semantic_analyze_node(prefix.val);
+            semantic_analyze_node(prefix.val) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
         },
         .AssOp => {
             if (ast.debug_mode) std.debug.print("AssOp node semantically analyzed!\n", .{});
@@ -359,72 +392,129 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         .Comp => {
             if (ast.debug_mode) std.debug.print("Comp node semantically analyzed!\n", .{});
             const comp = node.Comp;
-            semantic_analyze_node(comp.comp_op);
-            semantic_analyze_node(comp.val);
+            semantic_analyze_node(comp.comp_op) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            semantic_analyze_node(comp.val) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
         },
         .Cast => {
             if (ast.debug_mode) std.debug.print("Cast node semantically analyzed!\n", .{});
             const cast = node.Cast;
-            semantic_analyze_node(cast.cast);
-            semantic_analyze_node(cast.val);
+            semantic_analyze_node(cast.cast) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            semantic_analyze_node(cast.val) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
         },
         .WhileStmt => {
             if (ast.debug_mode) std.debug.print("WhileStmt node semantically analyzed!\n", .{});
             const while_stmt = node.WhileStmt;
             if (while_stmt.init) |init| {
-                semantic_analyze_node(init);
+                semantic_analyze_node(init) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
-            semantic_analyze_node(while_stmt.cond);
-            semantic_analyze_node(while_stmt.body);
-        },
-        .IfStmt => {
-            if (ast.debug_mode) std.debug.print("IfStmt node semantically analyzed!\n", .{});
-            const if_stmt = node.IfStmt;
-            semantic_analyze_node(if_stmt.cond);
-            semantic_analyze_node(if_stmt.if_branch);
-            if (if_stmt.el_branch) |el| {
-                semantic_analyze_node(el);
-            }
-        },
+            semantic_analyze_node(while_stmt.cond) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            semantic_analyze_node(while_stmt.body) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            },
+            .IfStmt => {
+                if (ast.debug_mode) std.debug.print("IfStmt node semantically analyzed!\n", .{});
+                const if_stmt = node.IfStmt;
+                semantic_analyze_node(if_stmt.cond) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+                semantic_analyze_node(if_stmt.if_branch) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+                if (if_stmt.el_branch) |el| {
+                    semantic_analyze_node(el) catch |err| {
+                        if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                        return;
+                    };
+                }
+            },
         .ReturnStmt => {
             if (ast.debug_mode) std.debug.print("ReturnStmt node semantically analyzed!\n", .{});
             const ret_stmt = node.ReturnStmt;
             if (ret_stmt.val) |val| {
-                semantic_analyze_node(val);
+                semantic_analyze_node(val) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         .NameParameterNode => {
             if (ast.debug_mode) std.debug.print("NameParameterNode node semantically analyzed!\n", .{});
             const name_param = node.NameParameterNode;
-            semantic_analyze_node(name_param.name);
+            semantic_analyze_node(name_param.name) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             if (name_param.parameterList) |params| {
-                semantic_analyze_node(params);
+                semantic_analyze_node(params) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         .ConditionalExpression => {
             if (ast.debug_mode) std.debug.print("ConditionalExpression node semantically analyzed!\n", .{});
             const cond = node.ConditionalExpression;
-            semantic_analyze_node(cond.expr1);
-            semantic_analyze_node(cond.expr2);
+            semantic_analyze_node(cond.expr1) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            semantic_analyze_node(cond.expr2) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
         },
         .ExpressionStmt => {
             if (ast.debug_mode) std.debug.print("ExpressionStmt node semantically analyzed!\n", .{});
             const expr_stmt = node.ExpressionStmt;
             if (expr_stmt.expr) |expr_node| {
-                semantic_analyze_node(expr_node);
+                semantic_analyze_node(expr_node) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         .IdPointer => {
             if (ast.debug_mode) std.debug.print("IdPointer node semantically analyzed!\n", .{});
             const id = node.IdPointer;
-            semantic_analyze_node(id.pointer);
-            semantic_analyze_node(id.identifier);
+            semantic_analyze_node(id.pointer) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            semantic_analyze_node(id.identifier) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
         },
         .Pointer => {
             if (ast.debug_mode) std.debug.print("Pointer node semantically analyzed!\n", .{});
             const pointer = node.Pointer;
             if (pointer.pointee) |pointee| {
-                semantic_analyze_node(pointee);
+                semantic_analyze_node(pointee) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         //     StructDeclaration: *StructDeclarationNode,
@@ -454,11 +544,15 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         .StructDeclaration => {
             if (ast.debug_mode) std.debug.print("StructDeclaration node semantically analyzed!\n", .{});
             const struct_decl = node.StructDeclaration;
-            semantic_analyze_node(struct_decl.specifier);
-            if (struct_decl.declarators) |declor| {
-                for (declor) |d| {
-                    semantic_analyze_node(d);
-                }
+            semantic_analyze_node(struct_decl.specifier) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
+            for (struct_decl.declarators) |d| {
+                semantic_analyze_node(d) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         // .StructDeclaratorList => { // unwraped and not a AST node
@@ -479,7 +573,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             if (ast.debug_mode) std.debug.print("TranslationUnitList node semantically analyzed!\n", .{});
             const translationList = node.TranslationUnitList;
             for (translationList.translationUnits) |listNode| {
-                semantic_analyze_node(listNode);
+                semantic_analyze_node(listNode) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
             }
         },
         // everything below this is an "atomic" node and doesn't call anymore nodes
@@ -490,7 +587,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             }
             const dec_link = st().get_variable(ident.name);
             if (dec_link) |dc| {
-                ident.typeNode = dc.typeNode;
+                ident.typeNode = dc.declaration_specifier.?.Type;
             } else {
                 log.ErrorLoc(ident.location.?, "Declaration of this identifier does not have a valid type.", m.diagnostic_source(ident.location.?.line), "Ensure variable declaration has a type");
             }
@@ -605,7 +702,7 @@ pub fn check_arg_par(arg: *ast.Node, par: *ast.Node, arg_num: usize, func_name: 
     switch (arg.*) {
         .Identifier => |a| {
             if (a.spawner) |as| {
-                type1 = as.typeNode;
+                type1 = as.declaration_specifier.?.Type;
             }
             arg_loc = a.location;
         },
@@ -625,11 +722,11 @@ pub fn check_arg_par(arg: *ast.Node, par: *ast.Node, arg_num: usize, func_name: 
     switch (par.*) {
         .Identifier => |a| {
             if (a.spawner) |as| {
-                type2 = as.typeNode;
+                type2 = as.declaration_specifier.?.Type;
             }
         },
         .Declaration => |a| {
-            type2 = a.typeNode;
+            type2 = a.declaration_specifier.?.Type;
         },
         else => {},
     }
