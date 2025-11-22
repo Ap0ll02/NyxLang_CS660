@@ -1071,7 +1071,7 @@ export fn make_array_node(identifier_node: *Node, constant_node: *Node) ?*Node {
 export fn make_struct_or_union(
     struct_or_union: *Node,
     identifier: [*c]const u8, // TODO zig doesn't support optional *c, might be
-                              // weird later if this is null
+                              // weird later if this is null?
     struct_declarations: ?*Node,
 ) ?*Node {
     // We only know how to deal with a Node that actually is StructOrUnion
@@ -1171,14 +1171,25 @@ export fn append_struct_declaration_list(declaration: *Node, declarations: ?*Nod
 export fn make_struct_declaration(specifier: *Node, struct_declarators: ?*Node) ?*Node {
     const struct_node = glob_alloc.create(StructDeclarationNode) catch return null;
 
-    if (struct_declarators) |sdl| {
-        // Unwrap declarators
-        const declarators = sdl.StructDeclaration.declarators;
-        struct_node.* = StructDeclarationNode{ .specifier = specifier, .declarators = declarators, .location = get_location() };
+    if (struct_declarators) |node| {
+        if (node.* != .StructDeclaratorList)
+            return null;
+
+        const list = node.StructDeclaratorList;
+        const declarators = list.declarators;
+
+        struct_node.* = StructDeclarationNode{
+            .specifier = specifier,
+            .declarators = declarators,
+            .location = get_location(),
+        };
     } else {
-        // Struct reference (no body)
         const empty_decl_list = glob_alloc.alloc(*Node, 0) catch return null;
-        struct_node.* = StructDeclarationNode{ .specifier = specifier , .declarators = empty_decl_list, .location = get_location() };
+        struct_node.* = StructDeclarationNode{
+            .specifier = specifier,
+            .declarators = empty_decl_list,
+            .location = get_location(),
+        };
     }
 
     const node = glob_alloc.create(Node) catch return null;
