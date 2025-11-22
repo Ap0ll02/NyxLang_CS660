@@ -28,8 +28,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                         // We need to check if this type exist
                         const my_type = st().get_type(decl_type_name);
                         // Check to see if the get type function returned a null for error checking
-                        if (newtype == null) {
-                            if (ast.debug_mode) std.debug.print("IDK shits broke\n");
+                        if (my_type == null) {
+                            if (ast.debug_mode) std.debug.print("IDK shits broke\n", {});
                             // We should report an error here
                         } else {
                             if (ast.debug_mode) std.debug.print("Type has been found: {any}", .{newtype});
@@ -221,6 +221,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
 
                         type_node.alignment = struct_align;
                         type_node.size = alignForward(offset, struct_align);
+                    },
+                    else => |tag| {
+                        if (ast.debug_mode) {
+                            std.debug.print("unexpected declaration_specifier tag: {}\n", .{tag});
+                        }
+
                     },
                 }
                 }
