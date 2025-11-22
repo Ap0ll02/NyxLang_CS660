@@ -122,59 +122,48 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
 
                         const alloc = st().allocator;
 
-                        // ---- 1. Get struct name ----
                         const name_slice: []const u8 = blk: {
                             if (new_struct.identifier) |name_node| {
-                                // name_node is a *Node with tag .Identifier
                                 break :blk name_node.Identifier.name;
                             } else {
                                 break :blk "<anonymous>";
                             }
                         };
 
-                        // We want a C string for TypeNode.type_name ([*c]const u8)
                         const name_z = try alloc.dupeZ(u8, name_slice);
 
-                        // ---- 2. Create & register the TypeNode for this struct ----
                         const type_node = try alloc.create(ast.TypeNode);
                         type_node.* = .{
                             .is_unsigned = false,
                             .is_floating = false,
                             .is_const = false,
                             .qualifier = 0,
-                            .base = .INT, // you don't have a "struct" base; this is just a tag, real info is in field_map
+                            .base = .INT,
                             .type_name = name_z.ptr,
-                            .size = 0, // we'll compute below
-                            .alignment = 1, // will be max(field alignment)
+                            .size = 0, // compute later
+                            .alignment = 1,
                             .location = new_struct.location,
                             .field_map = std.StringHashMap(*ast.StructsFieldInfo).init(alloc),
                         };
 
-                        // let the StructSpecifierNode also know its type
                         new_struct.typeNode = type_node;
 
-                        // Make this struct name visible as a type (typedef-like)
                         try st().assign_type(type_node);
 
-                        // ---- 3. Walk the fields and build layout ----
                         var offset: usize = 0;
                         var struct_align: usize = 1;
 
                         if (new_struct.struct_declaration_list) |decls| {
-                            // decls: []*Node, each should be a StructDeclarationNode wrapped in Node
                             for (decls) |decl_node| {
                                 const struct_decl = decl_node.StructDeclaration;
 
-                                // Resolve the field *type* from the specifier
                                 var field_type: *ast.TypeNode = undefined;
 
                                 switch (struct_decl.specifier.*) {
                                     .Type => |t| {
-                                        // t is *TypeNode
                                         field_type = t;
                                     },
                                     .StructSpecifier => |inner_struct| {
-                                        // field whose type is another struct
                                         const inner_name: []const u8 = blk2: {
                                             if (inner_struct.identifier) |id_node| {
                                                 break :blk2 id_node.Identifier.name;
@@ -184,7 +173,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                                         };
 
                                         field_type = st().get_type(inner_name) orelse {
-                                            // unknown struct type – you can emit an error here if you want
+                                            // unknown struct type
                                             if (ast.debug_mode) {
                                                 std.debug.print("Unknown struct type for field: {s}\n", .{inner_name});
                                             }
@@ -201,21 +190,18 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                                 const field_align = field_type.alignment;
 
                                 if (field_align == 0 or field_size == 0) {
-                                    // probably an incomplete type; you can choose to error or skip
                                     if (ast.debug_mode) {
                                         std.debug.print("Field has incomplete type, skipping\n", .{});
                                     }
                                     continue;
                                 }
 
-                                // ---- For each declarator, we get a field name ----
                                 for (struct_decl.declarators) |decltor_node| {
                                     const field_name: []const u8 = switch (decltor_node.*) {
                                         .Identifier => |id| id.name,
-                                        else => continue, // TODO: support pointers/arrays as struct members
+                                        else => continue, // TODO support pointers & arrays as fields
                                     };
 
-                                    // align offset for this field
                                     offset = alignForward(offset, field_align);
 
                                     const field_info = try alloc.create(ast.StructsFieldInfo);
@@ -225,7 +211,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                                         .offset = offset,
                                     };
 
-                                    // insert into the struct's field_map
                                     try type_node.field_map.put(field_name, field_info);
 
                                     offset += field_size;
@@ -234,7 +219,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) void {
                             }
                         }
 
-                        // ---- 4. Final struct size & alignment ----
                         type_node.alignment = struct_align;
                         type_node.size = alignForward(offset, struct_align);
                     },
