@@ -1306,10 +1306,17 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
         .Declaration => {
             const decl_node = node.Declaration;
             //const type_str = std.mem.span(decl_node.typeNode.type_name);
-            std.debug.print("🌊 Declaration (Of: {any})\n", .{decl_node.*});
+            std.debug.print("🌊 Declaration\n", .{});
 
+            if (decl_node.declaration_specifier) |spec| {
+                printIndent(indent + 1);
+                std.debug.print("↳ Specifier:\n", .{});
+                try printNode(spec, indent + 2);
+            }
             if (decl_node.assign_node) |assgn| {
-                try printNode(assgn, indent + 1);
+                printIndent(indent+1);
+                std.debug.print("↳ Assignment:\n", .{});
+                try printNode(assgn, indent + 2);
             }
         },
         .Assignment => {

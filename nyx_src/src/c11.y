@@ -40,12 +40,13 @@ struct Node* make_return_node(struct Node* ret_val);
 struct Node* make_post_fix_node(struct Node* base, enum yytokentype operator);
 struct Node* make_pre_fix_node(enum yytokentype operator, struct Node* base);
 struct Node* combine_type_node(struct Node* left, struct Node* right);
-struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
-struct Node* make_struct_declaration(struct Node* identifier_node, struct Node* decl_list_node);
-struct Node* make_struct_or_union(struct Node* struct_or_union, const char* s, struct Node* d_list);
-struct Node* make_struct_or_union_node(enum yytokentype t);
 struct Node* append_translation_unit(struct Node* unit, struct Node* prev);
 struct Node* make_array_node(struct Node* identifier_node, struct Node* constant_node);
+struct Node* make_struct_or_union(struct Node* struct_or_union, const char* identifier, struct Node* struct_declarations);
+struct Node* make_struct_or_union_node(enum yytokentype t);
+struct Node* append_struct_declaration_list(struct Node* declaration, struct Node* declarations);
+struct Node* make_struct_declaration(struct Node* specifier, struct Node* struct_declarators);
+struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
 
 struct Node* make_assignment_op_node(enum yytokentype token);
 struct Node* make_float_node(float f);
@@ -364,8 +365,8 @@ struct_or_union
 	;
 
 struct_declaration_list
-	: struct_declaration { $$ = append_struct_declarator_list($1, NULL); } // append_struct_declaration
-	| struct_declaration_list struct_declaration { $$ = append_struct_declarator_list($2, $1); }
+	: struct_declaration { $$ = append_struct_declaration_list($1, NULL); } // append_struct_declaration
+	| struct_declaration_list struct_declaration { $$ = append_struct_declaration_list($2, $1); }
 	;
 
 struct_declaration
