@@ -162,23 +162,23 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                         switch (assign_node.declarator.*) {
                             .Array => |ai| {
                                 if(st().get_variable(ai.identifier.?.Identifier.name) != null) {
-                                    log.Error(
+                                    log.Warn(
                                         decl.location.?.col,
                                         decl.location.?.line,
-                                        log.f_str("Variable: {s} use before declaration", .{ai.identifier.?.Identifier.name}),
+                                        log.f_str("Variable {s}: shadows similarly named variable.", .{ai.identifier.?.Identifier.name}),
                                         m.diagnostic_source(decl.location.?.line),
-                                        "Declare the variable before using it",
+                                        "",
                                     );
                                 }
                             },
                             .Identifier => |ai| {
                                 if(st().get_variable(ai.name) != null) {
-                                    log.Error(
+                                    log.Warn(
                                         decl.location.?.col,
                                         decl.location.?.line,
-                                        log.f_str("Variable: {s} use before declaration", .{ai.name}),
+                                        log.f_str("Variable {s}: shadows similarly named variable.", .{ai.name}),
                                         m.diagnostic_source(decl.location.?.line),
-                                        "Declare the variable before using it",
+                                        "",
                                     );
                                 }
                             },
@@ -202,13 +202,14 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             array_node.length = @intCast(size.Constant.typeNode.size * decl.declaration_specifier.?.Type.size);
                         }
                         // We can finally add the decl node and name to the map
+                        // If variable exists, prior to its' assignment
                         if(st().get_variable(array_node.identifier.?.Identifier.name) != null) {
-                            log.Error(
+                            log.Warn(
                                 decl.location.?.col,
                                 decl.location.?.line,
-                                log.f_str("Variable: {s} use before declaration", .{array_node.identifier.?.Identifier.name}),
+                                log.f_str("Shadowing previous variable: {s}", .{array_node.identifier.?.Identifier.name}),
                                 m.diagnostic_source(decl.location.?.line),
-                                "Declare the variable before using it",
+                                "",
                             );
                         }
                         st().assign_variable(decl) catch {
