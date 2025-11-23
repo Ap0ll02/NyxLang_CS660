@@ -157,7 +157,34 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             // For handling Variables Arrays and Pointers types is handled before this call so we should capture bad types before this point
             if (decl.assign_node) |ass| {
                 switch (ass.*) {
-                    .Assignment => {
+                    .Assignment => |assign_node| {
+
+                        switch (assign_node.declarator.*) {
+                            .Array => |ai| {
+                                if(st().get_variable(ai.identifier.?.Identifier.name) != null) {
+                                    log.Error(
+                                        decl.location.?.col,
+                                        decl.location.?.line,
+                                        log.f_str("Variable: {s} use before declaration", .{ai.identifier.?.Identifier.name}),
+                                        m.diagnostic_source(decl.location.?.line),
+                                        "Declare the variable before using it",
+                                    );
+                                }
+                            },
+                            .Identifier => |ai| {
+                                if(st().get_variable(ai.name) != null) {
+                                    log.Error(
+                                        decl.location.?.col,
+                                        decl.location.?.line,
+                                        log.f_str("Variable: {s} use before declaration", .{ai.name}),
+                                        m.diagnostic_source(decl.location.?.line),
+                                        "Declare the variable before using it",
+                                    );
+                                }
+                            },
+                            else => {}
+                        }
+
                         // We assign it and then move to the next stage of type checking
                         st().assign_variable(decl) catch {
                             log.Error(
@@ -175,6 +202,15 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             array_node.length = @intCast(size.Constant.typeNode.size * decl.declaration_specifier.?.Type.size);
                         }
                         // We can finally add the decl node and name to the map
+                        if(st().get_variable(array_node.identifier.?.Identifier.name) != null) {
+                            log.Error(
+                                decl.location.?.col,
+                                decl.location.?.line,
+                                log.f_str("Variable: {s} use before declaration", .{array_node.identifier.?.Identifier.name}),
+                                m.diagnostic_source(decl.location.?.line),
+                                "Declare the variable before using it",
+                            );
+                        }
                         st().assign_variable(decl) catch {
                             log.Error(
                                 decl.location.?.col,
@@ -586,6 +622,14 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 std.debug.print("Identifier '{s}' BEFORE: spawner = {s}\n", .{ ident.name, if (ident.spawner == null) "null" else "set" });
             }
             const dec_link = st().get_variable(ident.name);
+            if (dec_link == null) {
+                log.ErrorLoc(ident.location.?, 
+                    "Variable used before declaration",
+                    m.diagnostic_source(ident.location.?.line),
+                    "Ensure variable is defined before use."
+                );
+                return error.Error;
+            }
             if (dec_link) |dc| {
                 ident.typeNode = dc.declaration_specifier.?.Type;
             } else {
