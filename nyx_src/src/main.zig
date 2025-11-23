@@ -68,7 +68,7 @@ pub fn main() !void {
             return;
         };
     }
-    std.debug.print("\nParse {s}\n", .{if (result == 1) "failed." else "successful"});
+    std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{if (result == 1) "failed." else "successful", log.err_count});
 }
 
 export fn yyerror(msg: [*c]const u8) void {
