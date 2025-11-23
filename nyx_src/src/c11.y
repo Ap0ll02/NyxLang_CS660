@@ -370,8 +370,8 @@ struct_declaration_list
 	;
 
 struct_declaration
-	: specifier_qualifier_list ';' { make_struct_declaration($1, NULL); } /* for anonymous struct/union */
-	| specifier_qualifier_list struct_declarator_list ';' { make_struct_declaration($1, $2); }	/* for named struct/union */
+	: specifier_qualifier_list ';' { $$ = make_struct_declaration($1, NULL); } /* for anonymous struct/union */
+	| specifier_qualifier_list struct_declarator_list ';' { $$ = make_struct_declaration($1, $2); }	/* for named struct/union */
 	| static_assert_declaration
 	;
 
@@ -537,9 +537,9 @@ initializer
 
 initializer_list
 	/*: designation initializer*/
-	: initializer
-	/*| initializer_list ',' designation initializer
-	| initializer_list ',' initializer */
+	: initializer { $$ = append_argument_list($1, NULL); }
+	// | initializer_list ',' designation initializer { $$ = append_argument_list($4, $1); } ???
+	| initializer_list ',' initializer { $$ = append_argument_list($3, $1); }
 	;
 
 designation
