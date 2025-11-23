@@ -90,8 +90,22 @@ pub const SymbolTable = struct {
             const key = switch (test_key.*) {
                 .Identifier => |id| id.name,
                 .IdPointer => |id| id.identifier.Identifier.name,
-                else => "null",
+
+                // Handle array declarations like `int x[5];`
+                .Array => |arr| blk: {
+                    // e.g., maybe arr.identifier or arr.declarator instead of arr.id
+                    if (arr.identifier) |id_node| {
+                        break :blk id_node.Identifier.name;
+                    } else {
+                        if (ast.debug_mode)
+                            std.debug.print("assign_variable: array declarator missing identifier\n", .{});
+                        break :blk "<?>"; // fallback name
+                    }
+                },
+
+                else => "<?>",
             };
+
             if (ast.debug_mode) std.debug.print("Assigning variable {s} of type {s}\n", .{ key, type_name_slice });
             try self.variable_map.put(key, decl_node);
             if (ast.debug_mode) std.debug.print("Variable {s} inserted into variable_map.\n", .{key});
