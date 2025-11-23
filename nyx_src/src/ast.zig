@@ -163,7 +163,7 @@ pub const ArrayNode = struct {
     align_bytes: u32 = 0,
 };
 // and additional fields for complex types (arrays, structs, etc.) in the future
-pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID };
+pub const BaseType = enum(u8) { INT, FLOAT, STRING, CHAR, LONG, SHORT, DOUBLE, BOOL, VOID, STRUCT };
 pub const TypeNode = extern struct {
     is_unsigned: bool = false,
     is_floating: bool = false,
