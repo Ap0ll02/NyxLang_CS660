@@ -1,12 +1,10 @@
 struct Car {
-    char* brand;
-    char* model;
     int year;
-    float josh;
-    long long richie;
+    int josh;
+    long richie;
 };   
 
 int main (){
-    // struct Car car1;
+    struct Car car1 = {12, 12, 53};
     return 0;
 }

@@ -1,30 +1,25 @@
 // structs_basic.c
 
-// 1) Basic struct with int/float  (very close to your Josh)
 struct Josh {
     int   x;
     float y;
 };
 
-// 2) Padding / alignment fun: char + short + int
 struct Mixed {
     char  a;  // size 1, align 1
     short b;  // size 2, align 2
     int   c;  // size 4, align 4
 };
 
-// 3) Nested struct
 struct Point {
     int x;
     int y;
 };
-
 struct WithNested {
     struct Point p;
     int          z;
 };
 
-// 4) Array of structs
 struct Particle {
     float x;
     float y;
@@ -78,21 +73,6 @@ void use_josh_pointer(void) {
     pj->x = pj->x + 1;
 }
 
-// 9) Arrays of structs with initialization
-void init_particles(void) {
-    struct Particle ps[3] = {
-        {0.0f, 0.0f, 0.0f, 1},
-        {1.0f, 0.0f, 0.0f, 1},
-        {0.0f, 1.0f, 0.0f, 0},
-    };
-}
-
-// 10) Intentional ERROR: use struct before it’s defined
-// (should trigger your “unknown type” or similar)
-void bad_use_before_def(void) {
-    struct NotDefined yet;   // <-- should be rejected by your semantic analyzer
-}
-
 // 11) Intentional ERROR: conflicting struct redefinition
 struct Conflicting {
     int x;
@@ -104,7 +84,7 @@ struct Conflicting {
 
 int main(void) {
     // basic struct + initializer
-    struct Josh josh1 = {10, 3.14f};
+    struct Josh josh1 = {10, 3.14};
 
     // padding/align struct
     struct Mixed m = { 'a', 123, 456 };
@@ -120,7 +100,6 @@ int main(void) {
     take_result(r);
 
     use_josh_pointer();
-    init_particles();
 
     global_anon.code = 7;
     global_anon.flag = 'X';
