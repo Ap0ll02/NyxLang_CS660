@@ -155,37 +155,83 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             }
 
             // For handling Variables Arrays and Pointers types is handled before this call so we should capture bad types before this point
+            // For handling Variables, Arrays, and Pointers.
+            // decl.assign_node can be:
+            //   - Assignment (whose declarator is Identifier / Array / Pointer)
+            //   - Array       (e.g., direct array declarator)
+            //   - Pointer     (direct pointer declarator)
             if (decl.assign_node) |ass| {
                 switch (ass.*) {
-                    .Assignment => |assign_node| {
+                    // int x[5];
+                    // int *p;
+                    // int x = 3;
+                    .Assignment => |assign| {
+                        const declarator = assign.declarator;
+                        switch (declarator.*) {
+                            .Array => |array_node| {
+                                if (ast.debug_mode) std.debug.print("Declaration: array declarator\n", .{});
 
-                        switch (assign_node.declarator.*) {
-                            .Array => |ai| {
-                                if(st().get_variable(ai.identifier.?.Identifier.name) != null) {
-                                    log.Warn(
-                                        decl.location.?.col,
-                                        decl.location.?.line,
-                                        log.f_str("Variable {s}: shadows similarly named variable.", .{ai.identifier.?.Identifier.name}),
-                                        m.diagnostic_source(decl.location.?.line),
-                                        "",
+                                if (array_node.constant) |size| {
+                                    const count_str = size.Constant.value;
+
+                                    const count = std.fmt.parseUnsigned(usize, count_str, 10) catch {
+                                        log.Error(
+                                            decl.location.?.col,
+                                            decl.location.?.line,
+                                            "Non-integer array size",
+                                            m.diagnostic_source(decl.location.?.line),
+                                            "",
+                                        );
+                                        return;
+                                    };
+
+                                    const elem_size = decl.declaration_specifier.?.Type.size;
+                                    const total_bytes = count * elem_size;
+                                    array_node.length = @as(u32, @intCast(total_bytes));
+
+                                    if (ast.debug_mode)
+                                        std.debug.print(
+                                            "the length of the array is: {d} (count={d}, elem_size={d})\n",
+                                            .{ array_node.length, count, elem_size },
+                                        );
+                                }
+
+                                if (array_node.identifier) |id_node| {
+                                    const name = id_node.Identifier.name;
+                                    if (st().get_variable(name) != null) {
+                                        log.Warn(
+                                            decl.location.?.col,
+                                            decl.location.?.line,
+                                            log.f_str("Shadowing previous variable: {s}", .{name}),
+                                            m.diagnostic_source(decl.location.?.line),
+                                            "",
+                                        );
+                                    }
+                                }
+                            },
+                            .Pointer => |pointer_node| {
+                                // Pointer declarator in an Assignment, e.g., int *p;
+                                _ = pointer_node;
+                                if (ast.debug_mode) std.debug.print("Declaration: pointer declarator\n", .{});
+                                // You could also do a shadowing check similar to the Array case
+                            },
+
+                            .Identifier => |_| {
+                                // Simple scalar like: int x;
+                                if (ast.debug_mode) std.debug.print("Declaration: simple identifier declarator\n", .{});
+                            },
+
+                            else => {
+                                if (ast.debug_mode) {
+                                    std.debug.print(
+                                        "Declaration: unexpected inner declarator tag: {s}\n",
+                                        .{@tagName(declarator.*)},
                                     );
                                 }
                             },
-                            .Identifier => |ai| {
-                                if(st().get_variable(ai.name) != null) {
-                                    log.Warn(
-                                        decl.location.?.col,
-                                        decl.location.?.line,
-                                        log.f_str("Variable {s}: shadows similarly named variable.", .{ai.name}),
-                                        m.diagnostic_source(decl.location.?.line),
-                                        "",
-                                    );
-                                }
-                            },
-                            else => {}
                         }
 
-                        // We assign it and then move to the next stage of type checking
+                        // After analyzing the declarator shape, actually register the variable:
                         st().assign_variable(decl) catch {
                             log.Error(
                                 decl.location.?.col,
@@ -196,31 +242,32 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             );
                         };
                     },
+
+                    // Case where the parser directly made assign_node an Array node
                     .Array => |array_node| {
-                        if (ast.debug_mode)
-                            std.debug.print("Declaration: direct array assign_node\n", .{});
-                        // This is a fallback in case the parser ever sticks an Array
-                        // directly in assign_node instead of wrapping it in Assignment.
+                        if (ast.debug_mode) std.debug.print("Declaration: direct array assign_node\n", .{});
 
                         if (array_node.constant) |size| {
                             array_node.length = @intCast(
-                                size.Constant.typeNode.size *
-                                    decl.declaration_specifier.?.Type.size,
+                                size.Constant.typeNode.size * decl.declaration_specifier.?.Type.size,
                             );
                             if (ast.debug_mode)
                                 std.debug.print("the length of the array is: {d}\n", .{array_node.length});
                         }
-                        // We can finally add the decl node and name to the map
-                        // If variable exists, prior to its' assignment
-                        if(st().get_variable(array_node.identifier.?.Identifier.name) != null) {
-                            log.Warn(
-                                decl.location.?.col,
-                                decl.location.?.line,
-                                log.f_str("Shadowing previous variable: {s}", .{array_node.identifier.?.Identifier.name}),
-                                m.diagnostic_source(decl.location.?.line),
-                                "",
-                            );
+
+                        if (array_node.identifier) |id_node| {
+                            const name = id_node.Identifier.name;
+                            if (st().get_variable(name) != null) {
+                                log.Warn(
+                                    decl.location.?.col,
+                                    decl.location.?.line,
+                                    log.f_str("Shadowing previous variable: {s}", .{name}),
+                                    m.diagnostic_source(decl.location.?.line),
+                                    "",
+                                );
+                            }
                         }
+
                         st().assign_variable(decl) catch {
                             log.Error(
                                 decl.location.?.col,
@@ -231,10 +278,11 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             );
                         };
                     },
+
+                    // Case where the parser directly made assign_node a Pointer node
                     .Pointer => |pointer| {
                         _ = pointer;
-                        if (ast.debug_mode)
-                            std.debug.print("Declaration: pointer assign_node\n", .{});
+                        if (ast.debug_mode) std.debug.print("Declaration: direct pointer assign_node\n", .{});
 
                         st().assign_variable(decl) catch {
                             log.Error(
@@ -246,6 +294,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             );
                         };
                     },
+
                     else => {
                         // Unknown node type so we should just do some error handling
                         if (ast.debug_mode) {
@@ -254,6 +303,17 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                 .{@tagName(ass.*)},
                             );
                         }
+
+                        // You can choose to still try assigning, or just skip.
+                        st().assign_variable(decl) catch {
+                            log.Error(
+                                decl.location.?.col,
+                                decl.location.?.line,
+                                "Could not assign variable (unknown assign_node shape)",
+                                m.diagnostic_source(decl.location.?.line),
+                                "",
+                            );
+                        };
                     },
                 }
             }
@@ -638,11 +698,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             }
             const dec_link = st().get_variable(ident.name);
             if (dec_link == null) {
-                log.ErrorLoc(ident.location.?, 
-                    "Variable used before declaration",
-                    m.diagnostic_source(ident.location.?.line),
-                    "Ensure variable is defined before use."
-                );
+                log.ErrorLoc(ident.location.?, "Variable used before declaration", m.diagnostic_source(ident.location.?.line), "Ensure variable is defined before use.");
                 return error.Error;
             }
             if (dec_link) |dc| {
