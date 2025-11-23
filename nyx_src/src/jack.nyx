@@ -1,5 +1,6 @@
 int add(int a, int b) {}
 int main() {
+    carrot = 10;
     add(5, 328, 890);
     add();
     add(20.432, 2342.23432);
