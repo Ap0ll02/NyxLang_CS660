@@ -1,0 +1,130 @@
+// structs_basic.c
+
+// 1) Basic struct with int/float  (very close to your Josh)
+struct Josh {
+    int   x;
+    float y;
+};
+
+// 2) Padding / alignment fun: char + short + int
+struct Mixed {
+    char  a;  // size 1, align 1
+    short b;  // size 2, align 2
+    int   c;  // size 4, align 4
+};
+
+// 3) Nested struct
+struct Point {
+    int x;
+    int y;
+};
+
+struct WithNested {
+    struct Point p;
+    int          z;
+};
+
+// 4) Array of structs
+struct Particle {
+    float x;
+    float y;
+    float z;
+    int   alive;
+};
+
+// 5) Forward declaration + separate definition
+struct Forward;
+
+struct UsesForward {
+    struct Forward *ptr;
+};
+
+struct Forward {
+    int id;
+    double value;
+};
+
+// 6) Anonymous struct (if your parser handles it)
+struct {
+    int  code;
+    char flag;
+} global_anon;
+
+// 7) Struct as function parameter and return type
+struct Result {
+    int   ok;
+    float value;
+};
+
+struct Result make_result(int flag, float v) {
+    struct Result r;
+    r.ok = flag;
+    r.value = v;
+    return r;
+}
+
+void take_result(struct Result r) {
+    // maybe later: check r.ok, r.value
+}
+
+// 8) Pointer to struct and field access
+void use_josh_pointer(void) {
+    struct Josh j;
+    struct Josh *pj = &j;
+
+    j.x = 10;
+    j.y = 3.14f;
+
+    pj->x = pj->x + 1;
+}
+
+// 9) Arrays of structs with initialization
+void init_particles(void) {
+    struct Particle ps[3] = {
+        {0.0f, 0.0f, 0.0f, 1},
+        {1.0f, 0.0f, 0.0f, 1},
+        {0.0f, 1.0f, 0.0f, 0},
+    };
+}
+
+// 10) Intentional ERROR: use struct before it’s defined
+// (should trigger your “unknown type” or similar)
+void bad_use_before_def(void) {
+    struct NotDefined yet;   // <-- should be rejected by your semantic analyzer
+}
+
+// 11) Intentional ERROR: conflicting struct redefinition
+struct Conflicting {
+    int x;
+};
+
+struct Conflicting {
+    float x;   // <-- should trigger a “redefinition” or “conflicting type” error
+};
+
+int main(void) {
+    // basic struct + initializer
+    struct Josh josh1 = {10, 3.14f};
+
+    // padding/align struct
+    struct Mixed m = { 'a', 123, 456 };
+
+    // nested struct usage
+    struct WithNested wn;
+    wn.p.x = 1;
+    wn.p.y = 2;
+    wn.z   = 3;
+
+    // call functions with struct args/returns
+    struct Result r = make_result(1, 42.0f);
+    take_result(r);
+
+    use_josh_pointer();
+    init_particles();
+
+    global_anon.code = 7;
+    global_anon.flag = 'X';
+
+    return 0;
+}
+
