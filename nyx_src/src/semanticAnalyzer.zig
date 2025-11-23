@@ -258,16 +258,34 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                         };
                     },
 
+                    // Pretty much ignore this Most of the work should be done in the above switch case
                     // Case where the parser directly made assign_node an Array node
                     .Array => |array_node| {
-                        if (ast.debug_mode) std.debug.print("Declaration: direct array assign_node\n", .{});
+                        if (ast.debug_mode) std.debug.print("Declaration: array declarator\n", .{});
 
                         if (array_node.constant) |size| {
-                            array_node.length = @intCast(
-                                size.Constant.typeNode.size * decl.declaration_specifier.?.Type.size,
-                            );
+                            const count_str = size.Constant.value;
+
+                            const count = std.fmt.parseUnsigned(usize, count_str, 10) catch {
+                                log.Error(
+                                    decl.location.?.col,
+                                    decl.location.?.line,
+                                    "Non-integer array size",
+                                    m.diagnostic_source(decl.location.?.line),
+                                    "",
+                                );
+                                return;
+                            };
+
+                            const elem_size = decl.declaration_specifier.?.Type.size;
+                            const total_bytes = count * elem_size;
+                            array_node.length = @as(u32, @intCast(total_bytes));
+
                             if (ast.debug_mode)
-                                std.debug.print("the length of the array is: {d}\n", .{array_node.length});
+                                std.debug.print(
+                                    "the length of the array is: {d} (count={d}, elem_size={d})\n",
+                                    .{ array_node.length, count, elem_size },
+                                );
                         }
 
                         if (array_node.identifier) |id_node| {
@@ -282,16 +300,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                 );
                             }
                         }
-
-                        st().assign_variable(decl) catch {
-                            log.Error(
-                                decl.location.?.col,
-                                decl.location.?.line,
-                                "Could not assign Array variable",
-                                m.diagnostic_source(decl.location.?.line),
-                                "",
-                            );
-                        };
                     },
 
                     // Case where the parser directly made assign_node a Pointer node
