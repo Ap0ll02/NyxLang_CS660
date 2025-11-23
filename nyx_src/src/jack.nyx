@@ -4,4 +4,5 @@ int main() {
     add();
     add(20.432, 2342.23432);
     float floor = add(20, 30);
+    int cool[4];
 }

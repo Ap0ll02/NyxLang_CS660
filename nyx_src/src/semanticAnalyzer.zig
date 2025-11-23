@@ -24,7 +24,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 switch (spec.*) {
                     .Type => |newtype| {
                         // Grab name from parsed type
-                        const decl_type_name = std.mem.span(newtype.type_name);
+                        const decl_type_name: []const u8 = std.mem.span(newtype.type_name);
 
                         // Lookup in type table
                         if (st().get_type(decl_type_name)) |ty| {
