@@ -364,8 +364,8 @@ struct_or_union
 	;
 
 struct_declaration_list
-	: struct_declaration { $$ = append_struct_declaration_list($1, NULL); } // append_struct_declaration
-	| struct_declaration_list struct_declaration { $$ = append_struct_declaration_list($2, $1); }
+	: struct_declaration { $$ = append_struct_declarator_list($1, NULL); } // append_struct_declaration
+	| struct_declaration_list struct_declaration { $$ = append_struct_declarator_list($2, $1); }
 	;
 
 struct_declaration
