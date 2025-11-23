@@ -1,0 +1,180 @@
+// mega_semantic_test_no_union_no_enum.c
+//
+// Semantic stress test for a C compiler front-end.
+// No unions, no enums, no labels/goto.
+//
+
+// ========================================
+// 1. Simple global declarations & conflicts
+// ========================================
+int   gi;
+float gf;
+char  gc;
+
+int gi;            // OK: tentative definition
+float gi;          // ERROR: conflicting type with previous gi
+
+
+// ========================================
+// 2. Struct declarations + redefinitions
+// ========================================
+struct S1 {
+    int   a;
+    float b;
+};
+
+struct S1;                // OK: redundant forward declaration
+struct S1 { int x; };     // ERROR: redefinition with different members
+
+
+// ========================================
+// 3. Forward declarations of structs
+// ========================================
+struct Node;              // forward decl
+
+struct Container {
+    struct Node *n;       // OK: pointer to incomplete type
+};
+
+struct Node {
+    int value;
+    struct S1 s;          // ERROR: S1 redefinition above breaks use
+};
+
+
+// ========================================
+// 4. Functions and conflicting declarations
+// ========================================
+int add(int a, int b);       // declaration
+int add(int x, float y);     // ERROR: conflicting declaration
+
+int add(int a, int b) {      // definition
+    return a + b;
+}
+
+void bad_returns(void) {
+    return 5;                // ERROR: void function returning value
+}
+
+int missing_return() {       // ERROR: not all control paths return a value
+    int x = 10;
+}
+
+
+// ========================================
+// 5. Function call argument mismatch
+// ========================================
+int f1(int x, int y);
+
+void test_calls(void) {
+    f1();                 // ERROR: too few args
+    f1(1,2,3);            // ERROR: too many args
+    f1(3.14, "hello");    // ERROR: wrong types
+}
+
+
+// ========================================
+// 6. Arrays & pointer type checking
+// ========================================
+int arr[5];
+
+void ptr_tests(void) {
+    arr = 0;              // ERROR: array is not assignable
+
+    int *p = arr;         // OK: array decays to pointer
+
+    float *fp = arr;      // ERROR: incompatible pointer types
+
+    p + fp;               // ERROR: pointer arithmetic with mixed types
+}
+
+
+// ========================================
+// 7. Assignment type rules
+// ========================================
+void assign_tests(void) {
+    const int ci = 10;
+    ci = 20;              // ERROR: modifying const
+
+    int x = 10;
+    float y = 5.5;
+
+    x = y;                // OK: implicit float->int conversion
+    y = x;                // OK: implicit int->float conversion
+
+    int *pi;
+    pi = &y;              // ERROR: float* → int* mismatch
+}
+
+
+// ========================================
+// 8. Lvalue/rvalue rules
+// ========================================
+void expr_errors(void) {
+    int a;
+    (a = 5) = 10;         // ERROR: assignment result is not an lvalue
+    5 = a;                // ERROR: constant not assignable
+
+    int b[3];
+    b = 10;               // ERROR: array is not assignable
+    b[0] = 10;            // OK
+}
+
+
+// ========================================
+// 9. Shadowing & redefining
+// ========================================
+int shadow = 5;
+
+void shadow_test(void) {
+    int shadow = 10;      // OK: new local shadows global
+    float shadow;         // ERROR: redefinition in same scope
+}
+
+
+// ========================================
+// 10. For-loop scoping rules
+// ========================================
+void loop_test(void) {
+    for (int i = 0; i < 10; i++) {
+        int i = 5;        // ERROR: redeclaration of 'i' in same scope
+    }
+}
+
+
+// ========================================
+// 11. Struct use & invalid fields
+// ========================================
+struct Pair { int x; int y; };
+
+void struct_use(void) {
+    struct Pair p = { 1, 2 };
+    p.z = 10;             // ERROR: no such field “z”
+}
+
+
+// ========================================
+// 12. Anonymous struct global
+// ========================================
+struct {
+    int id;
+    char tag;
+} anon_global;
+
+void anon_test(void) {
+    anon_global.id = 5;   // OK
+    anon_global.nope = 1; // ERROR: no such field
+}
+
+
+// ========================================
+// 13. Duplicate main
+// ========================================
+int main(void) {
+    return 0;
+}
+
+int main() {              // ERROR: redefinition of main
+    return 1;
+}
+
