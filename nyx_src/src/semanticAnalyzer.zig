@@ -62,7 +62,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             .is_floating = false,
                             .is_const = false,
                             .qualifier = 0,
-                            .base = .INT,
+                            .base = .STRUCT,
                             .type_name = name_z.ptr,
                             .size = 0, // compute later
                             .alignment = 1,
@@ -79,72 +79,87 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
 
                         if (new_struct.struct_declaration_list) |decls| {
                             for (decls) |decl_node| {
-                                const struct_decl = decl_node.StructDeclaration;
+                                // const struct_decl = decl_node.StructDeclaration;
+                                switch (decl_node.*) {
+                                    .StructDeclaration => |sd| {
+                                        const struct_decl = sd;
 
-                                var field_type: *ast.TypeNode = undefined;
+                                        var field_type: *ast.TypeNode = undefined;
 
-                                switch (struct_decl.specifier.*) {
-                                    .Type => |t| {
-                                        field_type = t;
-                                    },
-                                    .StructSpecifier => |inner_struct| {
-                                        const inner_name: []const u8 = blk2: {
-                                            if (inner_struct.identifier) |id_node| {
-                                                break :blk2 id_node.Identifier.name;
-                                            } else {
-                                                break :blk2 "<anonymous>";
-                                            }
-                                        };
+                                        switch (struct_decl.specifier.*) {
+                                            .Type => |t| {
+                                                field_type = t;
+                                            },
+                                            .StructSpecifier => |inner_struct| {
+                                                const inner_name: []const u8 = blk2: {
+                                                    if (inner_struct.identifier) |id_node| {
+                                                        break :blk2 id_node.Identifier.name;
+                                                    } else {
+                                                        break :blk2 "<anonymous>";
+                                                    }
+                                                };
 
-                                        field_type = st().get_type(inner_name) orelse {
-                                            // unknown struct type
+                                                field_type = st().get_type(inner_name) orelse {
+                                                    // unknown struct type
+                                                    if (ast.debug_mode) {
+                                                        std.debug.print("Unknown struct type for field: {s}\n", .{inner_name});
+                                                    }
+                                                    continue;
+                                                };
+                                            },
+                                            else => {
+                                                // unsupported field specifier for now
+                                                continue;
+                                            },
+                                        }
+
+                                        const field_size = field_type.size;
+                                        const field_align = field_type.alignment;
+
+                                        if (field_align == 0 or field_size == 0) {
                                             if (ast.debug_mode) {
-                                                std.debug.print("Unknown struct type for field: {s}\n", .{inner_name});
+                                                std.debug.print("Field has incomplete type, skipping\n", .{});
                                             }
                                             continue;
-                                        };
+                                        }
+
+                                        for (struct_decl.declarators) |decltor_node| {
+                                            const field_name: []const u8 = switch (decltor_node.*) {
+                                                .Identifier => |id| id.name,
+                                                else => continue, // TODO support pointers & arrays as fields
+                                            };
+
+                                            offset = alignForward(offset, field_align);
+
+                                            const field_info = try alloc.create(ast.StructsFieldInfo);
+                                            field_info.* = .{
+                                                .name = field_name,
+                                                .type = field_type,
+                                                .offset = offset,
+                                            };
+
+                                            try type_node.field_map.?.put(field_name, field_info);
+
+                                            offset += field_size;
+                                            if (field_align > struct_align) struct_align = field_align;
+                                        }
                                     },
-                                    else => {
-                                        // unsupported field specifier for now
+                                    else => |tag| {
+                                        if (ast.debug_mode) {
+                                            std.debug.print(
+                                                "BUG: expected StructDeclaration inside struct_declaration_list, got {s}\n",
+                                                .{@tagName(tag)},
+                                            );
+                                        }
                                         continue;
                                     },
-                                }
-
-                                const field_size = field_type.size;
-                                const field_align = field_type.alignment;
-
-                                if (field_align == 0 or field_size == 0) {
-                                    if (ast.debug_mode) {
-                                        std.debug.print("Field has incomplete type, skipping\n", .{});
-                                    }
-                                    continue;
-                                }
-
-                                for (struct_decl.declarators) |decltor_node| {
-                                    const field_name: []const u8 = switch (decltor_node.*) {
-                                        .Identifier => |id| id.name,
-                                        else => continue, // TODO support pointers & arrays as fields
-                                    };
-
-                                    offset = alignForward(offset, field_align);
-
-                                    const field_info = try alloc.create(ast.StructsFieldInfo);
-                                    field_info.* = .{
-                                        .name = field_name,
-                                        .type = field_type,
-                                        .offset = offset,
-                                    };
-
-                                    try type_node.field_map.?.put(field_name, field_info);
-
-                                    offset += field_size;
-                                    if (field_align > struct_align) struct_align = field_align;
                                 }
                             }
                         }
 
                         type_node.alignment = struct_align;
                         type_node.size = alignForward(offset, struct_align);
+                        spec.* = .{ .Type = type_node };
                     },
                     else => |tag| {
                         if (ast.debug_mode) {
