@@ -200,6 +200,37 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                         return;
                                     };
 
+                                    if (assign.initializer) |init_node| {
+                                        if (init_node.* == .InitializerList) {
+                                            const init_list = init_node.InitializerList;
+                                            const init_count: usize = init_list.inits.len;
+
+                                            if (init_count > count) {
+                                                // Too many initializers is a hard error
+                                                log.Error(
+                                                    decl.location.?.col,
+                                                    decl.location.?.line,
+                                                    "Too many initializers for array",
+                                                    m.diagnostic_source(decl.location.?.line),
+                                                    "",
+                                                );
+                                                return;
+                                            } else if (init_count < count and ast.debug_mode) {
+                                                // Fewer is legal in C (zero-initialize rest) – just warn in debug
+                                                log.Warn(
+                                                    decl.location.?.col,
+                                                    decl.location.?.line,
+                                                    log.f_str(
+                                                        "Fewer initializers than array size (got {d}, expected {d})",
+                                                        .{ init_count, count },
+                                                    ),
+                                                    m.diagnostic_source(decl.location.?.line),
+                                                    "",
+                                                );
+                                            }
+                                        }
+                                    }
+
                                     const elem_size = decl.declaration_specifier.?.Type.size;
                                     const total_bytes = count * elem_size;
                                     array_node.length = @as(u32, @intCast(total_bytes));
@@ -210,7 +241,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                             .{ array_node.length, count, elem_size },
                                         );
                                 }
-
                                 if (array_node.identifier) |id_node| {
                                     const name = id_node.Identifier.name;
                                     if (st().get_variable(name) != null) {
@@ -225,17 +255,46 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                 }
                             },
                             .Pointer => |pointer_node| {
-                                // Pointer declarator in an Assignment, e.g., int *p;
-                                _ = pointer_node;
-                                if (ast.debug_mode) std.debug.print("Declaration: pointer declarator\n", .{});
-                                // You could also do a shadowing check similar to the Array case
+                                // Pointer declarator in an Assignment, e.g., int *p, or int **pp;
+                                if (ast.debug_mode) {
+                                    std.debug.print("Declaration: pointer declarator (depth={d})\n", .{pointer_node.depth});
+                                }
+                                // If your grammar fills an IdPointerNode for `int *p;`,
+                                // you probably *don't* have to do anything here to find the name.
+                                // assign_variable will see the IdPointerNode and pull identifier.Identifier.name.
+                                // If you *do* want a shadowing warning, you can look into the pointee:
+                                if (pointer_node.pointee) |pointee| switch (pointee.*) {
+                                    .Identifier => |id| {
+                                        const name = id.name;
+                                        if (st().get_variable(name) != null) {
+                                            log.Warn(
+                                                decl.location.?.col,
+                                                decl.location.?.line,
+                                                log.f_str("Shadowing previous variable: {s}", .{name}),
+                                                m.diagnostic_source(decl.location.?.line),
+                                                "",
+                                            );
+                                        }
+                                    },
+                                    .IdPointer => |idp| {
+                                        const name = idp.identifier.Identifier.name;
+                                        if (st().get_variable(name) != null) {
+                                            log.Warn(
+                                                decl.location.?.col,
+                                                decl.location.?.line,
+                                                log.f_str("Shadowing previous variable: {s}", .{name}),
+                                                m.diagnostic_source(decl.location.?.line),
+                                                "",
+                                            );
+                                        }
+                                    },
+                                    else => {},
+                                };
                             },
-
                             .Identifier => |_| {
                                 // Simple scalar like: int x;
                                 if (ast.debug_mode) std.debug.print("Declaration: simple identifier declarator\n", .{});
                             },
-
                             else => {
                                 if (ast.debug_mode) {
                                     std.debug.print(
@@ -245,7 +304,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                 }
                             },
                         }
-
                         // After analyzing the declarator shape, actually register the variable:
                         st().assign_variable(decl) catch {
                             log.Error(
@@ -257,7 +315,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             );
                         };
                     },
-
                     // Pretty much ignore this Most of the work should be done in the above switch case
                     // Case where the parser directly made assign_node an Array node
                     .Array => |array_node| {
@@ -341,6 +398,27 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 }
             }
         },
+        .ArgumentList => {
+            const arg_list = node.ArgumentList;
+            for (arg_list.args) |arg| {
+                semantic_analyze_node(arg) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
+                    return;
+                };
+            }
+            if (ast.debug_mode) std.debug.print("ArgumentList node semantically analyzed!\n", .{});
+        },
+        .InitializerList => {
+            const init_list = node.InitializerList;
+            for (init_list.inits) |init| {
+                semantic_analyze_node(init) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            }
+            if (ast.debug_mode)
+                std.debug.print("InitializerList node semantically analyzed! (count={d})\n", .{init_list.inits.len});
+        },
         .Assignment => {
             if (ast.debug_mode) std.debug.print("Assignment node semantically analyzed!\n", .{});
             const assgn = node.Assignment;
@@ -354,6 +432,45 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
                     return;
                 };
+                if (init.* == .InitializerList and assgn.declarator.* == .Array) {
+                    const array_node = assgn.declarator.Array;
+                    const init_list = init.InitializerList;
+                    const init_count: usize = init_list.inits.len;
+
+                    if (array_node.constant) |size_node| {
+                        // size_node is the constant that held the array size (e.g. "5" in int x[5])
+                        const count_str = size_node.Constant.value;
+
+                        const declared_count = std.fmt.parseUnsigned(usize, count_str, 10) catch {
+                            log.Error(
+                                assgn.location.?.col,
+                                assgn.location.?.line,
+                                "Non-integer array size",
+                                m.diagnostic_source(assgn.location.?.line),
+                                "",
+                            );
+                            return;
+                        };
+
+                        if (init_count > declared_count) {
+                            log.Error(
+                                assgn.location.?.col,
+                                assgn.location.?.line,
+                                "Too many initializers for array",
+                                m.diagnostic_source(assgn.location.?.line),
+                                "Remove extra elements or increase the array size.",
+                            );
+                            return;
+                        } else if (init_count < declared_count and ast.debug_mode) {
+                            log.WarnLoc(
+                                assgn.location.?,
+                                log.f_str("Fewer initializers than array size (got {d}, expected {d})", .{ init_count, declared_count }),
+                                m.diagnostic_source(assgn.location.?.line),
+                                "Remaining elements are zero-initialized in C.",
+                            );
+                        }
+                    }
+                }
                 switch (init.*) {
                     .Identifier => |id| {
                         const str1 = std.mem.span(id.typeNode.?.type_name);
@@ -445,16 +562,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     }
                 }
             }
-        },
-        .ArgumentList => {
-            const arg_list = node.ArgumentList;
-            for (arg_list.args) |arg| {
-                semantic_analyze_node(arg) catch |err| {
-                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
-                    return;
-                };
-            }
-            if (ast.debug_mode) std.debug.print("ArgumentList node semantically analyzed!\n", .{});
         },
         .BlockItems => {
             if (ast.debug_mode) std.debug.print("BlockItems node semantically analyzed!\n", .{});

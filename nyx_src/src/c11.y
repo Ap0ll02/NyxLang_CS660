@@ -48,6 +48,7 @@ struct Node* append_struct_declaration_list(struct Node* declaration, struct Nod
 struct Node* make_struct_declaration(struct Node* specifier, struct Node* struct_declarators);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
 
+struct Node* append_initializer_list(struct Node* item, struct Node* items);
 struct Node* make_assignment_op_node(enum yytokentype token);
 struct Node* make_float_node(float f);
 extern char* get_current_line(void);
@@ -536,11 +537,10 @@ initializer
 	;
 
 initializer_list
-	/*: designation initializer*/
-	: initializer { $$ = append_argument_list($1, NULL); }
-	// | initializer_list ',' designation initializer { $$ = append_argument_list($4, $1); } ???
-	| initializer_list ',' initializer { $$ = append_argument_list($3, $1); }
-	;
+    : initializer                               { $$ = append_initializer_list($1, NULL); }
+    | initializer_list ',' initializer          { $$ = append_initializer_list($3, $1); }
+    | initializer_list ',' designation initializer { $$ = append_initializer_list($4, $1); }
+    ;
 
 designation
 	: designator_list '='

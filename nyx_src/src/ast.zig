@@ -57,6 +57,11 @@ pub const ArgumentListNode = struct {
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
+pub const InitializerListNode = struct {
+    inits: []*Node,
+    typeNode: ?*TypeNode = null, // optional now; could be "element type" later
+    location: ?*Location = null,
+};
 pub const ParameterListNode = struct {
     params: []*Node, // a list of parameter nodes
     typeNode: ?*TypeNode = null,
@@ -181,7 +186,7 @@ pub const StructsFieldInfo = struct {
     name: ?[]const u8,
     type: ?*TypeNode = null,
     offset: ?usize = null,
-};  // should a struct field point to it's struct?
+}; // should a struct field point to it's struct?
 pub const AssignmentNode = struct {
     declarator: *Node, // i.e. x in int x;
     initializer: ?*Node = null, // i.e. 5 in int x = 5;
@@ -249,6 +254,7 @@ pub const StructDeclaratorListNode = struct {
     declarators: []*Node,
     location: ?*Location = null,
 };
+
 // This is the main AST node type
 // It is a tagged union of all possible node types
 // Each node type is a struct with its own fields
@@ -263,6 +269,7 @@ pub const NodeTag = enum {
     Function,
     FunctionCall,
     ArgumentList,
+    InitializerList,
     ParameterList,
     NameParameterNode,
     TranslationUnitList,
@@ -324,6 +331,7 @@ pub const Node = union(NodeTag) {
     Function: *FunctionNode,
     FunctionCall: *FunctionCallNode,
     ArgumentList: *ArgumentListNode,
+    InitializerList: *InitializerListNode,
     ParameterList: *ParameterListNode,
     NameParameterNode: *NameParameterNode,
     TranslationUnitList: *TranslationUnitListNode,
@@ -770,6 +778,32 @@ export fn make_string_node(raw_val: [*c]const u8) ?*Node {
     return node;
 }
 
+export fn append_initializer_list(item: *Node, items: ?*Node) ?*Node {
+    if (items == null) {
+        const list_node = glob_alloc.create(InitializerListNode) catch return null;
+        const new_inits = glob_alloc.alloc(*Node, 1) catch return null;
+        new_inits[0] = item;
+
+        list_node.* = InitializerListNode{
+            .inits = new_inits,
+            .typeNode = null,
+            .location = get_location(),
+        };
+
+        const node = glob_alloc.create(Node) catch return null;
+        node.* = Node{ .InitializerList = list_node };
+        return node;
+    }
+
+    const list = items.?.InitializerList;
+    const old_len = list.inits.len;
+    const new_inits = glob_alloc.realloc(list.inits, old_len + 1) catch return null;
+    new_inits[old_len] = item;
+    list.inits = new_inits;
+
+    return items;
+}
+
 // =================
 // | Stmt Creators |
 // =================
@@ -1071,7 +1105,7 @@ export fn make_array_node(identifier_node: *Node, constant_node: *Node) ?*Node {
 export fn make_struct_or_union(
     struct_or_union: *Node,
     identifier: [*c]const u8, // TODO zig doesn't support optional *c, might be
-                              // weird later if this is null?
+    // weird later if this is null?
     struct_declarations: ?*Node,
 ) ?*Node {
     // We only know how to deal with a Node that actually is StructOrUnion
@@ -1125,7 +1159,7 @@ export fn make_struct_or_union_node(t: c.yytokentype) ?*Node {
         //     us.* = StructOrUnionNode{ .type = c.UNION, .location = get_location() };
         // },
         c.STRUCT => {
-            sn.* =  StructOrUnionNode{ .type = c.STRUCT, .location = get_location() };
+            sn.* = StructOrUnionNode{ .type = c.STRUCT, .location = get_location() };
         },
         else => {
             sn.* = StructOrUnionNode{ .type = c.VOID, .location = get_location() };
@@ -1159,7 +1193,7 @@ export fn append_struct_declaration_list(declaration: *Node, declarations: ?*Nod
         new_node[declarations_block.struct_declarations.len] = declaration;
 
         const list_node = glob_alloc.create(StructDeclarationListNode) catch return null;
-        list_node.* = StructDeclarationListNode{ .struct_declarations= new_node, .location = get_location() };
+        list_node.* = StructDeclarationListNode{ .struct_declarations = new_node, .location = get_location() };
 
         const node = glob_alloc.create(Node) catch return null;
         node.* = Node{ .StructDeclarationList = list_node };
@@ -1373,13 +1407,6 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 try printNode(args, indent + 1);
             }
         },
-        .ArgumentList => {
-            const args = node.ArgumentList;
-            for (args.args) |arg| {
-                // std.debug.print("Argument DEBUG: {any}\n", .{arg});
-                try printNode(arg, indent + 1);
-            }
-        },
         .BlockItems => {
             const blk = node.BlockItems;
             std.debug.print("Block: \n", .{});
@@ -1540,6 +1567,21 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 std.debug.print("(no constant)\n", .{});
             }
         },
+        .ArgumentList => {
+            const args = node.ArgumentList;
+            for (args.args) |arg| {
+                try printNode(arg, indent + 1);
+            }
+        },
+        .InitializerList => {
+            const init_list = node.InitializerList;
+            printIndent(indent);
+            std.debug.print("🧮 InitializerList (count={d})\n", .{init_list.inits.len});
+            for (init_list.inits) |init| {
+                try printNode(init, indent + 1);
+            }
+        },
+
         .StructDeclaration => {
             const sd = node.StructDeclaration;
             std.debug.print("🏗 StructDeclaration\n", .{});
