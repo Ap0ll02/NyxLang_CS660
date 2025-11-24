@@ -93,7 +93,7 @@ extern struct Node* root;
 %type <node> block_item block_item_list compound_statement statement labeled_statement selection_statement iteration_statement jump_statement
 %type <node> parameter_type_list parameter_list declaration_list function_definition parameter_declaration pointer argument_expression_list
 %type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list storage_class_specifier
-%type <node> assignment_operator
+%type <node> assignment_operator type_qualifier
 %type <node> string program
 
 %%
@@ -276,10 +276,10 @@ declaration
 declaration_specifiers
 	: storage_class_specifier declaration_specifiers { }
 	| storage_class_specifier {}
-	| type_specifier_list declaration_specifiers {}
+	| type_specifier_list declaration_specifiers {$$ = combine_type_node($1, $2); }
 	| type_specifier_list
-	| type_qualifier declaration_specifiers {}
-	| type_qualifier {}
+	| type_qualifier declaration_specifiers { $$ = combine_type_node($1, $2); }
+	| type_qualifier
 	| function_specifier declaration_specifiers {}
 	| function_specifier {}
 	| alignment_specifier declaration_specifiers {}
@@ -416,7 +416,7 @@ atomic_type_specifier
 	;
 
 type_qualifier
-	: CONST { zig_error("Remove word const", "I guess constants are unsupported"); }
+	: CONST { $$ = make_type_node(CONST); }
 	| RESTRICT { zig_error("", "RESTRICT IS UNSUPPORTED."); }
 	| VOLATILE { zig_error("", "VOLATILE IS UNSUPPORTED."); }
 	| ATOMIC { zig_error("", "ATOMIC IS UNSUPPORTED."); }
