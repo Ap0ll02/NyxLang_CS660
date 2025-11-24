@@ -492,11 +492,28 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     },
                     .Constant => |c| {
                         const str1 = std.mem.span(c.typeNode.type_name);
-                        const str2 = std.mem.span(assgn.typeNode.?.type_name);
-                        if (!std.mem.eql(u8, str1, str2)) {
-                            log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{c.typeNode.type_name}));
+
+                        if (assgn.typeNode) |atn| {
+                            const str2 = std.mem.span(atn.type_name);
+                            if (!std.mem.eql(u8, str1, str2)) {
+                                log.WarnLoc(
+                                    assgn.location.?,
+                                    "Mismatched types",
+                                    m.diagnostic_source(assgn.location.?.line),
+                                    log.f_str(
+                                        "Change variable type to match initializer: {s}",
+                                        .{c.typeNode.type_name},
+                                    ),
+                                );
+                            }
+                        } else if (ast.debug_mode) {
+                            std.debug.print(
+                                "Assignment has Constant initializer but no assgn.typeNode (skipping type match)\n",
+                                .{},
+                            );
                         }
                     },
+
                     else => {},
                 }
             }
@@ -535,28 +552,55 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             // semantic_analyze_node(func.retType);
         },
         .FunctionCall => {
-            if (ast.debug_mode) std.debug.print("FunctionCall node semantically analyzed!\n", .{});
+            if (ast.debug_mode)
+                std.debug.print("FunctionCall node semantically analyzed!\n", .{});
             const funcCall = node.FunctionCall;
 
-            // check if function exists in symbol table
-            if (st().get_function(funcCall.name.Identifier.name)) |func| {
-                funcCall.spawner = func;
-            } else {
-                log.Error(funcCall.location.?.col, funcCall.location.?.line, log.f_str("Usage of function: {s}, prior to definition.", .{funcCall.name.Identifier.name}), m.diagnostic_source(funcCall.location.?.line), "Try defining your function first!");
+            // --- Step 1: check if function exists in the symbol table ---
+            const func = st().get_function(funcCall.name.Identifier.name);
+            if (func == null) {
+                log.Error(
+                    funcCall.location.?.col,
+                    funcCall.location.?.line,
+                    log.f_str(
+                        "Usage of function: {s}, prior to definition.",
+                        .{funcCall.name.Identifier.name},
+                    ),
+                    m.diagnostic_source(funcCall.location.?.line),
+                    "Try defining your function first!",
+                );
+                return; // early return prevents null deref of spawner
             }
 
-            if (funcCall.spawner.?.arity != 1000) {
-                if (funcCall.arity < funcCall.spawner.?.arity) {
-                    log.ErrorLoc(funcCall.location.?, "Too few arguments for function", m.diagnostic_source(funcCall.location.?.line), "Ensure argument arity matches function arity.");
-                } else if (funcCall.arity > funcCall.spawner.?.arity) {
-                    log.ErrorLoc(funcCall.location.?, "Too many arguments for function", m.diagnostic_source(funcCall.location.?.line), "Ensure argument arity matches function arity.");
+            // --- Step 2: set spawner safely ---
+            funcCall.spawner = func;
+
+            // --- Step 3: normal argument checking ---
+            const spawner = funcCall.spawner.?; // now guaranteed non-null
+
+            if (spawner.arity != 1000) {
+                if (funcCall.arity < spawner.arity) {
+                    log.ErrorLoc(
+                        funcCall.location.?,
+                        "Too few arguments for function",
+                        m.diagnostic_source(funcCall.location.?.line),
+                        "Ensure argument arity matches function arity.",
+                    );
+                } else if (funcCall.arity > spawner.arity) {
+                    log.ErrorLoc(
+                        funcCall.location.?,
+                        "Too many arguments for function",
+                        m.diagnostic_source(funcCall.location.?.line),
+                        "Ensure argument arity matches function arity.",
+                    );
                 } else {
                     if (funcCall.args) |argsNode| {
                         semantic_analyze_node(argsNode) catch |err| {
-                            if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                            if (ast.debug_mode)
+                                std.debug.print("Semantic Failure: {any}\n", .{err});
                             return;
                         };
-                        for (argsNode.ArgumentList.args, funcCall.spawner.?.nameParam.NameParameterNode.parameterList.?.ParameterList.params, 0..) |arg, par, i| {
+                        for (argsNode.ArgumentList.args, spawner.nameParam.NameParameterNode.parameterList.?.ParameterList.params, 0..) |arg, par, i| {
                             check_arg_par(arg, par, i + 1, funcCall.name.Identifier.name);
                         }
                     }
@@ -823,25 +867,41 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         // everything below this is an "atomic" node and doesn't call anymore nodes
         .Identifier => {
             const ident = node.Identifier;
+
             if (ast.debug_mode) {
-                std.debug.print("Identifier '{s}' BEFORE: spawner = {s}\n", .{ ident.name, if (ident.spawner == null) "null" else "set" });
-            }
-            const dec_link = st().get_variable(ident.name);
-            if (dec_link == null) {
-                log.ErrorLoc(ident.location.?, "Variable used before declaration", m.diagnostic_source(ident.location.?.line), "Ensure variable is defined before use.");
-                return error.Error;
-            }
-            if (dec_link) |dc| {
-                ident.typeNode = dc.declaration_specifier.?.Type;
-            } else {
-                log.ErrorLoc(ident.location.?, "Declaration of this identifier does not have a valid type.", m.diagnostic_source(ident.location.?.line), "Ensure variable declaration has a type");
+                std.debug.print(
+                    "Identifier '{s}' BEFORE: spawner = {s}\n",
+                    .{ ident.name, if (ident.spawner == null) "null" else "set" },
+                );
             }
 
-            if (st().get_variable(node.Identifier.name)) |decl| {
-                ident.spawner = decl;
-            } else {
-                log.Error(ident.location.?.col, ident.location.?.line, log.f_str("Variable {s} could not be found", .{node.Identifier.name}), m.diagnostic_source(ident.location.?.line), "");
+            const dec_link = st().get_variable(ident.name);
+            if (dec_link == null) {
+                log.ErrorLoc(
+                    ident.location.?,
+                    log.f_str("Use of undeclared variable: {s}", .{ident.name}),
+                    m.diagnostic_source(ident.location.?.line),
+                    "Ensure the variable is defined before use.",
+                );
+                return;
             }
+
+            const dc = dec_link.?;
+            if (dc.declaration_specifier) |spec| {
+                if (spec.* == .Type) {
+                    ident.typeNode = spec.Type;
+                }
+            } else {
+                log.ErrorLoc(
+                    ident.location.?,
+                    "Declaration of this identifier does not have a valid type.",
+                    m.diagnostic_source(ident.location.?.line),
+                    "Ensure variable declaration has a type.",
+                );
+                return;
+            }
+
+            ident.spawner = dec_link.?;
 
             if (ast.debug_mode) {
                 std.debug.print(
@@ -850,6 +910,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 );
             }
         },
+
         .Constant => {
             if (ast.debug_mode) std.debug.print("Constant node semantically analyzed!\n", .{});
             node.Constant.typeNode = get_base_type(node.Constant.typeNode.base).?;

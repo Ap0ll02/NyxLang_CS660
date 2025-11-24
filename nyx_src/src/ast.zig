@@ -1348,7 +1348,7 @@ pub fn printNode(orig_node: ?*Node, indent: usize) !void {
                 try printNode(spec, indent + 2);
             }
             if (decl_node.assign_node) |assgn| {
-                printIndent(indent+1);
+                printIndent(indent + 1);
                 std.debug.print("↳ Assignment:\n", .{});
                 try printNode(assgn, indent + 2);
             }
