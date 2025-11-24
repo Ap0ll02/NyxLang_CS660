@@ -1,0 +1,4 @@
+const int far = 10;
+int main() {
+    far = 100;
+}
