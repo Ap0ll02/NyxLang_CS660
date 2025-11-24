@@ -1,6 +1,7 @@
 int veggie = 100;
 int add(int a, int b) {}
 int main() {
+    const int x = 10;
     carrot = 10;
     cool[2] = 10;
     add(5, 328, 890);
