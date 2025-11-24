@@ -31,8 +31,11 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             if (ast.debug_mode) {
                                 std.debug.print("Type has been found: {s}\n", .{decl_type_name});
                             }
-                            // Overwrite the union value with the resolved type node
+                            if(newtype.is_const) {
+                                ty.is_const = true;
+                            }
                             spec.* = .{ .Type = ty };
+                            // Overwrite the union value with the resolved type node
                         } else {
                             log.ErrorLoc(decl.location.?, log.f_str("Unknown type: {s}\n", .{decl_type_name}), m.diagnostic_source(decl.location.?.line), "Ensure Type is initilized");
                         }
@@ -420,8 +423,17 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 std.debug.print("InitializerList node semantically analyzed! (count={d})\n", .{init_list.inits.len});
         },
         .Assignment => {
-            if (ast.debug_mode) std.debug.print("Assignment node semantically analyzed!\n", .{});
+            if(ast.debug_mode) std.debug.print("TYPE NODE ANALYSIS FOR CONSTANTS: {s}\n", .{node.Assignment.declarator.Identifier.name});
             const assgn = node.Assignment;
+
+            if(assgn.typeNode) |at| {
+                if(at.is_const) {
+                    log.ErrorLoc(assgn.location.?, "Cannot reassign to constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
+                    return;
+                }
+            }
+
+            if (ast.debug_mode) std.debug.print("Assignment node semantically analyzed!\n", .{});
             semantic_analyze_node(assgn.declarator) catch |err| {
                 if (ast.debug_mode) std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
                 return;
@@ -475,6 +487,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     .Identifier => |id| {
                         const str1 = std.mem.span(id.typeNode.?.type_name);
                         if (assgn.typeNode) |atn| {
+                            if(atn.is_const) {
+                                log.ErrorLoc(assgn.location.?, "Cannot reassign to constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
+                                return;
+                            }
                             const str2 = std.mem.span(atn.type_name);
                             if (!std.mem.eql(u8, str1, str2)) {
                                 log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{id.typeNode.?.type_name}));
@@ -484,6 +500,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     .FunctionCall => |fc| {
                         const str1 = std.mem.span(fc.spawner.?.retType.type_name);
                         if (assgn.typeNode) |atn| {
+                            if(atn.is_const) {
+                                log.ErrorLoc(assgn.location.?, "Cannot reassign to constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
+                                return;
+                            }
                             const str2 = std.mem.span(atn.type_name);
                             if (!std.mem.eql(u8, str1, str2)) {
                                 log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{str1}));
@@ -511,6 +531,19 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                 "Assignment has Constant initializer but no assgn.typeNode (skipping type match)\n",
                                 .{},
                             );
+                        if (c.typeNode.is_const) {
+                            log.ErrorLoc(assgn.location.?, "Cannot reassign to constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
+                            return;
+                        }
+                        if(assgn.typeNode) |tp2| {
+                            const str2 = std.mem.span(tp2.type_name);
+                            if(tp2.is_const) {
+                                log.ErrorLoc(assgn.location.?, "Cannot reassign to constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
+                                return;
+                            }
+                            if (!std.mem.eql(u8, str1, str2)) {
+                                log.WarnLoc(assgn.location.?, "Mismatched types", m.diagnostic_source(assgn.location.?.line), log.f_str("Change variable type to match initializer: {s}", .{c.typeNode.type_name}));
+                            }
                         }
                     },
 
