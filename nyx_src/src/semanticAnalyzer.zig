@@ -27,7 +27,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                         const decl_type_name: []const u8 = std.mem.span(newtype.type_name);
 
                         // Lookup in type table
-                        if (st().get_type(decl_type_name)) |ty| {
+                        if (get_base_type(newtype.base)) |ty| {
                             if (ast.debug_mode) {
                                 std.debug.print("Type has been found: {s}\n", .{decl_type_name});
                             }
