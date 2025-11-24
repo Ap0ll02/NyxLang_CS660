@@ -9,5 +9,6 @@ int main() {
     add(20.432, 2342.23432);
     int veggie = 500;
     float floor = add(20, 30);
+    x = 400;
     int cool[4] = {1, 34, 43, 123};
 }
