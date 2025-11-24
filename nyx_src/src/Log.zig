@@ -66,13 +66,17 @@ fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8
     // Line 3
     const len = if (ulen < 4) 0 else ulen - 4;
     var i: usize = ulen;
-    for (0..len - 2) |_| {
+    if (len < 2) {
         std.debug.print(" ", .{});
+    } else {
+        for (0..len - 2) |_| { std.debug.print(" ", .{}); }
     }
+
     while (source.len - 1 > 0) : (i -= 1) {
         if (i == ulen) {
             continue;
         }
+        if(i < 1) { break; }
         if (source[i - 1] == ' ') {
             break;
         }
