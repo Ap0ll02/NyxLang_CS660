@@ -68,8 +68,9 @@ pub fn main() !void {
             std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
             return;
         };
-        const compiler: *nya.Compiler = nya.Compiler.init(parse_alloc, new_root);
-        compiler.compile();
+        // UNCOMMENT WHEN 3AC IS DONE
+        // const compiler: *nya.Compiler = nya.Compiler.init(parse_alloc, new_root);
+        // compiler.compile();
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{if (result == 1) "failed." else "successful", log.err_count});
     }
 }
