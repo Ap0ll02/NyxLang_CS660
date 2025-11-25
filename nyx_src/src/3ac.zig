@@ -54,7 +54,7 @@ pub const Compiler = struct {
     nyac_list: std.ArrayList(NYAC),
     
     pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !Compiler {
-        var compiler = Compiler {
+        const compiler = Compiler {
             .alloc = alloc,
             .root = root,
             .nyac_list = .empty,
@@ -93,22 +93,23 @@ pub const Compiler = struct {
 
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) !NYAC {
-        return null;
+        return error.Error;
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !NYAC {
-        return null;
+        return error.Error;
     }
 
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) !NYAC {
-        return null;
+        return error.Error;
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
-        return null;
+        return error.Error;
     }
 
     pub fn handle_binary(self: *Compiler, root: *ast.BinaryNode) !NYAC {
+        return error.Error;
     }
 
     pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) !NYAC {
