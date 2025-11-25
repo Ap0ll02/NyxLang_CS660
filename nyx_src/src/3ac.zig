@@ -12,6 +12,7 @@ pub const Value = union(enum) {
     Number: i32,
     String: []const u8,
     Char: u8,
+    Void: void,
 };
 
 // Reserved Register Allocation
@@ -36,44 +37,54 @@ pub const NYAC = struct {
 var registers: std.ArrayList(Value) = .empty;
 var nyac_list: std.ArrayList(NYAC) = .empty;
 
-pub fn deinit() void {
-    registers.deinit();
-    nyac_list.deinit();
-}
-
+// Pre-allocation to Registers
 
 // =======================
 // ==    3AC EMISSION   ==
 // =======================
-
+//  -- NOTES: --
+//  Indices into registers[] list is reserved from 0-8
+//  Please be mindful of which index you use. If you need
+//  extra registers start from 9.
 pub fn compile(root: *ast.Node, alloc: std.mem.Allocator) ?std.ArrayList(NYAC) {
+    // --- THIS GUARANTEES THE FIRST 8 REGISTERS ARE CREATED ---
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    registers.append(alloc, Value {.Void = void} );
+    // ---
+    
     switch (root.*) {
         .Identifier => |id| {
-            nyac_list.append(alloc, handle_ident(id));
+            nyac_list.append(alloc, handle_ident(id)) catch return null;
         },
         .Declaration => |decl| {
-            nyac_list.append(alloc, handle_decl(decl));
+            nyac_list.append(alloc, handle_decl(decl)) catch return null;
         },
         .Assignment => |as| {
-            nyac_list.append(alloc, handle_assignment(as));
+            nyac_list.append(alloc, handle_assignment(as)) catch return null;
         },
         .Function => |fun| {
-            nyac_list.append(alloc, handle_function(fun));
+            nyac_list.append(alloc, handle_function(fun)) catch return null;
         },
 
         else => {},
     }
 }
 
-pub fn handle_ident(root: *ast.IdentifierNode) void {
-
+pub fn handle_ident(root: *ast.IdentifierNode) ?NYAC {
+    return null;
 }
-pub fn handle_decl(root: *ast.DeclarationNode) void {
-
+pub fn handle_decl(root: *ast.DeclarationNode) ?NYAC {
+    return null;
 }
-pub fn handle_assignment(root: *ast.AssignmentNode) void {
-
+pub fn handle_assignment(root: *ast.AssignmentNode) ?NYAC {
+    return null;
 }
-pub fn handle_function(root: *ast.FunctionNode) void {
-
+pub fn handle_function(root: *ast.FunctionNode) ?NYAC {
+    return null;
 }
