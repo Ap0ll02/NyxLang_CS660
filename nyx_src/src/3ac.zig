@@ -63,28 +63,61 @@ pub const Compiler = struct {
     }
 
     pub fn compile(self: *Compiler) !std.ArrayList(NYAC) {
-        try self.compile_node(self.root);
+        const old_root = self.root;
+
+        switch (self.root.*) {
+            .BlockItems => |bi| {
+                for (bi.items) |b| {
+                    self.root = b;
+                    try self.compile_node(true);
+                }
+            },
+            else => {}
+        }
+
+        self.root = old_root;
         return self.nyac_list;
     }
 
-    pub fn compile_node(self: *Compiler) !void {
+    pub fn compile_node(self: *Compiler, is_root: bool) !void {
+        // Note: All of the diagnostic source prints need to be moved
+        // to file writing, we will write the source line and then
+        // write the associated 3ac with it below.
         switch (self.root.*) {
             .Identifier => |id| {
+                if (ast.debug_mode and is_root) {
+                    std.debug.print("{s}", .{m.diagnostic_source(id.location.?.line)});
+                }
                 try nyac_list.append(self.alloc, try handle_ident(id));
             },
             .Declaration => |decl| {
+                if (ast.debug_mode and is_root) {
+                    std.debug.print("{s}", .{m.diagnostic_source(decl.location.?.line)});
+                }
                 try nyac_list.append(self.alloc, try handle_decl(decl));
             },
             .Assignment => |as| {
+                if (ast.debug_mode and is_root) {
+                    std.debug.print("{s}", .{m.diagnostic_source(as.location.?.line)});
+                }
                 try nyac_list.append(self.alloc, try handle_assignment(as));
             },
             .Function => |fun| {
+                if (ast.debug_mode and is_root) {
+                    std.debug.print("{s}", .{m.diagnostic_source(fun.location.?.line)});
+                }
                 try nyac_list.append(self.alloc, try handle_function(fun));
             },
             .Constant => |c| {
+                if (ast.debug_mode and is_root) {
+                    std.debug.print("{s}", .{m.diagnostic_source(c.location.?.line)});
+                }
                 try nyac_list.append(self.alloc, try handle_constant(c));
             },
             .Binary => |bn| {
+                if (ast.debug_mode and is_root) {
+                    std.debug.print("{s}", .{m.diagnostic_source(bn.location.?.line)});
+                }
                 try nyac_list.append(self.alloc, try handle_binary(bn));
             },
 
