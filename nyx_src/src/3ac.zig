@@ -27,6 +27,7 @@ const A4: Register = 5;
 const A5: Register = 6;
 const A6: Register = 7;
 const A7: Register = 8;
+pub var count: Register = 8;
 
 pub const NYAC = struct { 
     return_addr: u32, instruction: Instruction, 
@@ -46,6 +47,7 @@ var nyac_list: std.ArrayList(NYAC) = .empty;
 //  Indices into registers[] list is reserved from 0-8
 //  Please be mindful of which index you use. If you need
 //  extra registers start from 9.
+// pub struct  make this a struct for sharing and recalling
 pub fn compile(root: *ast.Node, alloc: std.mem.Allocator) ?std.ArrayList(NYAC) {
     // --- THIS GUARANTEES THE FIRST 8 REGISTERS ARE CREATED ---
     registers.append(alloc, Value {.Void = void} );
@@ -71,6 +73,12 @@ pub fn compile(root: *ast.Node, alloc: std.mem.Allocator) ?std.ArrayList(NYAC) {
         .Function => |fun| {
             nyac_list.append(alloc, handle_function(fun)) catch return null;
         },
+        .Constant => |c| {
+            nyac_list.append(alloc, handle_constant(c)) catch return null;
+        },
+        .Binary => |bn| {
+            nyac_list.append(alloc, handle_binary(bn)) catch return null;
+        },
 
         else => {},
     }
@@ -79,12 +87,29 @@ pub fn compile(root: *ast.Node, alloc: std.mem.Allocator) ?std.ArrayList(NYAC) {
 pub fn handle_ident(root: *ast.IdentifierNode) ?NYAC {
     return null;
 }
+
 pub fn handle_decl(root: *ast.DeclarationNode) ?NYAC {
     return null;
 }
+
 pub fn handle_assignment(root: *ast.AssignmentNode) ?NYAC {
     return null;
 }
+
 pub fn handle_function(root: *ast.FunctionNode) ?NYAC {
     return null;
+}
+
+pub fn handle_binary(root: *ast.BinaryNode) ?NYAC {
+    root
+}
+
+pub fn handle_constant(root: *ast.ConstantNode) ?NYAC {
+    count += 1;
+    return NYAC {
+        .instruction = .Constant,
+        .op1_addr = root.value,
+        .return_addr = count,
+        .op2_addr = Unused,
+    };
 }
