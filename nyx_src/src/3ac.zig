@@ -48,68 +48,76 @@ var nyac_list: std.ArrayList(NYAC) = .empty;
 //  Please be mindful of which index you use. If you need
 //  extra registers start from 9.
 // pub struct  make this a struct for sharing and recalling
-pub fn compile(root: *ast.Node, alloc: std.mem.Allocator) ?std.ArrayList(NYAC) {
-    // --- THIS GUARANTEES THE FIRST 8 REGISTERS ARE CREATED ---
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    registers.append(alloc, Value {.Void = void} );
-    // ---
+pub const Compiler = struct {
+    alloc: std.mem.Allocator,
+    root: *ast.Node,
+    nyac_list: std.ArrayList(NYAC),
     
-    switch (root.*) {
-        .Identifier => |id| {
-            nyac_list.append(alloc, handle_ident(id)) catch return null;
-        },
-        .Declaration => |decl| {
-            nyac_list.append(alloc, handle_decl(decl)) catch return null;
-        },
-        .Assignment => |as| {
-            nyac_list.append(alloc, handle_assignment(as)) catch return null;
-        },
-        .Function => |fun| {
-            nyac_list.append(alloc, handle_function(fun)) catch return null;
-        },
-        .Constant => |c| {
-            nyac_list.append(alloc, handle_constant(c)) catch return null;
-        },
-        .Binary => |bn| {
-            nyac_list.append(alloc, handle_binary(bn)) catch return null;
-        },
-
-        else => {},
+    pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !Compiler {
+        var compiler = Compiler {
+            .alloc = alloc,
+            .root = root,
+            .nyac_list = .empty,
+        };
+        return compiler;
     }
-}
 
-pub fn handle_ident(root: *ast.IdentifierNode) ?NYAC {
-    return null;
-}
+    pub fn compile(self: *Compiler) !std.ArrayList(NYAC) {
+        try self.compile_node(self.root);
+        return self.nyac_list;
+    }
 
-pub fn handle_decl(root: *ast.DeclarationNode) ?NYAC {
-    return null;
-}
+    pub fn compile_node(self: *Compiler) !void {
+        switch (self.root.*) {
+            .Identifier => |id| {
+                try nyac_list.append(self.alloc, try handle_ident(id));
+            },
+            .Declaration => |decl| {
+                try nyac_list.append(self.alloc, try handle_decl(decl));
+            },
+            .Assignment => |as| {
+                try nyac_list.append(self.alloc, try handle_assignment(as));
+            },
+            .Function => |fun| {
+                try nyac_list.append(self.alloc, try handle_function(fun));
+            },
+            .Constant => |c| {
+                try nyac_list.append(self.alloc, try handle_constant(c));
+            },
+            .Binary => |bn| {
+                try nyac_list.append(self.alloc, try handle_binary(bn));
+            },
 
-pub fn handle_assignment(root: *ast.AssignmentNode) ?NYAC {
-    return null;
-}
+            else => {},
+        }
 
-pub fn handle_function(root: *ast.FunctionNode) ?NYAC {
-    return null;
-}
+    }
+    pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) !NYAC {
+        return null;
+    }
 
-pub fn handle_binary(root: *ast.BinaryNode) ?NYAC {
-    root
-}
+    pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !NYAC {
+        return null;
+    }
 
-pub fn handle_constant(root: *ast.ConstantNode) ?NYAC {
-    count += 1;
-    return NYAC {
-        .instruction = .Constant,
-        .op1_addr = root.value,
-        .return_addr = count,
-        .op2_addr = Unused,
-    };
-}
+    pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) !NYAC {
+        return null;
+    }
+
+    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
+        return null;
+    }
+
+    pub fn handle_binary(self: *Compiler, root: *ast.BinaryNode) !NYAC {
+    }
+
+    pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) !NYAC {
+        count += 1;
+        return NYAC {
+            .instruction = .Constant,
+            .op1_addr = root.value,
+            .return_addr = count,
+            .op2_addr = Unused,
+        };
+    }
+};
