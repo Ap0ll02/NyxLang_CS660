@@ -6,7 +6,7 @@ const ast = @import("ast.zig");
 const analyzer = @import("semanticAnalyzer.zig");
 const c = @cImport(@cInclude("c11.tab.h"));
 const bi = @import("builtin.zig");
-const nya = @import("3ac.zig");
+// const nya = @import("3ac.zig");
 
 pub const YY_BUFFER_STATE = *opaque {};
 extern fn yylex() c_int; // from your lexer
