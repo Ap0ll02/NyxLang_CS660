@@ -1,9 +1,79 @@
 const std = @import("std");
 const m = @import("main.zig");
+const ast = @import("ast.zig");
 const log = @import("Log.zig");
 
-pub const Instruction = enum { Add, Constant, Substract, Multiply, Divide, Label, Goto, If, StoreByte, LoadByte, StoreDouble, LoadDouble };
+pub const Instruction = enum { 
+    Add, Subtract, Multiply, Divide, 
+    Constant, LoadByte, StoreByte, StoreDouble, LoadDouble,
+    Label, Goto, If,
+};
+pub const Value = union(enum) {
+    Number: i32,
+    String: []const u8,
+    Char: u8,
+};
 
-pub const Registers = enum { Unused, A0, A1, A2, A3, A4, A5, A6, A7 };
+// Reserved Register Allocation
+pub const Register = u32;
+// pub const Registers = enum { Unused, A0, A1, A2, A3, A4, A5, A6, A7 };
+const Unused: Register = 0;
+const A0: Register = 1;
+const A1: Register = 2;
+const A2: Register = 3;
+const A3: Register = 4;
+const A4: Register = 5;
+const A5: Register = 6;
+const A6: Register = 7;
+const A7: Register = 8;
 
-pub const TAC = struct { return_addr: u32, instruction: Instruction, op1_addr: u32, op2_addr: u32 };
+pub const NYAC = struct { 
+    return_addr: u32, instruction: Instruction, 
+    op1_addr: u32, op2_addr: u32 
+};
+
+// Storage for registers, and the outputted nyac_list
+var registers: std.ArrayList(Value) = .empty;
+var nyac_list: std.ArrayList(NYAC) = .empty;
+
+pub fn deinit() void {
+    registers.deinit();
+    nyac_list.deinit();
+}
+
+
+// =======================
+// ==    3AC EMISSION   ==
+// =======================
+
+pub fn compile(root: *ast.Node, alloc: std.mem.Allocator) ?std.ArrayList(NYAC) {
+    switch (root.*) {
+        .Identifier => |id| {
+            nyac_list.append(alloc, handle_ident(id));
+        },
+        .Declaration => |decl| {
+            nyac_list.append(alloc, handle_decl(decl));
+        },
+        .Assignment => |as| {
+            nyac_list.append(alloc, handle_assignment(as));
+        },
+        .Function => |fun| {
+            nyac_list.append(alloc, handle_function(fun));
+        },
+
+        else => {},
+    }
+}
+
+pub fn handle_ident(root: *ast.IdentifierNode) void {
+
+}
+pub fn handle_decl(root: *ast.DeclarationNode) void {
+
+}
+pub fn handle_assignment(root: *ast.AssignmentNode) void {
+
+}
+pub fn handle_function(root: *ast.FunctionNode) void {
+
+}
