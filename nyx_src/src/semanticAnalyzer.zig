@@ -492,12 +492,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                     }
                     switch (init.*) {
                         .Identifier => |id| {
-                            if(id.typeNode) |at| {
-                                if(at.is_const) {
-                                    log.ErrorLoc(assgn.location.?, "Cannot reassign to identififer constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
-                                    return;
-                                }
-                            }
                             const str1 = std.mem.span(id.typeNode.?.type_name);
                             if (assgn.typeNode) |atn| {
                                 const str2 = std.mem.span(atn.type_name);
@@ -508,12 +502,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                         },
                         .FunctionCall => |fc| {
                             const str1 = std.mem.span(fc.spawner.?.retType.type_name);
-                            if(fc.typeNode) |at| {
-                                if(at.is_const) {
-                                    log.ErrorLoc(assgn.location.?, "Cannot reassign to functioncall constant", m.diagnostic_source(assgn.location.?.line), "Remove 'const' keyword for variable mutability");
-                                    return;
-                                }
-                            }
                             if (assgn.typeNode) |atn| {
                                 const str2 = std.mem.span(atn.type_name);
                                 if (!std.mem.eql(u8, str1, str2)) {
