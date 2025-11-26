@@ -7,6 +7,11 @@ pub const Instruction = enum {
     Add, Subtract, Multiply, Divide, 
     Constant, LoadByte, StoreByte, StoreDouble, LoadDouble,
     Label, Goto, If,
+    ImbueFrame,
+    ImbueRegister,
+    ImbueLabel,
+    StoreRegister,
+    LoadRegister,
 };
 pub const Value = union(enum) {
     Number: i32,
@@ -27,7 +32,6 @@ const A4: Register = 5;
 const A5: Register = 6;
 const A6: Register = 7;
 const A7: Register = 8;
-pub var count: Register = 8;
 
 pub const NYAC = struct { 
     return_addr: u32, instruction: Instruction, 
@@ -52,12 +56,22 @@ pub const Compiler = struct {
     alloc: std.mem.Allocator,
     root: *ast.Node,
     nyac_list: std.ArrayList(NYAC),
+    file_text: std.ArrayList(u8),
+    var_registers: std.StringHashMap(Register),
+    var_locations: std.StringHashMap(usize),
+    count: Register,
+    fp_offset: usize,
     
     pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !Compiler {
         const compiler = Compiler {
             .alloc = alloc,
             .root = root,
             .nyac_list = .empty,
+            .file_text = .empty,
+            .var_registers = std.StringHashMap(Register).init(alloc),
+            .var_locations = std.StringHashMap(usize).init(alloc),
+            .count = 8,
+            .fp_offset = 0,
         };
         return compiler;
     }
@@ -76,57 +90,36 @@ pub const Compiler = struct {
         }
 
         self.root = old_root;
+
+        const file_name = "a.nyac";
+        const file = try std.fs.cwd().openFile(file_name, .{
+            .mode = .write_only,
+        });
+        defer file.close();
+        try file.writer(self.file_text);
         return self.nyac_list;
     }
 
-    pub fn compile_node(self: *Compiler, is_root: bool) !void {
+    pub fn compile_node(self: *Compiler, is_root: bool) !Register {
+        try check_write(self, is_root); 
         // Note: All of the diagnostic source prints need to be moved
         // to file writing, we will write the source line and then
         // write the associated 3ac with it below.
-        switch (self.root.*) {
-            .Identifier => |id| {
-                if (ast.debug_mode and is_root) {
-                    std.debug.print("{s}", .{m.diagnostic_source(id.location.?.line)});
-                }
-                try nyac_list.append(self.alloc, try handle_ident(id));
-            },
-            .Declaration => |decl| {
-                if (ast.debug_mode and is_root) {
-                    std.debug.print("{s}", .{m.diagnostic_source(decl.location.?.line)});
-                }
-                try nyac_list.append(self.alloc, try handle_decl(decl));
-            },
-            .Assignment => |as| {
-                if (ast.debug_mode and is_root) {
-                    std.debug.print("{s}", .{m.diagnostic_source(as.location.?.line)});
-                }
-                try nyac_list.append(self.alloc, try handle_assignment(as));
-            },
-            .Function => |fun| {
-                if (ast.debug_mode and is_root) {
-                    std.debug.print("{s}", .{m.diagnostic_source(fun.location.?.line)});
-                }
-                try nyac_list.append(self.alloc, try handle_function(fun));
-            },
-            .Constant => |c| {
-                if (ast.debug_mode and is_root) {
-                    std.debug.print("{s}", .{m.diagnostic_source(c.location.?.line)});
-                }
-                try nyac_list.append(self.alloc, try handle_constant(c));
-            },
-            .Binary => |bn| {
-                if (ast.debug_mode and is_root) {
-                    std.debug.print("{s}", .{m.diagnostic_source(bn.location.?.line)});
-                }
-                try nyac_list.append(self.alloc, try handle_binary(bn));
-            },
-
-            else => {},
-        }
+        return switch (self.root.*) {
+            .Identifier => |id| try self.handle_ident(id),
+            .Declaration => |decl| try self.handle_decl(decl),
+            .Assignment => |as| try self.handle_assignment(as),
+            .Function => |fun| try self.handle_function(fun),
+            .Constant => |c| try self.handle_constant(c),
+            .Binary => |bn| try self.handle_binary(bn),
+            else => return error.UnsupportedNode,
+        };
 
     }
-    pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) !NYAC {
-        return error.Error;
+    pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) !Register {
+        const reg_opt = self.var_registers.get(root.name);
+        if(!reg_opt) return error.UndefinedVariable;
+        return reg_opt.?;
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !NYAC {
@@ -141,17 +134,109 @@ pub const Compiler = struct {
         return error.Error;
     }
 
-    pub fn handle_binary(self: *Compiler, root: *ast.BinaryNode) !NYAC {
-        return error.Error;
+    pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) !Register {
+        // Compiling the left and right nodes into registers
+        self.root = node.lhs;
+        const left_reg = try self.compile_node(false);
+
+        self.root = node.rhs;
+        const right_reg = try self.compile_node(false);
+
+        // Destination reg
+        self.count += 1;
+        const dest= self.count;
+
+        // ENUM Instruction
+        const instr = switch(node.op) {
+            '+' => Instruction.Add,
+            '-' => Instruction.Subtract,
+            '*' => Instruction.Multiply,
+            '/' => Instruction.Divide,
+            else => return error.UnsupportedBinaryOp
+        };
+
+        const nyi = NYAC {
+            .instruction = instr,
+            .return_addr = dest,
+            .op1_addr = left_reg,
+            .op2_addr = right_reg,
+        };
+
+        // Append to NYAC list and emit to file
+        try self.nyac_list.append(self.alloc, nyi);
+        try self.emit(nyi);
+
+        return dest;
     }
 
-    pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) !NYAC {
-        count += 1;
-        return NYAC {
+    pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) !Register {
+        self.count += 1;
+        const dest = self.count;
+        const nyi = NYAC {
             .instruction = .Constant,
-            .op1_addr = root.value,
-            .return_addr = count,
+            .op1_addr = @intCast(root.value),
+            .return_addr = dest,
             .op2_addr = Unused,
         };
+
+        // Append to list
+        try self.nyac_list.append(self.alloc, nyi);
+        // Emit IR to file
+        try self.emit(nyi);
+
+        return dest;
+    }
+
+    pub fn check_write(self: *Compiler, is_root: bool) !void {
+        if(!is_root) return;
+        const line = switch (self.root) {
+            .Identifier => |id| id.location.?.line,
+            .Declaration => |decl| decl.location.?.line,
+            .Assignment => |as| as.location.?.line,
+            .Function => |fun| fun.location.?.line,
+            .Constant => |c| c.location.?.line,
+            .Binary => |bn| bn.location.?.line,
+            // if any node type lacks a location, fallback:
+            else => 0,
+        };
+        if (ast.debug_mode and is_root) {
+            try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
+            try self.file_text.append(self.alloc, '\n');
+        }
+    }
+
+    pub fn emit(self: *Compiler, inst: NYAC) !void {
+        const writer = &self.file_text;
+        try writer.appendSlice(self.alloc, switch(inst.instruction) {
+            .Add => "ADD",
+            .Subtract => "SUB",
+            .Multiply => "MUL",
+            .Divide => "DIV",
+            .Constant => "CONST",
+            .LoadByte => "LB",
+            .StoreByte => "SB",
+            .LoadDouble => "LD",
+            .StoreDouble => "SD",
+            .Label => "LABEL",
+            .Goto => "GOTO",
+            .If => "IF",
+        });
+
+        var tmp = std.fmt.allocPrint(self.alloc, "{}", .{inst.return_addr});
+        try writer.appendSlice(self.alloc, ", ");
+        try writer.append(self.alloc, tmp);
+
+        tmp = std.fmt.allocPrint(self.alloc, "{}", .{inst.op1_addr});
+        try writer.appendSlice(self.alloc, ", ");
+        try writer.append(self.alloc, inst.op1_addr);
+
+        if(inst.op2_addr != Unused) {
+            tmp = std.fmt.allocPrint(self.alloc, "{}", .{inst.op2_addr});
+            try writer.appendSlice(self.alloc, ", ");
+            try writer.append(self.alloc, inst.op2_addr); 
+        }
+
+        try writer.append(self.alloc, '\n');
+        self.alloc.free(tmp);
     }
 };
