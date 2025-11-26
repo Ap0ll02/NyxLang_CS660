@@ -123,11 +123,43 @@ pub const Compiler = struct {
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !NYAC {
-        return error.Error;
+        const name = root.declaration_specifier.?.Identifier.name;
+        // allocate register slot
+        self.count += 1;
+        const dest = self.count;
+
+        // track the variable and register
+        try self.var_registers.put(name, dest);
+
+        const nyac = NYAC {
+            .instruction = .ImbueRegister,
+            .return_addr = dest,
+            .op1_addr = .Unused,
+            .op2_addr = Unused,
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+        return dest;
     }
 
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) !NYAC {
-        return error.Error;
+        const var_name = root.declarator.Identifier.name;
+        const lhs_reg_opt = self.var_registers.get(var_name);
+        if(!lhs_reg_opt) return error.UndefinedVariable;
+        const lhs_reg = lhs_reg_opt.?;
+        const rhs_reg = try self.compile_expr(root.initializer.?);
+
+        const nyac = NYAC {
+            .instruction = .StoreRegister,
+            .return_addr = lhs_reg,
+            .op1_addr = rhs_reg,
+            .op2_addr = Unused,
+        };
+
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
+        return lhs_reg;
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
@@ -203,6 +235,14 @@ pub const Compiler = struct {
             try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
             try self.file_text.append(self.alloc, '\n');
         }
+    }
+
+    pub fn compile_expr(self: *Compiler, node: *ast.Node) !Register {
+        const original = self.root;
+        self.root = node;
+        const reg = try self.compile_node(false);
+        self.root = original;
+        return reg;
     }
 
     pub fn emit(self: *Compiler, inst: NYAC) !void {
