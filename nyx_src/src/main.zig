@@ -60,7 +60,7 @@ pub fn main() !void {
 
     // std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m Nya Nya Meow Meow\n", .{});
     if (ast.debug_mode) {
-        std.debug.print("\n\n\n \x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});
+        std.debug.print("\n\n\n\x1b[1;33mPARSE/AST PRINTOUT\x1b[0m DEBUG MODE ENABLED\n", .{});
         try ast.printNode(new_root, 0);
     }
     if (new_root) |r| {
@@ -68,13 +68,14 @@ pub fn main() !void {
             std.debug.print("Semantic analysis failed: {s}\n", .{@errorName(err)});
             return;
         };
-        // UNCOMMENT WHEN 3AC IS DONE
+
+        std.debug.print("\n\x1b[1;33m3AC COMPILATION PRINTOUT\x1b[0m\n", .{});
         const compiler: *nya.Compiler = nya.Compiler.init(parse_alloc, r) catch |err| {
             std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
             return;
         };
-        _ = compiler.compile() catch {
-            std.debug.print("FAILED TO COMPILE\n", .{});
+        _ = compiler.compile() catch |err| {
+            std.debug.print("Failed to compile w/ error: {s}\n", .{@errorName(err)});
         };
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{if (result == 1) "failed." else "successful", log.err_count});
     }
