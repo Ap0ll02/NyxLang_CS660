@@ -43,13 +43,14 @@ const A6: Register = 7;
 const A7: Register = 8;
 
 pub const NYACOperand = union(enum) {
-    register: u32,
-    label: []const u8
+    Register: u32,
+    Label: []const u8,
+    Value: Value
 };
 
 pub const NYAC = struct { 
     return_addr: u32, instruction: Instruction, 
-    op1: NYACOperand, op2_addr: u32 
+    op1: NYACOperand, op2_addr: u32
 };
 
 // Storage for registers, and the outputted nyac_list
@@ -145,7 +146,7 @@ pub const Compiler = struct {
             // .InitializerList => |node| try self.handle_some_node(node),
             // .ParameterList => |node| try self.handle_some_node(node),
             // .NameParameterNode => |node| try self.handle_some_node(node),
-            // .TranslationUnitList => |node| try self.handle_some_node(node),
+            .TranslationUnitList => |node| try self.handle_translation_units(node),
             // .BlockItems => |node| try self.handle_some_node(node),
             // .Binary => |node| try self.handle_some_node(node),
             // .Unary => |node| try self.handle_some_node(node),
@@ -179,29 +180,30 @@ pub const Compiler = struct {
 
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
-        if(ast.debug_mode) std.debug.print("Indentifier ({s}) Node Emitted\n", .{root.name});
+        if(ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
         return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
-        const name = root.declaration_specifier.?.Identifier.name;
+        const name = root.assign_node.?.Assignment.declarator.Identifier.name;
         // allocate register slot
         self.count += 1;
         const dest = self.count;
 
         // track the variable and register
         try self.var_registers.put(name, dest);
+        if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{name, dest});
 
         const nyac = NYAC {
             .instruction = .ImbueRegister,
             .return_addr = dest,
-            .op1 = NYACOperand{.register = Unused},
+            .op1 = NYACOperand{.Register = Unused},
             .op2_addr = Unused,
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
         if(ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
-        return dest; // should return register? fixed return type
+        return dest;
     }
 
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
@@ -209,10 +211,11 @@ pub const Compiler = struct {
         const lhs_reg = self.var_registers.get(var_name) orelse return CompileError.UndefinedVariable;
         const rhs_reg = try self.compile_expr(root.initializer.?);
 
+        // TODO different NYAC structs probably need to be created here for StoreByte, StoreDouble, depending on type
         const nyac = NYAC {
             .instruction = .StoreRegister,
             .return_addr = lhs_reg,
-            .op1 = NYACOperand{.register = rhs_reg},
+            .op1 = NYACOperand{.Register = rhs_reg},
             .op2_addr = Unused,
         };
 
@@ -229,7 +232,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .Label,
             .return_addr = Unused,
-            .op1 = NYACOperand{.label = func_ident_node.name},
+            .op1 = NYACOperand{.Label = func_ident_node.name},
             .op2_addr = Unused
         };
 
@@ -245,12 +248,20 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .Goto,
             .return_addr = Unused,
-            .op1 = NYACOperand{.label = func_ident_node.name},
+            .op1 = NYACOperand{.Label = func_ident_node.name},
             .op2_addr = Unused
         };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
+
+        return Unused;
+    }
+
+    pub fn handle_translation_units(self: *Compiler, root: *ast.TranslationUnitListNode) !Register {
+        for (root.translationUnits) |unit| {
+            _ = try self.compile_expr(unit);
+        } 
 
         return Unused;
     }
@@ -279,7 +290,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = instr,
             .return_addr = dest,
-            .op1 = NYACOperand{.register = left_reg},
+            .op1 = NYACOperand{.Register = left_reg},
             .op2_addr = right_reg,
         };
 
@@ -297,7 +308,7 @@ pub const Compiler = struct {
         const val = try std.fmt.parseInt(i32, root.value, 10);
         const nyac = NYAC {
             .instruction = .Constant,
-            .op1 = NYACOperand{.register = @intCast(val)},
+            .op1 = NYACOperand{.Register = @intCast(val)},
             .return_addr = dest,
             .op2_addr = Unused,
         };
@@ -354,7 +365,11 @@ pub const Compiler = struct {
             .Label => "LABEL",
             .Goto => "GOTO",
             .If => "IF",
-            else => "UNKNOWN",
+            .ImbueFrame => "IMBUE_FRAME",
+            .ImbueRegister => "IMBUE_REGISTER",
+            .ImbueLabel => "IMBUE_LABEL",
+            .StoreRegister => "STORE_REGISTER", // TODO should this and LOAD_REGISTER be replaced w/ the LB, SB, etc?
+            .LoadRegister => "LOAD_REGISTER"
         });
 
         // should be using appendSlide for strings
@@ -363,18 +378,35 @@ pub const Compiler = struct {
         self.alloc.free(tmp);
 
         switch (inst.op1) {
-            .register => |register| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", {d}", .{register});
+            .Register => |register| {
+                tmp = try std.fmt.allocPrint(self.alloc, ", (register: {d}), ", .{register});
             },
-            .label => |label| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", \"{s}\"", .{label});
+            .Label => |label| {
+                tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\"), ", .{label});
+            },
+            .Value => |label| {
+                // TODO is there a better way to do this?
+                switch (label) {
+                    .Number => |num| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d}), ", .{num});
+                    },
+                    .String => |str| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: \"{s}\"), ", .{str});
+                    },
+                    .Char => |character| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {c}), ", .{character});
+                    },
+                    .Void => |_| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: void), ", .{});
+                    },
+                }
             }
         }
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
         if(inst.op2_addr != Unused) {
-            tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op2_addr});
+            tmp = try std.fmt.allocPrint(self.alloc, "{}", .{inst.op2_addr});
             try writer.appendSlice(self.alloc, tmp);
             self.alloc.free(tmp);
         }
