@@ -42,7 +42,7 @@ const A5: Register = 6;
 const A6: Register = 7;
 const A7: Register = 8;
 
-pub const NYACOperand = union {
+pub const NYACOperand = union(enum) {
     register: u32,
     label: []const u8
 };
@@ -276,7 +276,7 @@ pub const Compiler = struct {
             else => return CompileError.UnsupportedBinaryOp
         };
 
-        const nyi = NYAC {
+        const nyac = NYAC {
             .instruction = instr,
             .return_addr = dest,
             .op1 = NYACOperand{.register = left_reg},
@@ -284,8 +284,8 @@ pub const Compiler = struct {
         };
 
         // Append to NYAC list and emit to file
-        try self.nyac_list.append(self.alloc, nyi);
-        try self.emit(nyi);
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
 
         if(ast.debug_mode) std.debug.print("Binary Node Emitted\n", .{});
         return dest;
@@ -295,7 +295,7 @@ pub const Compiler = struct {
         self.count += 1;
         const dest = self.count;
         const val = try std.fmt.parseInt(i32, root.value, 10);
-        const nyi = NYAC {
+        const nyac = NYAC {
             .instruction = .Constant,
             .op1 = NYACOperand{.register = @intCast(val)},
             .return_addr = dest,
@@ -303,30 +303,32 @@ pub const Compiler = struct {
         };
 
         // Append to list
-        try self.nyac_list.append(self.alloc, nyi);
+        try self.nyac_list.append(self.alloc, nyac);
         // Emit IR to file
-        try self.emit(nyi);
+        try self.emit(nyac);
 
         if(ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
         return dest;
     }
 
-    pub fn check_write(self: *Compiler, is_root: bool) !void {
-        if(!is_root) return;
-        const line = switch (self.root.*) {
-            .Identifier => |id| id.location.?.line,
-            .Declaration => |decl| decl.location.?.line,
-            .Assignment => |as| as.location.?.line,
-            // .Function => |fun| fun.location.?.line,
-            .Constant => |c| c.location.?.line,
-            .Binary => |bn| bn.location.?.line,
-            // if any node type lacks a location, fallback:
-            else => 0,
-        };
-        if (ast.debug_mode and is_root) {
-            try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
-            try self.file_text.append(self.alloc, '\n');
-        }
+    // TODO not sure what the purpose of this function is
+    // pub fn check_write(self: *Compiler, is_root: bool) !void {
+        // if(!is_root) return;
+        // const line = switch (self.root.*) {
+        //     .Identifier => |id| id.location.?.line,
+        //     .Declaration => |decl| decl.location.?.line,
+        //     .Assignment => |as| as.location.?.line,
+        //     // .Function => |fun| fun.location.?.line,
+        //     .Constant => |c| c.location.?.line,
+        //     .Binary => |bn| bn.location.?.line,
+        //     // if any node type lacks a location, fallback:
+        //     else => 0,
+        // };
+        // if (ast.debug_mode and is_root) {
+        //     try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
+        //     try self.file_text.append(self.alloc, '\n');
+        // }
+    pub fn check_write(_: *Compiler, _: bool) !void {
     }
 
     pub fn compile_expr(self: *Compiler, node: *ast.Node) anyerror!Register {
@@ -356,11 +358,18 @@ pub const Compiler = struct {
         });
 
         // should be using appendSlide for strings
-        var tmp = try std.fmt.allocPrint(self.alloc, " {}", .{inst.return_addr});
+        var tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{inst.return_addr});
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
-        tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op1});
+        switch (inst.op1) {
+            .register => |register| {
+                tmp = try std.fmt.allocPrint(self.alloc, ", {d}", .{register});
+            },
+            .label => |label| {
+                tmp = try std.fmt.allocPrint(self.alloc, ", \"{s}\"", .{label});
+            }
+        }
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
