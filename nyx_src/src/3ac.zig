@@ -42,9 +42,14 @@ const A5: Register = 6;
 const A6: Register = 7;
 const A7: Register = 8;
 
+pub const NYACOperand = union {
+    register: u32,
+    label: []const u8
+};
+
 pub const NYAC = struct { 
     return_addr: u32, instruction: Instruction, 
-    op1_addr: u32, op2_addr: u32 
+    op1: NYACOperand, op2_addr: u32 
 };
 
 // Storage for registers, and the outputted nyac_list
@@ -108,10 +113,13 @@ pub const Compiler = struct {
 
         self.root = old_root;
 
+        // try to open file_name to emit 3AC, if it doesn't exist, then create it
         const file_name = "a.nyac";
-        const file = try std.fs.cwd().openFile(file_name, .{
-            .mode = .write_only,
+        const file = try std.fs.cwd().createFile(file_name, .{
+            .truncate = false,
+            .exclusive = false,
         });
+
         defer file.close();
         if(ast.debug_mode) std.debug.print("{s}", .{self.file_text.items});
         try file.writeAll(self.file_text.items);
@@ -121,6 +129,9 @@ pub const Compiler = struct {
 
     pub fn compile_node(self: *Compiler, is_root: bool) anyerror!Register {
         try check_write(self, is_root); 
+
+        std.debug.print("Compiling node: {s}\n", .{@tagName(self.root.*)});
+
         // Note: All of the diagnostic source prints need to be moved
         // to file writing, we will write the source line and then
         // write the associated 3ac with it below.
@@ -153,7 +164,7 @@ pub const Compiler = struct {
             // .Char => |node| try self.handle_some_node(node),
             // .Int => |node| try self.handle_some_node(node),
             // .Float => |node| try self.handle_some_node(node),
-            // .Type => |node| try self.handle_some_node(node),
+            .Type => |_| return Unused,
             // .ExpressionStmt => |node| try self.handle_some_node(node),
             // .Pointer => |node| try self.handle_some_node(node),
             // .IdPointer => |node| try self.handle_some_node(node),
@@ -163,12 +174,12 @@ pub const Compiler = struct {
             // .StructDeclaratorList => |node| try self.handle_some_node(node),
             // .StructSpecifier => |node| try self.handle_some_node(node),
             // .StructOrUnion => |node| try self.handle_some_node(node),
-            else => return error.UnsupportedNode,
+            else => return Unused,
         };
 
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
-        if(ast.debug_mode) std.debug.print("Indentifier Node Emitted\n", .{});
+        if(ast.debug_mode) std.debug.print("Indentifier ({s}) Node Emitted\n", .{root.name});
         return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
     }
 
@@ -184,7 +195,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .ImbueRegister,
             .return_addr = dest,
-            .op1_addr = Unused,
+            .op1 = NYACOperand{.register = Unused},
             .op2_addr = Unused,
         };
         try self.nyac_list.append(self.alloc, nyac);
@@ -201,7 +212,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .StoreRegister,
             .return_addr = lhs_reg,
-            .op1_addr = rhs_reg,
+            .op1 = NYACOperand{.register = rhs_reg},
             .op2_addr = Unused,
         };
 
@@ -213,12 +224,12 @@ pub const Compiler = struct {
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !Register {
-        const func_ident = root.nameParam.NameParameterNode.name.Identifier;
+        const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
 
         const nyac = NYAC {
             .instruction = .Label,
             .return_addr = Unused,
-            .op1_addr = try handle_ident(self, func_ident),
+            .op1 = NYACOperand{.label = func_ident_node.name},
             .op2_addr = Unused
         };
 
@@ -229,12 +240,12 @@ pub const Compiler = struct {
     }
 
     pub fn handle_func_call(self: *Compiler, root: *ast.FunctionCallNode) !Register {
-        const func_ident = root.name.Identifier;
+        const func_ident_node = root.name.Identifier;
 
         const nyac = NYAC {
             .instruction = .Goto,
             .return_addr = Unused,
-            .op1_addr = try handle_ident(self, func_ident),
+            .op1 = NYACOperand{.label = func_ident_node.name},
             .op2_addr = Unused
         };
 
@@ -268,7 +279,7 @@ pub const Compiler = struct {
         const nyi = NYAC {
             .instruction = instr,
             .return_addr = dest,
-            .op1_addr = left_reg,
+            .op1 = NYACOperand{.register = left_reg},
             .op2_addr = right_reg,
         };
 
@@ -286,7 +297,7 @@ pub const Compiler = struct {
         const val = try std.fmt.parseInt(i32, root.value, 10);
         const nyi = NYAC {
             .instruction = .Constant,
-            .op1_addr = @intCast(val),
+            .op1 = NYACOperand{.register = @intCast(val)},
             .return_addr = dest,
             .op2_addr = Unused,
         };
@@ -349,7 +360,7 @@ pub const Compiler = struct {
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
-        tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op1_addr});
+        tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op1});
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
