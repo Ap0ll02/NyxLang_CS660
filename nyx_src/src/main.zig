@@ -6,7 +6,7 @@ const ast = @import("ast.zig");
 const analyzer = @import("semanticAnalyzer.zig");
 const c = @cImport(@cInclude("c11.tab.h"));
 const bi = @import("builtin.zig");
-// const nya = @import("3ac.zig");
+const nya = @import("3ac.zig");
 
 pub const YY_BUFFER_STATE = *opaque {};
 extern fn yylex() c_int; // from your lexer
@@ -69,8 +69,14 @@ pub fn main() !void {
             return;
         };
         // UNCOMMENT WHEN 3AC IS DONE
-        // const compiler: *nya.Compiler = nya.Compiler.init(parse_alloc, new_root);
-        // compiler.compile();
+        const compiler: *nya.Compiler = nya.Compiler.init(parse_alloc, r) catch |err| {
+            std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
+            return;
+        };
+        _ = compiler.compile() catch |err| {
+            std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
+            return;
+        };
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{if (result == 1) "failed." else "successful", log.err_count});
     }
 }

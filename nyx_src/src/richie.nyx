@@ -1,10 +1,2 @@
-struct Car {
-    int year;
-    int josh;
-    long richie;
-};   
-
-int main (){
-    struct Car car1 = {12, 12, 53};
-    return 0;
-}
+int x;
+int y;

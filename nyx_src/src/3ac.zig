@@ -62,8 +62,9 @@ pub const Compiler = struct {
     count: Register,
     fp_offset: usize,
     
-    pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !Compiler {
-        const compiler = Compiler {
+    pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !*Compiler {
+        const compiler = try alloc.create(Compiler);
+        compiler.* = .{
             .alloc = alloc,
             .root = root,
             .nyac_list = .empty,
@@ -74,6 +75,13 @@ pub const Compiler = struct {
             .fp_offset = 0,
         };
         return compiler;
+    }
+    pub fn deinit(self: *Compiler) void {
+        self.nyac_list.deinit(self.alloc);
+        self.file_text.deinit(self.alloc);
+        self.var_registers.deinit();
+        self.var_locations.deinit();
+        self.alloc.destroy(self);
     }
 
     pub fn compile(self: *Compiler) !std.ArrayList(NYAC) {
@@ -109,7 +117,7 @@ pub const Compiler = struct {
             .Identifier => |id| try self.handle_ident(id),
             .Declaration => |decl| try self.handle_decl(decl),
             .Assignment => |as| try self.handle_assignment(as),
-            .Function => |fun| try self.handle_function(fun),
+            // .Function => |fun| try self.handle_function(fun),
             .Constant => |c| try self.handle_constant(c),
             .Binary => |bn| try self.handle_binary(bn),
             else => return error.UnsupportedNode,
@@ -117,12 +125,10 @@ pub const Compiler = struct {
 
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) !Register {
-        const reg_opt = self.var_registers.get(root.name);
-        if(!reg_opt) return error.UndefinedVariable;
-        return reg_opt.?;
+        return self.var_registers.get(root.name) orelse return error.UndefinedVariable;
     }
 
-    pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !NYAC {
+    pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !Register {
         const name = root.declaration_specifier.?.Identifier.name;
         // allocate register slot
         self.count += 1;
@@ -134,19 +140,17 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .ImbueRegister,
             .return_addr = dest,
-            .op1_addr = .Unused,
+            .op1_addr = Unused,
             .op2_addr = Unused,
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
-        return dest;
+        return dest; // should return register? fixed return type
     }
 
-    pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) !NYAC {
+    pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) !Register {
         const var_name = root.declarator.Identifier.name;
-        const lhs_reg_opt = self.var_registers.get(var_name);
-        if(!lhs_reg_opt) return error.UndefinedVariable;
-        const lhs_reg = lhs_reg_opt.?;
+        const lhs_reg = self.var_registers.get(var_name) orelse return error.UndefinedVariable;
         const rhs_reg = try self.compile_expr(root.initializer.?);
 
         const nyac = NYAC {
@@ -162,9 +166,9 @@ pub const Compiler = struct {
         return lhs_reg;
     }
 
-    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
-        return error.Error;
-    }
+    // pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
+    //     return error.Error;
+    // }
 
     pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) !Register {
         // Compiling the left and right nodes into registers
@@ -221,11 +225,11 @@ pub const Compiler = struct {
 
     pub fn check_write(self: *Compiler, is_root: bool) !void {
         if(!is_root) return;
-        const line = switch (self.root) {
+        const line = switch (self.root.*) {
             .Identifier => |id| id.location.?.line,
             .Declaration => |decl| decl.location.?.line,
             .Assignment => |as| as.location.?.line,
-            .Function => |fun| fun.location.?.line,
+            // .Function => |fun| fun.location.?.line,
             .Constant => |c| c.location.?.line,
             .Binary => |bn| bn.location.?.line,
             // if any node type lacks a location, fallback:
@@ -260,23 +264,24 @@ pub const Compiler = struct {
             .Label => "LABEL",
             .Goto => "GOTO",
             .If => "IF",
+            else => "UNKNOWN",
         });
 
-        var tmp = std.fmt.allocPrint(self.alloc, "{}", .{inst.return_addr});
-        try writer.appendSlice(self.alloc, ", ");
-        try writer.append(self.alloc, tmp);
+        // should be using appendSlide for strings
+        var tmp = try std.fmt.allocPrint(self.alloc, " {}", .{inst.return_addr});
+        try writer.appendSlice(self.alloc, tmp);
+        self.alloc.free(tmp);
 
-        tmp = std.fmt.allocPrint(self.alloc, "{}", .{inst.op1_addr});
-        try writer.appendSlice(self.alloc, ", ");
-        try writer.append(self.alloc, inst.op1_addr);
+        tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op1_addr});
+        try writer.appendSlice(self.alloc, tmp);
+        self.alloc.free(tmp);
 
         if(inst.op2_addr != Unused) {
-            tmp = std.fmt.allocPrint(self.alloc, "{}", .{inst.op2_addr});
-            try writer.appendSlice(self.alloc, ", ");
-            try writer.append(self.alloc, inst.op2_addr); 
+            tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op2_addr});
+            try writer.appendSlice(self.alloc, tmp);
+            self.alloc.free(tmp);
         }
 
         try writer.append(self.alloc, '\n');
-        self.alloc.free(tmp);
     }
 };
