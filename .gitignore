@@ -7,7 +7,7 @@ zig-out/
 build/
 build-*/
 
-# Compiled binaries
+# Compiled files
 *.exe
 *.out
 *.o
@@ -16,6 +16,7 @@ build-*/
 *.so
 *.dylib
 *.dll
+*.nyac
 
 # Temporary files
 *.tmp
@@ -37,4 +38,3 @@ vendor/
 
 # Generated documentation
 docs/build/
-
