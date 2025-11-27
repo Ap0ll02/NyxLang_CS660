@@ -51,8 +51,7 @@ pub fn ErrorLoc(loc: *ast.Location, msg: []const u8, source: []const u8, hint: [
 
 
 fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8, hint: []const u8, l_type: LogType) void {
-    const ulen = @max(0, this_column);
-    // Line 1
+    // HEADER
     switch (l_type) {
         .INFO => std.debug.print("\x1b[1;32mNyxLang | Info: \x1b[0m", .{}),
         .ERROR => std.debug.print("\x1b[1;33mNyxLang | Error: \x1b[0m", .{}),
@@ -60,31 +59,32 @@ fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8
     }
     std.debug.print("{s} at location {d}:{d}\n", .{ msg, this_line, this_column });
 
-    // Line 2
+    if (source.len == 0) {
+        std.debug.print("(no source available)\n", .{});
+        if (hint.len >= 1)
+            std.debug.print("\x1b[1;36mHint: \x1b[0m{s}\n", .{hint});
+        return;
+    }
+
+    // SOURCE LINE
     std.debug.print("{s}\n", .{source});
 
-    // Line 3
-    const len = if (ulen < 4) 0 else ulen - 4;
-    var i: usize = ulen;
-    if (len < 2) {
-        std.debug.print(" ", .{});
-    } else {
-        for (0..len - 2) |_| { std.debug.print(" ", .{}); }
-    }
+    // Pointer underline location
+    var col: usize = this_column;
+    if (col > source.len) col = source.len;
+    if (col > 0) col -= 1;
 
-    while (source.len - 1 > 0) : (i -= 1) {
-        if (i == ulen) {
-            continue;
-        }
-        if(i < 1) { break; }
-        if (source[i - 1] == ' ') {
-            break;
-        }
+    // Print ~~~~~~~^ marker
+    var i: usize = col;
+    while (i > 0 and source[i] != ' ') {
         std.debug.print("\x1b[1;35m~\x1b[0m", .{});
+        i -= 1;
     }
     std.debug.print("\x1b[1;35m^\x1b[0m\n", .{});
-    // std.debug.print("\x1b[1;35m~~~^\x1b[0m\n", .{});
-    if (hint.len >= 2) std.debug.print("\x1b[1;36mHint: \x1b[0m{s}\n", .{hint});
+
+    // HINT
+    if (hint.len >= 1)
+        std.debug.print("\x1b[1;36mHint: \x1b[0m{s}\n", .{hint});
 }
 
 pub fn f_str(comptime str: []const u8, args: anytype) []const u8 {
