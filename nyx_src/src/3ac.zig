@@ -180,7 +180,7 @@ pub const Compiler = struct {
         return lhs_reg;
     }
 
-    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
+    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !Register {
         const func_ident = root.nameParam.NameParameterNode.name.Identifier;
 
         const nyac = NYAC {
@@ -193,7 +193,23 @@ pub const Compiler = struct {
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
 
-        return nyac;
+        return Unused;
+    }
+
+    pub fn handle_func_call(self: *Compiler, root: *ast.FunctionCallNode) !Register {
+        const func_ident = root.name.Identifier;
+
+        const nyac = NYAC {
+            .instruction = .Goto,
+            .return_addr = Unused,
+            .op1_addr = handle_ident(self, func_ident),
+            .op2_addr = Unused
+        };
+
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
+        return Unused;
     }
 
     pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) anyerror!Register {
