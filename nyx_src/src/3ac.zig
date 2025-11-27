@@ -218,7 +218,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .Label,
             .return_addr = Unused,
-            .op1_addr = handle_ident(self, func_ident),
+            .op1_addr = try handle_ident(self, func_ident),
             .op2_addr = Unused
         };
 
@@ -234,7 +234,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .Goto,
             .return_addr = Unused,
-            .op1_addr = handle_ident(self, func_ident),
+            .op1_addr = try handle_ident(self, func_ident),
             .op2_addr = Unused
         };
 
