@@ -86,19 +86,35 @@ export fn yyerror(msg: [*c]const u8) void {
     log.C_Error(col_u, line_u, msg, get_src(), "Parsing error");
 }
 
-pub fn diagnostic_source(myline: usize) []const u8 {
+pub fn diagnostic_source(line_no: usize) []const u8 {
+    // Find the byte offsets for: start_of_line and end_of_line
     var current_line: usize = 0;
-    var idx: usize = 0;
-    var line_length: usize = 0;
-    while (idx < source_code.len and current_line < myline) {
-        if (source_code[idx] == '\n') {
+    var start: usize = 0;
+    var i: usize = 0;
+
+    // 1️⃣ Seek to beginning of the requested line
+    while (i < source_code.len and current_line < line_no) {
+        if (source_code[i] == '\n') {
             current_line += 1;
-            if (current_line < myline) line_length = idx;
+            start = i + 1; // Start at the char AFTER newline
         }
-        idx += 1;
+        i += 1;
     }
-    return source_code[line_length .. idx - 1];
+
+    // If requested line > total lines → return empty slice rather than panic
+    if (current_line != line_no)
+        return "";
+
+    // 2️⃣ Find end of line or EOF
+    var end = start;
+    while (end < source_code.len and source_code[end] != '\n') {
+        end += 1;
+    }
+
+    // Guarantee we produce a valid slice
+    return source_code[start..end];
 }
+
 
 fn get_src() []const u8 {
     var current_line: usize = 0;
