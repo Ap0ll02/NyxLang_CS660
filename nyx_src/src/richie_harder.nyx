@@ -1,109 +1,106 @@
-// structs_basic.c
-
-struct Josh {
-    int   x;
-    float y;
-};
-
-struct Mixed {
-    char  a;  // size 1, align 1
-    short b;  // size 2, align 2
-    int   c;  // size 4, align 4
-};
-
+// Test 1: Basic struct definition
 struct Point {
     int x;
     int y;
 };
-struct WithNested {
-    struct Point p;
-    int          z;
+
+// Test 2: Struct with different types
+struct Mixed {
+    char c;
+    int i;
+    float f;
+    double d;
 };
 
-struct Particle {
-    float x;
-    float y;
-    float z;
-    int   alive;
+// Test 3: Nested struct (valid)
+struct Inner {
+    int value;
 };
 
-// 5) Forward declaration + separate definition
-struct Forward;
-
-struct UsesForward {
-    struct Forward *ptr;
+struct Outer {
+    struct Inner inner;
+    int other;
 };
 
-struct Forward {
-    int id;
-    double value;
-};
-
-// 6) Anonymous struct (if your parser handles it)
-struct {
-    int  code;
-    char flag;
-} global_anon;
-
-// 7) Struct as function parameter and return type
-struct Result {
-    int   ok;
-    float value;
-};
-
-struct Result make_result(int flag, float v) {
-    struct Result r;
-    r.ok = flag;
-    r.value = v;
-    return r;
-}
-
-void take_result(struct Result r) {
-    // maybe later: check r.ok, r.value
-}
-
-// 8) Pointer to struct and field access
-void use_josh_pointer(void) {
-    struct Josh j;
-    struct Josh *pj = &j;
-
-    j.x = 10;
-    j.y = 3.14f;
-
-    pj->x = pj->x + 1;
-}
-
-// 11) Intentional ERROR: conflicting struct redefinition
-struct Conflicting {
+// Test 4: SHOULD ERROR - Duplicate struct definition
+struct DuplicateTest {
     int x;
 };
 
-struct Conflicting {
-    float x;   // <-- should trigger a “redefinition” or “conflicting type” error
+struct DuplicateTest {
+    int y;
 };
 
-int main(void) {
-    // basic struct + initializer
-    struct Josh josh1 = {10, 3.14};
+// Test 5: SHOULD ERROR - Duplicate field names
+struct DuplicateFields {
+    int x;
+    float x;
+};
 
-    // padding/align struct
-    struct Mixed m = { 'a', 123, 456 };
+// Test 6: SHOULD ERROR - Recursive struct direct
+struct RecursiveDirect {
+    int value;
+    struct RecursiveDirect self;
+};
 
-    // nested struct usage
-    struct WithNested wn;
-    wn.p.x = 1;
-    wn.p.y = 2;
-    wn.z   = 3;
+// Test 7: Valid - Recursive with pointer
+struct RecursiveValid {
+    int value;
+    struct RecursiveValid *next;
+};
 
-    // call functions with struct args/returns
-    struct Result r = make_result(1, 42.0f);
-    take_result(r);
+// Test 8: SHOULD ERROR - Unknown struct type
+struct IncompleteOuter {
+    struct Undefined inner;
+};
 
-    use_josh_pointer();
+// Test 9: Alignment and padding test
+struct Alignment {
+    char c;
+    int i;
+    char c2;
+    double d;
+};
 
-    global_anon.code = 7;
-    global_anon.flag = 'X';
+// Test 10: Struct with arrays
+struct WithArray {
+    int values[10];
+    char name[50];
+};
 
+// Test 11: Multiple nesting levels
+struct Level1 {
+    int a;
+};
+
+struct Level2 {
+    struct Level1 inner1;
+    int b;
+};
+
+struct Level3 {
+    struct Level2 inner2;
+    int c;
+};
+
+// Test 12: Using struct in function
+int main() {
+    struct Point p1;
+    struct Mixed m1;
+    struct Outer o1;
+    
+    p1.x = 10;
+    p1.y = 20;
+    
+    m1.c = 'a';
+    m1.i = 100;
+    
+    o1.inner.value = 42;
+    o1.other = 99;
+    
+    struct WithArray wa;
+    wa.values[0] = 1;
+    wa.name[0] = 'T';
+    
     return 0;
 }
-
