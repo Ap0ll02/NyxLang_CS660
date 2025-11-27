@@ -113,6 +113,7 @@ pub const Compiler = struct {
             .mode = .write_only,
         });
         defer file.close();
+        if(ast.debug_mode) std.debug.print("{s}", .{self.file_text.items});
         try file.writeAll(self.file_text.items);
 
         return self.nyac_list;
