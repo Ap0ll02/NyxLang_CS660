@@ -136,6 +136,7 @@ pub const Compiler = struct {
 
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
+        if(ast.debug_mode) std.debug.print("Indentifier Node Emitted\n", .{});
         return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
     }
 
@@ -156,6 +157,7 @@ pub const Compiler = struct {
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
+        if(ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
         return dest; // should return register? fixed return type
     }
 
@@ -174,6 +176,7 @@ pub const Compiler = struct {
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
 
+        if(ast.debug_mode) std.debug.print("Assign Node Emitted\n", .{});
         return lhs_reg;
     }
 
@@ -213,6 +216,7 @@ pub const Compiler = struct {
         try self.nyac_list.append(self.alloc, nyi);
         try self.emit(nyi);
 
+        if(ast.debug_mode) std.debug.print("Binary Node Emitted\n", .{});
         return dest;
     }
 
@@ -232,6 +236,7 @@ pub const Compiler = struct {
         // Emit IR to file
         try self.emit(nyi);
 
+        if(ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
         return dest;
     }
 
