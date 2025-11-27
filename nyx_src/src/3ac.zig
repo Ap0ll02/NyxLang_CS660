@@ -180,9 +180,21 @@ pub const Compiler = struct {
         return lhs_reg;
     }
 
-    // pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
-    //     return error.Error;
-    // }
+    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !NYAC {
+        const func_ident = root.nameParam.NameParameterNode.name.Identifier;
+
+        const nyac = NYAC {
+            .instruction = .Label,
+            .return_addr = Unused,
+            .op1_addr = handle_ident(self, func_ident),
+            .op2_addr = Unused
+        };
+
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
+        return nyac;
+    }
 
     pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) anyerror!Register {
         // Compiling the left and right nodes into registers
