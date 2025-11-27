@@ -3,6 +3,15 @@ const m = @import("main.zig");
 const ast = @import("ast.zig");
 const log = @import("Log.zig");
 
+pub const CompileError = error{
+    OutOfMemory,
+    UnsupportedNode,
+    UnsupportedBinaryOp,
+    UndefinedVariable,
+    Invalid,
+    todo,
+};
+
 pub const Instruction = enum { 
     Add, Subtract, Multiply, Divide, 
     Constant, LoadByte, StoreByte, StoreDouble, LoadDouble,
@@ -91,7 +100,7 @@ pub const Compiler = struct {
             .BlockItems => |bi| {
                 for (bi.items) |b| {
                     self.root = b;
-                    try self.compile_node(true);
+                    _ = try self.compile_node(true);
                 }
             },
             else => {}
@@ -104,11 +113,12 @@ pub const Compiler = struct {
             .mode = .write_only,
         });
         defer file.close();
-        try file.writer(self.file_text);
+        try file.writeAll(self.file_text.items);
+
         return self.nyac_list;
     }
 
-    pub fn compile_node(self: *Compiler, is_root: bool) !Register {
+    pub fn compile_node(self: *Compiler, is_root: bool) anyerror!Register {
         try check_write(self, is_root); 
         // Note: All of the diagnostic source prints need to be moved
         // to file writing, we will write the source line and then
@@ -120,15 +130,15 @@ pub const Compiler = struct {
             // .Function => |fun| try self.handle_function(fun),
             .Constant => |c| try self.handle_constant(c),
             .Binary => |bn| try self.handle_binary(bn),
-            else => return error.UnsupportedNode,
+            else => return CompileError.UnsupportedNode,
         };
 
     }
-    pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) !Register {
-        return self.var_registers.get(root.name) orelse return error.UndefinedVariable;
+    pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
+        return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
     }
 
-    pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) !Register {
+    pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
         const name = root.declaration_specifier.?.Identifier.name;
         // allocate register slot
         self.count += 1;
@@ -148,9 +158,9 @@ pub const Compiler = struct {
         return dest; // should return register? fixed return type
     }
 
-    pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) !Register {
+    pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
         const var_name = root.declarator.Identifier.name;
-        const lhs_reg = self.var_registers.get(var_name) orelse return error.UndefinedVariable;
+        const lhs_reg = self.var_registers.get(var_name) orelse return CompileError.UndefinedVariable;
         const rhs_reg = try self.compile_expr(root.initializer.?);
 
         const nyac = NYAC {
@@ -170,7 +180,7 @@ pub const Compiler = struct {
     //     return error.Error;
     // }
 
-    pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) !Register {
+    pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) anyerror!Register {
         // Compiling the left and right nodes into registers
         self.root = node.lhs;
         const left_reg = try self.compile_node(false);
@@ -188,7 +198,7 @@ pub const Compiler = struct {
             '-' => Instruction.Subtract,
             '*' => Instruction.Multiply,
             '/' => Instruction.Divide,
-            else => return error.UnsupportedBinaryOp
+            else => return CompileError.UnsupportedBinaryOp
         };
 
         const nyi = NYAC {
@@ -205,12 +215,13 @@ pub const Compiler = struct {
         return dest;
     }
 
-    pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) !Register {
+    pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) anyerror!Register {
         self.count += 1;
         const dest = self.count;
+        const val = try std.fmt.parseInt(i32, root.value, 10);
         const nyi = NYAC {
             .instruction = .Constant,
-            .op1_addr = @intCast(root.value),
+            .op1_addr = @intCast(val),
             .return_addr = dest,
             .op2_addr = Unused,
         };
@@ -241,7 +252,7 @@ pub const Compiler = struct {
         }
     }
 
-    pub fn compile_expr(self: *Compiler, node: *ast.Node) !Register {
+    pub fn compile_expr(self: *Compiler, node: *ast.Node) anyerror!Register {
         const original = self.root;
         self.root = node;
         const reg = try self.compile_node(false);

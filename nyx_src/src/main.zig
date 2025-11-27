@@ -73,9 +73,8 @@ pub fn main() !void {
             std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
             return;
         };
-        _ = compiler.compile() catch |err| {
-            std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
-            return;
+        _ = compiler.compile() catch {
+            std.debug.print("FAILED TO COMPILE\n", .{});
         };
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{if (result == 1) "failed." else "successful", log.err_count});
     }
