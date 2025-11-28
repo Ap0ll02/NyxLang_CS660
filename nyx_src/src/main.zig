@@ -69,7 +69,7 @@ pub fn main() !void {
             return;
         };
 
-        std.debug.print("\n\x1b[1;33m3AC COMPILATION PRINTOUT\x1b[0m\n", .{});
+        if (ast.debug_mode) std.debug.print("\n\x1b[1;33m3AC COMPILATION PRINTOUT\x1b[0m\n", .{});
         const compiler: *nya.Compiler = nya.Compiler.init(parse_alloc, r) catch |err| {
             std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
             return;
