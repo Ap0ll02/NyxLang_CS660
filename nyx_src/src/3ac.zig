@@ -75,6 +75,7 @@ pub const Compiler = struct {
     var_registers: std.StringHashMap(Register),
     var_locations: std.StringHashMap(usize),
     count: Register,
+    label_counter: usize,
     fp_offset: usize,
     cur_line: usize,
     last_line: usize,
@@ -92,6 +93,7 @@ pub const Compiler = struct {
             .fp_offset = 0,
             .cur_line = 0,
             .last_line = 0,
+            .label_counter = 0,
         };
         return compiler;
     }
@@ -509,7 +511,8 @@ pub const Compiler = struct {
             .ImbueRegister => "IMBUE_REGISTER",
             .ImbueLabel => "IMBUE_LABEL",
             .StoreRegister => "STORE_REGISTER", // TODO should this and LOAD_REGISTER be replaced w/ the LB, SB, etc?
-            .LoadRegister => "LOAD_REGISTER"
+            .LoadRegister => "LOAD_REGISTER",
+            else => "INVALID"
         });
 
         // should be using appendSlide for strings
@@ -552,4 +555,10 @@ pub const Compiler = struct {
         }
         try writer.append(self.alloc, '\n');
     }
+    pub fn new_label(self: *Compiler) usize {
+        const id = self.label_counter;
+        self.label_counter += 1;
+        return id;
+    }
+
 };
