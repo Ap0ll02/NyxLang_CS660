@@ -15,7 +15,7 @@ pub const CompileError = error{
 pub const Instruction = enum { 
     Add, Subtract, Multiply, Divide, 
     Constant, LoadByte, StoreByte, StoreDouble, LoadDouble,
-    Label, Goto, If,
+    Label, Goto, If, Jump, JumpFalse,
     ImbueFrame,
     ImbueRegister,
     ImbueLabel,
@@ -164,7 +164,7 @@ pub const Compiler = struct {
             .Declaration => |node| try self.handle_decl(node),
             .Assignment => |node| try self.handle_assignment(node),
             // .WhileStmt => |node| try self.handle_some_node(node),
-            // .IfStmt => |node| try self.handle_some_node(node),
+            // .IfStmt => |node| try self.handle_if(node),
             // .ReturnStmt => |node| try self.handle_some_node(node),
             // .String => |node| try self.handle_some_node(node),
             // .Char => |node| try self.handle_some_node(node),
@@ -174,7 +174,7 @@ pub const Compiler = struct {
             .ExpressionStmt => |node| try self.handle_expr_stmt(node),
             .Pointer => |node| try self.handle_pointer(node),
             .IdPointer => |node| try self.handle_id_pointer(node),
-            // .Array => |node| try self.handle_some_node(node),
+            // .Array => |node| try self.handle_array(node),
             // .StructDeclaration => |node| try self.handle_some_node(node),
             // .StructDeclarationList => |node| try self.handle_some_node(node),
             // .StructDeclaratorList => |node| try self.handle_some_node(node),
@@ -389,6 +389,67 @@ pub const Compiler = struct {
         if(ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
         return dest;
     }
+
+    pub fn handle_if(self: *Compiler, node: *ast.IfNode) anyerror!Register {
+        self.cur_line = if(node.location) |nl| nl.line else 0;
+        const cond_reg = self.compile_expr(node.cond);
+
+        const else_label = new_label();
+        const end_label = new_label();
+
+        // Jump False
+        try self.emit_jump_false(cond_reg, else_label);
+
+        // THen branch
+        _ = try self.compile_stmt(node.if_branch);
+
+        try self.emit_jump(end_label);
+        try self.emit_label(else_label);
+
+        if(node.el_branch) |eb| {
+            _ = try self.compile_stmt(eb);
+        }
+
+        self.emit_label(end_label);
+        return Unused;
+    }
+
+    pub fn emit_jump_false(self: *Compiler, cond: Register, label: usize) !void {
+        if(ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
+        const nyac = NYAC {
+            .instruction = .JumpFalse,
+            .return_addr = Unused,
+            .op1 = .{ .Register = cond },
+            .op2_addr = .{ .Label = "TBA" }
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+    }
+
+    pub fn emit_jump(self: *Compiler, label: usize) !void {
+        if(ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
+        const nyac = NYAC {
+            .instruction = .Jump,
+            .return_addr = Unused,
+            .op1 = .{ .Label = "TBA" },
+            .op2_addr = .{ .Register = Unused }
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+    }
+
+    pub fn emit_label(self: *Compiler, label: usize) !void {
+        if(ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
+        const nyac = NYAC {
+            .instruction = .Label,
+            .return_addr = Unused,
+            .op1 = .{ .Label = "TBA" },
+            .op2_addr = .{ .Register = Unused }
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+    }
+
     pub fn handle_expr_stmt(self: *Compiler, root: *ast.ExpressionStmtNode) anyerror!Register {
         self.cur_line = if(root.location) |loc| loc.line else 0;
         if (root.expr) |re| {
