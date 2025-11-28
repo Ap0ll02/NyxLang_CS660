@@ -43,14 +43,14 @@ const A6: Register = 7;
 const A7: Register = 8;
 
 pub const NYACOperand = union(enum) {
-    Register: u32,
     Label: []const u8,
-    Value: Value
+    Value: Value,
+    Register: u32,
 };
 
 pub const NYAC = struct { 
     return_addr: u32, instruction: Instruction, 
-    op1: NYACOperand, op2_addr: u32
+    op1: NYACOperand, op2_addr: NYACOperand
 };
 
 // Storage for registers, and the outputted nyac_list
@@ -76,6 +76,8 @@ pub const Compiler = struct {
     var_locations: std.StringHashMap(usize),
     count: Register,
     fp_offset: usize,
+    cur_line: usize,
+    last_line: usize,
     
     pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !*Compiler {
         const compiler = try alloc.create(Compiler);
@@ -88,6 +90,8 @@ pub const Compiler = struct {
             .var_locations = std.StringHashMap(usize).init(alloc),
             .count = 8,
             .fp_offset = 0,
+            .cur_line = 0,
+            .last_line = 0,
         };
         return compiler;
     }
@@ -101,12 +105,13 @@ pub const Compiler = struct {
 
     pub fn compile(self: *Compiler) !std.ArrayList(NYAC) {
         const old_root = self.root;
-
+        self.cur_line = 0;
         switch (self.root.*) {
             .BlockItems => |bi| {
                 for (bi.items) |b| {
+                    try check_write(self);
                     self.root = b;
-                    _ = try self.compile_node(true);
+                    _ = try self.compile_node();
                 }
             },
             else => {}
@@ -128,8 +133,7 @@ pub const Compiler = struct {
         return self.nyac_list;
     }
 
-    pub fn compile_node(self: *Compiler, is_root: bool) anyerror!Register {
-        try check_write(self, is_root); 
+    pub fn compile_node(self: *Compiler) anyerror!Register {
 
         std.debug.print("Compiling node: {s}\n", .{@tagName(self.root.*)});
 
@@ -180,11 +184,13 @@ pub const Compiler = struct {
 
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         if(ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
         return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         const name = root.assign_node.?.Assignment.declarator.Identifier.name;
         // allocate register slot
         self.count += 1;
@@ -198,7 +204,7 @@ pub const Compiler = struct {
             .instruction = .ImbueRegister,
             .return_addr = dest,
             .op1 = NYACOperand{.Register = Unused},
-            .op2_addr = Unused,
+            .op2_addr = NYACOperand{.Register = Unused},
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -207,6 +213,7 @@ pub const Compiler = struct {
     }
 
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         const var_name = root.declarator.Identifier.name;
         const lhs_reg = self.var_registers.get(var_name) orelse return CompileError.UndefinedVariable;
         const rhs_reg = try self.compile_expr(root.initializer.?);
@@ -216,7 +223,7 @@ pub const Compiler = struct {
             .instruction = .StoreRegister,
             .return_addr = lhs_reg,
             .op1 = NYACOperand{.Register = rhs_reg},
-            .op2_addr = Unused,
+            .op2_addr = NYACOperand{.Register = Unused},
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -227,13 +234,14 @@ pub const Compiler = struct {
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
-
+        
         const nyac = NYAC {
             .instruction = .Label,
             .return_addr = Unused,
             .op1 = NYACOperand{.Label = func_ident_node.name},
-            .op2_addr = Unused
+            .op2_addr = .{ .Register = Unused }
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -243,13 +251,14 @@ pub const Compiler = struct {
     }
 
     pub fn handle_func_call(self: *Compiler, root: *ast.FunctionCallNode) !Register {
+        self.cur_line = root.location.?.line;
         const func_ident_node = root.name.Identifier;
 
         const nyac = NYAC {
             .instruction = .Goto,
             .return_addr = Unused,
             .op1 = NYACOperand{.Label = func_ident_node.name},
-            .op2_addr = Unused
+            .op2_addr = .{ .Register = Unused }
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -259,6 +268,7 @@ pub const Compiler = struct {
     }
 
     pub fn handle_translation_units(self: *Compiler, root: *ast.TranslationUnitListNode) !Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         for (root.translationUnits) |unit| {
             _ = try self.compile_expr(unit);
         } 
@@ -267,12 +277,13 @@ pub const Compiler = struct {
     }
 
     pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) anyerror!Register {
+        self.cur_line = if(node.location) |loc| loc.line else 0;
         // Compiling the left and right nodes into registers
         self.root = node.lhs;
-        const left_reg = try self.compile_node(false);
+        const left_reg = try self.compile_node();
 
         self.root = node.rhs;
-        const right_reg = try self.compile_node(false);
+        const right_reg = try self.compile_node();
 
         // Destination reg
         self.count += 1;
@@ -291,7 +302,7 @@ pub const Compiler = struct {
             .instruction = instr,
             .return_addr = dest,
             .op1 = NYACOperand{.Register = left_reg},
-            .op2_addr = right_reg,
+            .op2_addr = .{ .Register = right_reg }
         };
 
         // Append to NYAC list and emit to file
@@ -303,6 +314,7 @@ pub const Compiler = struct {
     }
 
     pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         self.count += 1;
         const dest = self.count;
         const val = try std.fmt.parseInt(i32, root.value, 10);
@@ -310,7 +322,7 @@ pub const Compiler = struct {
             .instruction = .Constant,
             .op1 = NYACOperand{.Register = @intCast(val)},
             .return_addr = dest,
-            .op2_addr = Unused,
+            .op2_addr= NYACOperand{.Register = Unused},
         };
 
         // Append to list
@@ -322,36 +334,40 @@ pub const Compiler = struct {
         return dest;
     }
 
-    // TODO not sure what the purpose of this function is
-    // pub fn check_write(self: *Compiler, is_root: bool) !void {
-        // if(!is_root) return;
-        // const line = switch (self.root.*) {
-        //     .Identifier => |id| id.location.?.line,
-        //     .Declaration => |decl| decl.location.?.line,
-        //     .Assignment => |as| as.location.?.line,
-        //     // .Function => |fun| fun.location.?.line,
-        //     .Constant => |c| c.location.?.line,
-        //     .Binary => |bn| bn.location.?.line,
-        //     // if any node type lacks a location, fallback:
-        //     else => 0,
-        // };
-        // if (ast.debug_mode and is_root) {
-        //     try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
-        //     try self.file_text.append(self.alloc, '\n');
-        // }
-    pub fn check_write(_: *Compiler, _: bool) !void {
+    pub fn check_write(self: *Compiler) !void {
+        const line = switch (self.root.*) {
+            .Identifier => |id| id.location.?.line,
+            .Declaration => |decl| decl.location.?.line,
+            .Assignment => |as| as.location.?.line,
+            // .Function => |fun| fun.location.?.line,
+            .Constant => |c| c.location.?.line,
+            .Binary => |bn| bn.location.?.line,
+            // if any node type lacks a location, fallback:
+            else => 0,
+        };
+        if(line == 0) return;
+        if (ast.debug_mode) {
+            try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
+            try self.file_text.append(self.alloc, '\n');
+        }
     }
 
     pub fn compile_expr(self: *Compiler, node: *ast.Node) anyerror!Register {
         const original = self.root;
         self.root = node;
-        const reg = try self.compile_node(false);
+        const reg = try self.compile_node();
         self.root = original;
         return reg;
     }
 
     pub fn emit(self: *Compiler, inst: NYAC) !void {
         const writer = &self.file_text;
+        if(self.cur_line != 0 and self.last_line != self.cur_line) {
+            const src = m.diagnostic_source(self.cur_line);
+            try writer.appendSlice(self.alloc, src);
+            try writer.append(self.alloc, '\n');
+            self.last_line = self.cur_line;
+        }
         try writer.appendSlice(self.alloc, switch(inst.instruction) {
             .Add => "ADD",
             .Subtract => "SUB",
@@ -405,7 +421,7 @@ pub const Compiler = struct {
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
-        if(inst.op2_addr != Unused) {
+        if(inst.op2_addr.Register != Unused) {
             tmp = try std.fmt.allocPrint(self.alloc, "{}", .{inst.op2_addr});
             try writer.appendSlice(self.alloc, tmp);
             self.alloc.free(tmp);
