@@ -108,11 +108,13 @@ pub const Compiler = struct {
         self.cur_line = 0;
         switch (self.root.*) {
             .BlockItems => |bi| {
-                for (bi.items) |b| {
-                    try check_write(self);
-                    self.root = b;
-                    _ = try self.compile_node();
-                }
+                // for (bi.items) |b| {
+                //     try check_write(self);
+                //     self.root = b;
+                //     _ = try self.compile_node();
+                // }
+                self.root = bi.items[bi.items.len-1];
+                _ = try self.compile_node();
             },
             else => {}
         }
@@ -152,7 +154,6 @@ pub const Compiler = struct {
             // .NameParameterNode => |node| try self.handle_some_node(node),
             .TranslationUnitList => |node| try self.handle_translation_units(node),
             // .BlockItems => |node| try self.handle_some_node(node),
-            // .Binary => |node| try self.handle_some_node(node),
             // .Unary => |node| try self.handle_some_node(node),
             // .PostFix => |node| try self.handle_some_node(node),
             // .PreFix => |node| try self.handle_some_node(node),
@@ -170,9 +171,9 @@ pub const Compiler = struct {
             // .Int => |node| try self.handle_some_node(node),
             // .Float => |node| try self.handle_some_node(node),
             .Type => |_| return Unused,
-            // .ExpressionStmt => |node| try self.handle_some_node(node),
-            // .Pointer => |node| try self.handle_some_node(node),
-            // .IdPointer => |node| try self.handle_some_node(node),
+            .ExpressionStmt => |node| try self.handle_expr_stmt(node),
+            .Pointer => |node| try self.handle_pointer(node),
+            .IdPointer => |node| try self.handle_id_pointer(node),
             // .Array => |node| try self.handle_some_node(node),
             // .StructDeclaration => |node| try self.handle_some_node(node),
             // .StructDeclarationList => |node| try self.handle_some_node(node),
@@ -191,7 +192,10 @@ pub const Compiler = struct {
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
         self.cur_line = if(root.location) |loc| loc.line else 0;
-        const name = root.assign_node.?.Assignment.declarator.Identifier.name;
+        var name: []const u8 = "";
+        if (root.assign_node) |ar| {
+            name = ar.Assignment.declarator.Identifier.name;
+        } else return Unused;
         // allocate register slot
         self.count += 1;
         const dest = self.count;
@@ -209,6 +213,58 @@ pub const Compiler = struct {
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
         if(ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
+        return dest;
+    }
+    
+    pub fn handle_pointer(self: *Compiler, root: *ast.PointerNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
+        var pointee_reg = Unused;
+        if(root.pointee) |pte| {
+            pointee_reg = try self.compile_expr(pte);
+        }
+
+        self.count += 1;
+        const dest = self.count;
+        const nyac = NYAC {
+            .instruction = .LoadRegister,
+            .return_addr = Unused,
+            .op1 = .{ .Register = pointee_reg },
+            .op2_addr = .{ .Register = Unused },
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+        if (ast.debug_mode) std.debug.print("Pointer Node Emitted, depth {d}\n", .{root.depth});
+        return dest;
+    }
+
+    pub fn handle_id_pointer(self: *Compiler, node: *ast.IdPointerNode) anyerror!Register {
+        self.cur_line = if (node.location) |loc| loc.line else 0;
+
+        // Compile the pointer
+        const ptr_reg = try self.compile_expr(node.pointer);
+
+        // Compile the identifier (could just be variable lookup)
+        // const id_name = switch (node.identifier.*) {
+        //     .Identifier => |id| id.name,
+        //     else => return CompileError.UnsupportedNode,
+        // };
+        // const id_reg = self.var_registers.get(id_name) orelse return CompileError.UndefinedVariable;
+
+        // Allocate a register for the loaded value
+        self.count += 1;
+        const dest = self.count;
+
+        const nyac = NYAC{
+            .instruction = .LoadRegister,
+            .return_addr = dest,
+            .op1 = NYACOperand{.Register = ptr_reg},
+            .op2_addr = NYACOperand{.Register = Unused},
+        };
+
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
+        if (ast.debug_mode) std.debug.print("IdPointer Node Emitted\n", .{});
         return dest;
     }
 
@@ -333,6 +389,13 @@ pub const Compiler = struct {
         if(ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
         return dest;
     }
+    pub fn handle_expr_stmt(self: *Compiler, root: *ast.ExpressionStmtNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
+        if (root.expr) |re| {
+            _ = try self.compile_expr(re);
+        }
+        return Unused;
+    }
 
     pub fn check_write(self: *Compiler) !void {
         const line = switch (self.root.*) {
@@ -395,25 +458,25 @@ pub const Compiler = struct {
 
         switch (inst.op1) {
             .Register => |register| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", (register: {d}), ", .{register});
+                tmp = try std.fmt.allocPrint(self.alloc, ", (register: {d})", .{register});
             },
             .Label => |label| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\"), ", .{label});
+                tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\")", .{label});
             },
             .Value => |label| {
                 // TODO is there a better way to do this?
                 switch (label) {
                     .Number => |num| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d}), ", .{num});
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d})", .{num});
                     },
                     .String => |str| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: \"{s}\"), ", .{str});
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: \"{s}\")", .{str});
                     },
                     .Char => |character| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {c}), ", .{character});
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {c})", .{character});
                     },
                     .Void => |_| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: void), ", .{});
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: void)", .{});
                     },
                 }
             }
@@ -422,11 +485,10 @@ pub const Compiler = struct {
         self.alloc.free(tmp);
 
         if(inst.op2_addr.Register != Unused) {
-            tmp = try std.fmt.allocPrint(self.alloc, "{}", .{inst.op2_addr});
+            tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op2_addr});
             try writer.appendSlice(self.alloc, tmp);
             self.alloc.free(tmp);
         }
-
         try writer.append(self.alloc, '\n');
     }
 };
