@@ -14,6 +14,8 @@ pub const CompileError = error{
 
 pub const Instruction = enum { 
     Add, Subtract, Multiply, Divide, 
+    And, Or, Equals, NotEquals, LessThan, GreaterThan,
+    LessEquals, GreaterEquals,
     Constant, LoadByte, StoreByte, StoreDouble, LoadDouble,
     Label, Goto, If, Jump, JumpFalse,
     ImbueFrame,
@@ -158,14 +160,14 @@ pub const Compiler = struct {
             // .Unary => |node| try self.handle_some_node(node),
             // .PostFix => |node| try self.handle_some_node(node),
             // .PreFix => |node| try self.handle_some_node(node),
-            // .ConditionalExpression => |node| try self.handle_some_node(node),
+            .ConditionalExpression => |node| try self.handle_cond_expr(node),
             // .Comp => |node| try self.handle_some_node(node),
             // .Cast => |node| try self.handle_some_node(node),
             // .AssOp => |node| try self.handle_some_node(node),
             .Declaration => |node| try self.handle_decl(node),
             .Assignment => |node| try self.handle_assignment(node),
             // .WhileStmt => |node| try self.handle_some_node(node),
-            // .IfStmt => |node| try self.handle_if(node),
+            .IfStmt => |node| try self.handle_if(node),
             // .ReturnStmt => |node| try self.handle_some_node(node),
             // .String => |node| try self.handle_some_node(node),
             // .Char => |node| try self.handle_some_node(node),
@@ -312,7 +314,7 @@ pub const Compiler = struct {
     }
 
     pub fn handle_func_call(self: *Compiler, root: *ast.FunctionCallNode) !Register {
-        self.cur_line = root.location.?.line;
+        self.cur_line = if(root.location) |loc| loc.line else 0;
         const func_ident_node = root.name.Identifier;
 
         const nyac = NYAC {
@@ -399,11 +401,11 @@ pub const Compiler = struct {
         self.cur_line = if(node.location) |nl| nl.line else 0;
         const cond_reg = self.compile_expr(node.cond);
 
-        const else_label = new_label();
-        const end_label = new_label();
+        const else_label = self.new_label();
+        const end_label = self.new_label();
 
         // Jump False
-        try self.emit_jump_false(cond_reg, else_label);
+        try self.emit_jump_false(try cond_reg, else_label);
 
         // THen branch
         _ = try self.compile_expr(node.if_branch);
@@ -415,7 +417,7 @@ pub const Compiler = struct {
             _ = try self.compile_expr(eb);
         }
 
-        self.emit_label(end_label);
+        try self.emit_label(end_label);
         return Unused;
     }
 
@@ -425,7 +427,7 @@ pub const Compiler = struct {
             .instruction = .JumpFalse,
             .return_addr = Unused,
             .op1 = .{ .Register = cond },
-            .op2_addr = .{ .Label = "TBA" }
+            .op2_addr = .{ .Label = "ElseBranch" }
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -436,7 +438,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .Jump,
             .return_addr = Unused,
-            .op1 = .{ .Label = "TBA" },
+            .op1 = .{ .Label = "ThenBranch" },
             .op2_addr = .{ .Register = Unused }
         };
         try self.nyac_list.append(self.alloc, nyac);
@@ -448,7 +450,7 @@ pub const Compiler = struct {
         const nyac = NYAC {
             .instruction = .Label,
             .return_addr = Unused,
-            .op1 = .{ .Label = "TBA" },
+            .op1 = .{ .Label = "End?Label" },
             .op2_addr = .{ .Register = Unused }
         };
         try self.nyac_list.append(self.alloc, nyac);
@@ -461,6 +463,48 @@ pub const Compiler = struct {
             _ = try self.compile_expr(re);
         }
         return Unused;
+    }
+
+    pub fn handle_cond_expr(self: *Compiler, root: *ast.ConditionalExpressionNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
+        const left_reg = try self.compile_expr(root.expr1);
+        const right_reg = try self.compile_expr(root.expr2);
+        
+        self.count += 1;
+        const dest = self.count;
+
+        const op_str: []const u8 = std.mem.span(root.logicalOperator);
+        // Determine the instruction based on logical operator
+        const instr = if (std.mem.eql(u8, op_str, "&&")) 
+            Instruction.And  // You'll need to add this to your Instruction enum
+            else if (std.mem.eql(u8, op_str, "||"))
+                Instruction.Or   // You'll need to add this to your Instruction enum
+            else if (std.mem.eql(u8, op_str, "=="))
+                Instruction.Equals
+            else if (std.mem.eql(u8, op_str, "!="))
+                Instruction.NotEquals
+            else if (std.mem.eql(u8, op_str, "<"))
+                Instruction.LessThan
+            else if (std.mem.eql(u8, op_str, ">"))
+                Instruction.GreaterThan
+            else if (std.mem.eql(u8, op_str, "<="))
+                Instruction.LessEquals
+            else if (std.mem.eql(u8, op_str, ">="))
+                Instruction.GreaterEquals
+            else return CompileError.UnsupportedBinaryOp;
+
+        const nyac = NYAC {
+            .instruction = instr,
+            .return_addr = dest,
+            .op1 = NYACOperand{.Register = left_reg},
+            .op2_addr = .{ .Register = right_reg },
+        };
+
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
+        if(ast.debug_mode) std.debug.print("ConditionalExpression Node Emitted\n", .{});
+        return dest;
     }
 
     pub fn handle_block(self: *Compiler, root: *ast.BlockItemsNode) anyerror!Register {
@@ -523,7 +567,17 @@ pub const Compiler = struct {
             .ImbueLabel => "IMBUE_LABEL",
             .StoreRegister => "SR", // TODO should this and LOAD_REGISTER be replaced w/ the LB, SB, etc?
             .LoadRegister => "LR",
-            else => "INVALID"
+            .Jump => "JUMP",
+            .JumpFalse => "JUMPFALSE",
+            .And => "AND",
+            .Or => "OR",
+            .Equals => "EQ",
+            .NotEquals => "NEQ",
+            .LessThan => "LT",
+            .GreaterThan => "GT",
+            .GreaterEquals => "GTE",
+            .LessEquals => "LTE",
+            // else => "INVALID"
         });
 
         // should be using appendSlide for strings
@@ -562,7 +616,7 @@ pub const Compiler = struct {
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
-        if(inst.op2_addr.Register != Unused) {
+        if(inst.op2_addr == .Register and inst.op2_addr.Register != Unused) {
             tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op2_addr});
             try writer.appendSlice(self.alloc, tmp);
             self.alloc.free(tmp);
