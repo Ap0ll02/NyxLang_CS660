@@ -155,7 +155,7 @@ pub const Compiler = struct {
             // .ParameterList => |node| try self.handle_some_node(node),
             // .NameParameterNode => |node| try self.handle_some_node(node),
             .TranslationUnitList => |node| try self.handle_translation_units(node),
-            // .BlockItems => |node| try self.handle_some_node(node),
+            .BlockItems => |node| try self.handle_block(node),
             // .Unary => |node| try self.handle_some_node(node),
             // .PostFix => |node| try self.handle_some_node(node),
             // .PreFix => |node| try self.handle_some_node(node),
@@ -456,6 +456,14 @@ pub const Compiler = struct {
         self.cur_line = if(root.location) |loc| loc.line else 0;
         if (root.expr) |re| {
             _ = try self.compile_expr(re);
+        }
+        return Unused;
+    }
+
+    pub fn handle_block(self: *Compiler, root: *ast.BlockItemsNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
+        for (root.items) |bi| {
+            _ = try self.compile_expr(bi);
         }
         return Unused;
     }
