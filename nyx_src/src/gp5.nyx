@@ -12,4 +12,5 @@ int main() {
     } else {
         printf("Your dad");
     }
+    return 20;
 }
