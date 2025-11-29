@@ -1,11 +1,2 @@
-// int x;
-// int y;
-
-struct Josh {
-    int   x;
-    float y;
-};
-
-int main() {
-    struct Josh josh1 = {10, 3.14};
-}
+int x;
+int y;
