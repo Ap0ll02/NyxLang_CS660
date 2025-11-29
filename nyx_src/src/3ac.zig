@@ -23,6 +23,7 @@ pub const Instruction = enum {
     ImbueLabel,
     StoreRegister,
     LoadRegister,
+    Return,
 };
 pub const Value = union(enum) {
     Number: i32,
@@ -161,18 +162,18 @@ pub const Compiler = struct {
             // .PostFix => |node| try self.handle_some_node(node),
             // .PreFix => |node| try self.handle_some_node(node),
             .ConditionalExpression => |node| try self.handle_cond_expr(node),
-            // .Comp => |node| try self.handle_some_node(node),
+            // NOT USED? .Comp => |node| try self.handle_comp(node),
             // .Cast => |node| try self.handle_some_node(node),
             // .AssOp => |node| try self.handle_some_node(node),
             .Declaration => |node| try self.handle_decl(node),
             .Assignment => |node| try self.handle_assignment(node),
             // .WhileStmt => |node| try self.handle_some_node(node),
             .IfStmt => |node| try self.handle_if(node),
-            // .ReturnStmt => |node| try self.handle_some_node(node),
+            .ReturnStmt => |node| try self.handle_return(node),
             // .String => |node| try self.handle_some_node(node),
-            // .Char => |node| try self.handle_some_node(node),
-            // .Int => |node| try self.handle_some_node(node),
-            // .Float => |node| try self.handle_some_node(node),
+            // NOT USED? .Char => |node| try self.handle_some_node(node),
+            // NOT USED? .Int => |node| try self.handle_some_node(node),
+            // NOT USED? .Float => |node| try self.handle_some_node(node),
             .Type => |_| return Unused,
             .ExpressionStmt => |node| try self.handle_expr_stmt(node),
             .Pointer => |node| try self.handle_pointer(node),
@@ -397,6 +398,26 @@ pub const Compiler = struct {
         return dest;
     }
 
+    pub fn handle_return(self: *Compiler, node: *ast.ReturnNode) anyerror!Register {
+        self.cur_line = if(node.location) |nl| nl.line else 0;
+        var return_reg = Unused;
+        if(node.val) |nv| {
+            return_reg = try self.compile_expr(nv);
+        }
+        // Actually emit a RETURN instruction
+        const nyac = NYAC {
+            .instruction = .Return,  // You'll need to add this to Instruction enum
+            .return_addr = Unused,
+            .op1 = NYACOperand{.Register = return_reg},
+            .op2_addr = NYACOperand{.Register = Unused},
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+    
+        if(ast.debug_mode) std.debug.print("Return Node Emitted\n", .{});
+        return return_reg;
+    }
+
     pub fn handle_if(self: *Compiler, node: *ast.IfNode) anyerror!Register {
         self.cur_line = if(node.location) |nl| nl.line else 0;
         const cond_reg = self.compile_expr(node.cond);
@@ -543,7 +564,7 @@ pub const Compiler = struct {
 
     pub fn emit(self: *Compiler, inst: NYAC) !void {
         const writer = &self.file_text;
-        if(self.cur_line != 0 and self.last_line != self.cur_line) {
+        if(self.cur_line > 0 and self.last_line != self.cur_line) {
             const src = m.diagnostic_source(self.cur_line);
             try writer.appendSlice(self.alloc, src);
             try writer.append(self.alloc, '\n');
@@ -577,6 +598,7 @@ pub const Compiler = struct {
             .GreaterThan => "GT",
             .GreaterEquals => "GTE",
             .LessEquals => "LTE",
+            .Return => "RETURN",
             // else => "INVALID"
         });
 
