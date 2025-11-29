@@ -3,4 +3,13 @@ int x = 10;
 int y = 200;
 
 // Test Case 2
-int z = y + 900;
+int z = 900;
+
+// Test Case 3
+int main() {
+    if(x == 0) {
+        printf("Your mom");
+    } else {
+        printf("Your dad");
+    }
+}
