@@ -403,13 +403,13 @@ pub const Compiler = struct {
         try self.emit_jump_false(cond_reg, else_label);
 
         // THen branch
-        _ = try self.compile_stmt(node.if_branch);
+        _ = try self.compile_expr(node.if_branch);
 
         try self.emit_jump(end_label);
         try self.emit_label(else_label);
 
         if(node.el_branch) |eb| {
-            _ = try self.compile_stmt(eb);
+            _ = try self.compile_expr(eb);
         }
 
         self.emit_label(end_label);
