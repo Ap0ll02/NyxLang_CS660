@@ -110,13 +110,12 @@ pub const Compiler = struct {
         self.cur_line = 0;
         switch (self.root.*) {
             .BlockItems => |bi| {
-                // for (bi.items) |b| {
-                //     try check_write(self);
-                //     self.root = b;
-                //     _ = try self.compile_node();
-                // }
-                self.root = bi.items[bi.items.len-1];
-                _ = try self.compile_node();
+                for (bi.items) |b| {
+                    std.debug.print("Processing item: {s}\n", .{@tagName(b.*)});
+                    try check_write(self);
+                    self.root = b;
+                    _ = try self.compile_node();
+                }
             },
             else => {}
         }
@@ -126,7 +125,7 @@ pub const Compiler = struct {
         // try to open file_name to emit 3AC, if it doesn't exist, then create it
         const file_name = "a.nyac";
         const file = try std.fs.cwd().createFile(file_name, .{
-            .truncate = false,
+            .truncate = true,
             .exclusive = false,
         });
 
@@ -214,6 +213,9 @@ pub const Compiler = struct {
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
+        if(root.assign_node) |an| {
+            _ = try self.compile_expr(an);
+        }
         if(ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
         return dest;
     }
@@ -291,7 +293,7 @@ pub const Compiler = struct {
         return lhs_reg;
     }
 
-    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) !Register {
+    pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) anyerror!Register {
         self.cur_line = if(root.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
         
@@ -304,6 +306,7 @@ pub const Compiler = struct {
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
+        _ = try self.compile_expr(root.body);
 
         return Unused;
     }
@@ -518,8 +521,8 @@ pub const Compiler = struct {
             .ImbueFrame => "IMBUE_FRAME",
             .ImbueRegister => "IMBUE_REGISTER",
             .ImbueLabel => "IMBUE_LABEL",
-            .StoreRegister => "STORE_REGISTER", // TODO should this and LOAD_REGISTER be replaced w/ the LB, SB, etc?
-            .LoadRegister => "LOAD_REGISTER",
+            .StoreRegister => "SR", // TODO should this and LOAD_REGISTER be replaced w/ the LB, SB, etc?
+            .LoadRegister => "LR",
             else => "INVALID"
         });
 
@@ -536,7 +539,7 @@ pub const Compiler = struct {
                 tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\")", .{label});
             },
             .Value => |label| {
-                // TODO is there a better way to do this?
+                // TODO is there a better way to do this? No I don't think it is that bad
                 switch (label) {
                     .Number => |num| {
                         tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d})", .{num});
@@ -550,6 +553,9 @@ pub const Compiler = struct {
                     .Void => |_| {
                         tmp = try std.fmt.allocPrint(self.alloc, ", (value: void)", .{});
                     },
+                    // else => |c| {
+                    //     tmp = try std.fmt.allocPrint(self.alloc, ", (value: {any})", .{c});
+                    // }
                 }
             }
         }
