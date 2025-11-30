@@ -224,17 +224,19 @@ pub const Compiler = struct {
         try self.var_registers.put(name, dest);
         if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{ name, dest });
 
-        const nyac = NYAC{
+        var nyac = NYAC{
             .instruction = .ImbueRegister,
             .return_addr = dest,
             .op1 = NYACOperand{ .Register = Unused },
             .op2 = NYACOperand{ .Register = Unused },
         };
+        if (root.assign_node) |an| {
+            // decrement temporary count to avoid skipping a temporary
+            self.count -= 1;
+            nyac.return_addr = try self.compile_expr(an);
+        }
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
-        if (root.assign_node) |an| {
-            _ = try self.compile_expr(an);
-        }
         if (ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
         return dest;
     }
