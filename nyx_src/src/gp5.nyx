@@ -16,4 +16,4 @@ int main() {
 }
 
 // Test Case 4
-int x[5] = {1, 2, 3, 4, 5};
+int array[5] = {1, 2, 3, 4, 5};
