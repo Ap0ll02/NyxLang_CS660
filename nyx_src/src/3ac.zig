@@ -171,7 +171,7 @@ pub const Compiler = struct {
             // .NameParameterNode => |node| try self.handle_some_node(node),
             .TranslationUnitList => |node| try self.handle_translation_units(node),
             .BlockItems => |node| try self.handle_block(node),
-            // .Unary => |node| try self.handle_some_node(node),
+            .Unary => |node| try self.handle_unary(node),
             // .PostFix => |node| try self.handle_some_node(node),
             // .PreFix => |node| try self.handle_some_node(node),
             .ConditionalExpression => |node| try self.handle_cond_expr(node),
@@ -200,6 +200,58 @@ pub const Compiler = struct {
             else => return Unused,
         };
     }
+
+    pub fn handle_unary(self: *Compiler, root: *ast.UnaryNode) anyerror!Register {
+        self.cur_line = if (root.location) |loc| loc.line else 0;
+
+        // Compile operand expression
+        const operand_reg = try self.compile_expr(root.val);
+
+        self.count += 1;
+        const dest = self.count;
+
+        const zero_reg = blk: {
+            self.count += 1;
+            const meow = self.count;
+            const const_zero = NYAC{
+                .instruction = .Constant,
+                .return_addr = meow,
+                .op1 = NYACOperand{ .Value = Value{ .Number = 0} },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, const_zero);
+            try self.emit(const_zero);
+            break :blk meow;
+        };
+
+        const op = root.un_op;
+        var nyac: NYAC = undefined;
+        if (op == '-') {
+            // we can do 0 - op_reg
+            nyac = NYAC{
+                .instruction = .Subtract,
+                .return_addr = dest,
+                .op1 = NYACOperand{ .Register = zero_reg },
+                .op2 = NYACOperand{ .Register = operand_reg },
+            };
+        } else if (op == '!') {
+            // we can do operand_reg == 0 and treat it as bool
+            nyac = NYAC{
+                .instruction = .Equals,
+                .return_addr = dest,
+                .op1 = NYACOperand{ .Register = operand_reg},
+                .op2 = NYACOperand{ .Register = zero_reg},
+            };
+        } else {
+            return CompileError.UnsupportedNode;
+        }
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
+        if (ast.debug_mode) std.debug.print("Unary Node Emitted\n", .{});
+        return dest;
+    }
+
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         if (ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
