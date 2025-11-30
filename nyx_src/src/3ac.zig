@@ -12,12 +12,29 @@ pub const CompileError = error{
     todo,
 };
 
-pub const Instruction = enum { 
-    Add, Subtract, Multiply, Divide, 
-    And, Or, Equals, NotEquals, LessThan, GreaterThan,
-    LessEquals, GreaterEquals,
-    Constant, LoadByte, StoreByte, StoreDouble, LoadDouble,
-    Label, Goto, If, Jump, JumpFalse,
+pub const Instruction = enum {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    And,
+    Or,
+    Equals,
+    NotEquals,
+    LessThan,
+    GreaterThan,
+    LessEquals,
+    GreaterEquals,
+    Constant,
+    LoadByte,
+    StoreByte,
+    StoreDouble,
+    LoadDouble,
+    Label,
+    Goto,
+    If,
+    Jump,
+    JumpFalse,
     ImbueFrame,
     ImbueRegister,
     ImbueLabel,
@@ -51,10 +68,7 @@ pub const NYACOperand = union(enum) {
     Register: u32,
 };
 
-pub const NYAC = struct { 
-    return_addr: u32, instruction: Instruction, 
-    op1: NYACOperand, op2_addr: NYACOperand
-};
+pub const NYAC = struct { return_addr: u32, instruction: Instruction, op1: NYACOperand, op2_addr: NYACOperand };
 
 // Storage for registers, and the outputted nyac_list
 var registers: std.ArrayList(Value) = .empty;
@@ -82,7 +96,7 @@ pub const Compiler = struct {
     fp_offset: usize,
     cur_line: usize,
     last_line: usize,
-    
+
     pub fn init(alloc: std.mem.Allocator, root: *ast.Node) !*Compiler {
         const compiler = try alloc.create(Compiler);
         compiler.* = .{
@@ -120,7 +134,7 @@ pub const Compiler = struct {
                     _ = try self.compile_node();
                 }
             },
-            else => {}
+            else => {},
         }
 
         self.root = old_root;
@@ -133,14 +147,13 @@ pub const Compiler = struct {
         });
 
         defer file.close();
-        if(ast.debug_mode) std.debug.print("{s}", .{self.file_text.items});
+        if (ast.debug_mode) std.debug.print("{s}", .{self.file_text.items});
         try file.writeAll(self.file_text.items);
 
         return self.nyac_list;
     }
 
     pub fn compile_node(self: *Compiler) anyerror!Register {
-
         std.debug.print("Compiling node: {s}\n", .{@tagName(self.root.*)});
 
         // Note: All of the diagnostic source prints need to be moved
@@ -153,7 +166,7 @@ pub const Compiler = struct {
             .Function => |node| try self.handle_function(node),
             .FunctionCall => |node| try self.handle_func_call(node),
             // .ArgumentList => |node| try self.handle_some_node(node),
-            // .InitializerList => |node| try self.handle_some_node(node),
+            // .InitializerList => |node| try self.handle_init_list(node),
             // .ParameterList => |node| try self.handle_some_node(node),
             // .NameParameterNode => |node| try self.handle_some_node(node),
             .TranslationUnitList => |node| try self.handle_translation_units(node),
@@ -186,19 +199,22 @@ pub const Compiler = struct {
             // .StructOrUnion => |node| try self.handle_some_node(node),
             else => return Unused,
         };
-
     }
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
-        if(ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
+        self.cur_line = if (root.location) |loc| loc.line else 0;
+        if (ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
         return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         var name: []const u8 = "";
         if (root.assign_node) |ar| {
-            name = ar.Assignment.declarator.Identifier.name;
+            name = switch (ar.Assignment.declarator.*) {
+                .Array => |array| array.*.identifier.?.*.Identifier.name,
+                .Identifier => |ident| ident.*.name,
+                else => return CompileError.Invalid,
+            };
         } else return Unused;
         // allocate register slot
         self.count += 1;
@@ -206,33 +222,33 @@ pub const Compiler = struct {
 
         // track the variable and register
         try self.var_registers.put(name, dest);
-        if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{name, dest});
+        if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{ name, dest });
 
-        const nyac = NYAC {
+        const nyac = NYAC{
             .instruction = .ImbueRegister,
             .return_addr = dest,
-            .op1 = NYACOperand{.Register = Unused},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = Unused },
+            .op2_addr = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
-        if(root.assign_node) |an| {
+        if (root.assign_node) |an| {
             _ = try self.compile_expr(an);
         }
-        if(ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
         return dest;
     }
-    
+
     pub fn handle_pointer(self: *Compiler, root: *ast.PointerNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         var pointee_reg = Unused;
-        if(root.pointee) |pte| {
+        if (root.pointee) |pte| {
             pointee_reg = try self.compile_expr(pte);
         }
 
         self.count += 1;
         const dest = self.count;
-        const nyac = NYAC {
+        const nyac = NYAC{
             .instruction = .LoadRegister,
             .return_addr = Unused,
             .op1 = .{ .Register = pointee_reg },
@@ -264,8 +280,8 @@ pub const Compiler = struct {
         const nyac = NYAC{
             .instruction = .LoadRegister,
             .return_addr = dest,
-            .op1 = NYACOperand{.Register = ptr_reg},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = ptr_reg },
+            .op2_addr = NYACOperand{ .Register = Unused },
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -276,36 +292,44 @@ pub const Compiler = struct {
     }
 
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
-        const var_name = root.declarator.Identifier.name;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
+
+        const var_name = switch (root.declarator.*) {
+            .Array => |array| array.*.identifier.?.*.Identifier.name,
+            .Identifier => |ident| ident.*.name,
+            else => return CompileError.Invalid,
+        };
+
         const lhs_reg = self.var_registers.get(var_name) orelse return CompileError.UndefinedVariable;
-        const rhs_reg = try self.compile_expr(root.initializer.?);
+
+        // separate logic required for initializer list for arrays
+        const rhs_reg = switch (root.initializer.?.*) {
+            .InitializerList => |init_list| {
+                return create_init_list(self, init_list, lhs_reg);
+            },
+            else => return try self.compile_expr(root.initializer.?),
+        };
 
         // TODO different NYAC structs probably need to be created here for StoreByte, StoreDouble, depending on type
-        const nyac = NYAC {
+        const nyac = NYAC{
             .instruction = .StoreRegister,
             .return_addr = lhs_reg,
-            .op1 = NYACOperand{.Register = rhs_reg},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = rhs_reg },
+            .op2_addr = NYACOperand{ .Register = Unused },
         };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
 
-        if(ast.debug_mode) std.debug.print("Assign Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("Assign Node Emitted\n", .{});
         return lhs_reg;
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
-        
-        const nyac = NYAC {
-            .instruction = .Label,
-            .return_addr = Unused,
-            .op1 = NYACOperand{.Label = func_ident_node.name},
-            .op2_addr = .{ .Register = Unused }
-        };
+
+        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2_addr = .{ .Register = Unused } };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -315,15 +339,10 @@ pub const Compiler = struct {
     }
 
     pub fn handle_func_call(self: *Compiler, root: *ast.FunctionCallNode) !Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         const func_ident_node = root.name.Identifier;
 
-        const nyac = NYAC {
-            .instruction = .Goto,
-            .return_addr = Unused,
-            .op1 = NYACOperand{.Label = func_ident_node.name},
-            .op2_addr = .{ .Register = Unused }
-        };
+        const nyac = NYAC{ .instruction = .Goto, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2_addr = .{ .Register = Unused } };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -331,17 +350,51 @@ pub const Compiler = struct {
         return Unused;
     }
 
+    pub fn create_init_list(self: *Compiler, root: *ast.InitializerListNode, base_reg: u32) !Register {
+        self.cur_line = if (root.location) |loc| loc.line else 0;
+
+        for (root.inits, 0..) |initializer, index| {
+            // Compile the initializer expression to get its value
+            const value_reg = try self.compile_expr(initializer);
+
+            // Calculate offset: base_reg + index
+            self.count += 1;
+            const offset_reg = self.count;
+
+            const offset_nyac = NYAC{
+                .instruction = .Add,
+                .return_addr = offset_reg,
+                .op1 = NYACOperand{ .Register = base_reg },
+                .op2_addr = NYACOperand{ .Register = @intCast(index) },
+            };
+            try self.nyac_list.append(self.alloc, offset_nyac);
+            try self.emit(offset_nyac);
+
+            // Store the value at the calculated offset
+            const store_nyac = NYAC{
+                .instruction = .StoreByte, // or .StoreDouble depending on type
+                .return_addr = offset_reg,
+                .op1 = NYACOperand{ .Register = value_reg },
+                .op2_addr = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, store_nyac);
+            try self.emit(store_nyac);
+        }
+
+        return base_reg;
+    }
+
     pub fn handle_translation_units(self: *Compiler, root: *ast.TranslationUnitListNode) !Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         for (root.translationUnits) |unit| {
             _ = try self.compile_expr(unit);
-        } 
+        }
 
         return Unused;
     }
 
     pub fn handle_binary(self: *Compiler, node: *ast.BinaryNode) anyerror!Register {
-        self.cur_line = if(node.location) |loc| loc.line else 0;
+        self.cur_line = if (node.location) |loc| loc.line else 0;
         // Compiling the left and right nodes into registers
         self.root = node.lhs;
         const left_reg = try self.compile_node();
@@ -351,42 +404,37 @@ pub const Compiler = struct {
 
         // Destination reg
         self.count += 1;
-        const dest= self.count;
+        const dest = self.count;
 
         // ENUM Instruction
-        const instr = switch(node.op) {
+        const instr = switch (node.op) {
             '+' => Instruction.Add,
             '-' => Instruction.Subtract,
             '*' => Instruction.Multiply,
             '/' => Instruction.Divide,
-            else => return CompileError.UnsupportedBinaryOp
+            else => return CompileError.UnsupportedBinaryOp,
         };
 
-        const nyac = NYAC {
-            .instruction = instr,
-            .return_addr = dest,
-            .op1 = NYACOperand{.Register = left_reg},
-            .op2_addr = .{ .Register = right_reg }
-        };
+        const nyac = NYAC{ .instruction = instr, .return_addr = dest, .op1 = NYACOperand{ .Register = left_reg }, .op2_addr = .{ .Register = right_reg } };
 
         // Append to NYAC list and emit to file
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
 
-        if(ast.debug_mode) std.debug.print("Binary Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("Binary Node Emitted\n", .{});
         return dest;
     }
 
     pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         self.count += 1;
         const dest = self.count;
         const val = try std.fmt.parseInt(i32, root.value, 10);
-        const nyac = NYAC {
+        const nyac = NYAC{
             .instruction = .Constant,
-            .op1 = NYACOperand{.Register = @intCast(val)},
+            .op1 = NYACOperand{ .Register = @intCast(val) },
             .return_addr = dest,
-            .op2_addr= NYACOperand{.Register = Unused},
+            .op2_addr = NYACOperand{ .Register = Unused },
         };
 
         // Append to list
@@ -394,32 +442,32 @@ pub const Compiler = struct {
         // Emit IR to file
         try self.emit(nyac);
 
-        if(ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
         return dest;
     }
 
     pub fn handle_return(self: *Compiler, node: *ast.ReturnNode) anyerror!Register {
-        self.cur_line = if(node.location) |nl| nl.line else 0;
+        self.cur_line = if (node.location) |nl| nl.line else 0;
         var return_reg = Unused;
-        if(node.val) |nv| {
+        if (node.val) |nv| {
             return_reg = try self.compile_expr(nv);
         }
         // Actually emit a RETURN instruction
-        const nyac = NYAC {
-            .instruction = .Return,  // You'll need to add this to Instruction enum
+        const nyac = NYAC{
+            .instruction = .Return, // You'll need to add this to Instruction enum
             .return_addr = Unused,
-            .op1 = NYACOperand{.Register = return_reg},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = return_reg },
+            .op2_addr = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
-    
-        if(ast.debug_mode) std.debug.print("Return Node Emitted\n", .{});
+
+        if (ast.debug_mode) std.debug.print("Return Node Emitted\n", .{});
         return return_reg;
     }
 
     pub fn handle_if(self: *Compiler, node: *ast.IfNode) anyerror!Register {
-        self.cur_line = if(node.location) |nl| nl.line else 0;
+        self.cur_line = if (node.location) |nl| nl.line else 0;
         const cond_reg = self.compile_expr(node.cond);
 
         const else_label = self.new_label();
@@ -434,7 +482,7 @@ pub const Compiler = struct {
         try self.emit_jump(end_label);
         try self.emit_label(else_label);
 
-        if(node.el_branch) |eb| {
+        if (node.el_branch) |eb| {
             _ = try self.compile_expr(eb);
         }
 
@@ -443,43 +491,28 @@ pub const Compiler = struct {
     }
 
     pub fn emit_jump_false(self: *Compiler, cond: Register, label: usize) !void {
-        if(ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC {
-            .instruction = .JumpFalse,
-            .return_addr = Unused,
-            .op1 = .{ .Register = cond },
-            .op2_addr = .{ .Label = "ElseBranch" }
-        };
+        if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
+        const nyac = NYAC{ .instruction = .JumpFalse, .return_addr = Unused, .op1 = .{ .Register = cond }, .op2_addr = .{ .Label = "ElseBranch" } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn emit_jump(self: *Compiler, label: usize) !void {
-        if(ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC {
-            .instruction = .Jump,
-            .return_addr = Unused,
-            .op1 = .{ .Label = "ThenBranch" },
-            .op2_addr = .{ .Register = Unused }
-        };
+        if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
+        const nyac = NYAC{ .instruction = .Jump, .return_addr = Unused, .op1 = .{ .Label = "ThenBranch" }, .op2_addr = .{ .Register = Unused } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn emit_label(self: *Compiler, label: usize) !void {
-        if(ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC {
-            .instruction = .Label,
-            .return_addr = Unused,
-            .op1 = .{ .Label = "End?Label" },
-            .op2_addr = .{ .Register = Unused }
-        };
+        if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
+        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = .{ .Label = "End?Label" }, .op2_addr = .{ .Register = Unused } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn handle_expr_stmt(self: *Compiler, root: *ast.ExpressionStmtNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         if (root.expr) |re| {
             _ = try self.compile_expr(re);
         }
@@ -487,49 +520,50 @@ pub const Compiler = struct {
     }
 
     pub fn handle_cond_expr(self: *Compiler, root: *ast.ConditionalExpressionNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         const left_reg = try self.compile_expr(root.expr1);
         const right_reg = try self.compile_expr(root.expr2);
-        
+
         self.count += 1;
         const dest = self.count;
 
         const op_str: []const u8 = std.mem.span(root.logicalOperator);
         // Determine the instruction based on logical operator
-        const instr = if (std.mem.eql(u8, op_str, "&&")) 
-            Instruction.And  // You'll need to add this to your Instruction enum
-            else if (std.mem.eql(u8, op_str, "||"))
-                Instruction.Or   // You'll need to add this to your Instruction enum
-            else if (std.mem.eql(u8, op_str, "=="))
-                Instruction.Equals
-            else if (std.mem.eql(u8, op_str, "!="))
-                Instruction.NotEquals
-            else if (std.mem.eql(u8, op_str, "<"))
-                Instruction.LessThan
-            else if (std.mem.eql(u8, op_str, ">"))
-                Instruction.GreaterThan
-            else if (std.mem.eql(u8, op_str, "<="))
-                Instruction.LessEquals
-            else if (std.mem.eql(u8, op_str, ">="))
-                Instruction.GreaterEquals
-            else return CompileError.UnsupportedBinaryOp;
+        const instr = if (std.mem.eql(u8, op_str, "&&"))
+            Instruction.And // You'll need to add this to your Instruction enum
+        else if (std.mem.eql(u8, op_str, "||"))
+            Instruction.Or // You'll need to add this to your Instruction enum
+        else if (std.mem.eql(u8, op_str, "=="))
+            Instruction.Equals
+        else if (std.mem.eql(u8, op_str, "!="))
+            Instruction.NotEquals
+        else if (std.mem.eql(u8, op_str, "<"))
+            Instruction.LessThan
+        else if (std.mem.eql(u8, op_str, ">"))
+            Instruction.GreaterThan
+        else if (std.mem.eql(u8, op_str, "<="))
+            Instruction.LessEquals
+        else if (std.mem.eql(u8, op_str, ">="))
+            Instruction.GreaterEquals
+        else
+            return CompileError.UnsupportedBinaryOp;
 
-        const nyac = NYAC {
+        const nyac = NYAC{
             .instruction = instr,
             .return_addr = dest,
-            .op1 = NYACOperand{.Register = left_reg},
+            .op1 = NYACOperand{ .Register = left_reg },
             .op2_addr = .{ .Register = right_reg },
         };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
 
-        if(ast.debug_mode) std.debug.print("ConditionalExpression Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("ConditionalExpression Node Emitted\n", .{});
         return dest;
     }
 
     pub fn handle_block(self: *Compiler, root: *ast.BlockItemsNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         for (root.items) |bi| {
             _ = try self.compile_expr(bi);
         }
@@ -547,7 +581,7 @@ pub const Compiler = struct {
             // if any node type lacks a location, fallback:
             else => 0,
         };
-        if(line == 0) return;
+        if (line == 0) return;
         if (ast.debug_mode) {
             try self.file_text.appendSlice(self.alloc, m.diagnostic_source(line));
             try self.file_text.append(self.alloc, '\n');
@@ -564,13 +598,13 @@ pub const Compiler = struct {
 
     pub fn emit(self: *Compiler, inst: NYAC) !void {
         const writer = &self.file_text;
-        if(self.cur_line > 0 and self.last_line != self.cur_line) {
+        if (self.cur_line > 0 and self.last_line != self.cur_line) {
             const src = m.diagnostic_source(self.cur_line);
             try writer.appendSlice(self.alloc, src);
             try writer.append(self.alloc, '\n');
             self.last_line = self.cur_line;
         }
-        try writer.appendSlice(self.alloc, switch(inst.instruction) {
+        try writer.appendSlice(self.alloc, switch (inst.instruction) {
             .Add => "ADD",
             .Subtract => "SUB",
             .Multiply => "MUL",
@@ -633,12 +667,12 @@ pub const Compiler = struct {
                     //     tmp = try std.fmt.allocPrint(self.alloc, ", (value: {any})", .{c});
                     // }
                 }
-            }
+            },
         }
         try writer.appendSlice(self.alloc, tmp);
         self.alloc.free(tmp);
 
-        if(inst.op2_addr == .Register and inst.op2_addr.Register != Unused) {
+        if (inst.op2_addr == .Register and inst.op2_addr.Register != Unused) {
             tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op2_addr});
             try writer.appendSlice(self.alloc, tmp);
             self.alloc.free(tmp);
@@ -650,5 +684,4 @@ pub const Compiler = struct {
         self.label_counter += 1;
         return id;
     }
-
 };
