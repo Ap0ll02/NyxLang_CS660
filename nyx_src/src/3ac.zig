@@ -68,7 +68,7 @@ pub const NYACOperand = union(enum) {
     Register: u32,
 };
 
-pub const NYAC = struct { return_addr: u32, instruction: Instruction, op1: NYACOperand, op2_addr: NYACOperand };
+pub const NYAC = struct { return_addr: u32, instruction: Instruction, op1: NYACOperand, op2: NYACOperand };
 
 // Storage for registers, and the outputted nyac_list
 var registers: std.ArrayList(Value) = .empty;
@@ -228,7 +228,7 @@ pub const Compiler = struct {
             .instruction = .ImbueRegister,
             .return_addr = dest,
             .op1 = NYACOperand{ .Register = Unused },
-            .op2_addr = NYACOperand{ .Register = Unused },
+            .op2 = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -252,7 +252,7 @@ pub const Compiler = struct {
             .instruction = .LoadRegister,
             .return_addr = Unused,
             .op1 = .{ .Register = pointee_reg },
-            .op2_addr = .{ .Register = Unused },
+            .op2 = .{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -281,7 +281,7 @@ pub const Compiler = struct {
             .instruction = .LoadRegister,
             .return_addr = dest,
             .op1 = NYACOperand{ .Register = ptr_reg },
-            .op2_addr = NYACOperand{ .Register = Unused },
+            .op2 = NYACOperand{ .Register = Unused },
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -315,7 +315,7 @@ pub const Compiler = struct {
             .instruction = .StoreRegister,
             .return_addr = lhs_reg,
             .op1 = NYACOperand{ .Register = rhs_reg },
-            .op2_addr = NYACOperand{ .Register = Unused },
+            .op2 = NYACOperand{ .Register = Unused },
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -329,7 +329,7 @@ pub const Compiler = struct {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
 
-        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2_addr = .{ .Register = Unused } };
+        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2 = .{ .Register = Unused } };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -342,7 +342,7 @@ pub const Compiler = struct {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         const func_ident_node = root.name.Identifier;
 
-        const nyac = NYAC{ .instruction = .Goto, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2_addr = .{ .Register = Unused } };
+        const nyac = NYAC{ .instruction = .Goto, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2 = .{ .Register = Unused } };
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -354,10 +354,6 @@ pub const Compiler = struct {
         self.cur_line = if (root.location) |loc| loc.line else 0;
 
         for (root.inits, 0..) |initializer, index| {
-            // Compile the initializer expression to get its value
-            const value_reg = try self.compile_expr(initializer);
-
-            // Calculate offset: base_reg + index
             self.count += 1;
             const offset_reg = self.count;
 
@@ -365,17 +361,19 @@ pub const Compiler = struct {
                 .instruction = .Add,
                 .return_addr = offset_reg,
                 .op1 = NYACOperand{ .Register = base_reg },
-                .op2_addr = NYACOperand{ .Register = @intCast(index) },
+                .op2 = NYACOperand{ .Value = Value{ .Number = @intCast(index) } },
             };
             try self.nyac_list.append(self.alloc, offset_nyac);
             try self.emit(offset_nyac);
 
-            // Store the value at the calculated offset
+            const value_reg = try self.compile_expr(initializer);
+
+            // store value at the calculated offset
             const store_nyac = NYAC{
-                .instruction = .StoreByte, // or .StoreDouble depending on type
+                .instruction = .StoreRegister, // TODO this might need to change for different types
                 .return_addr = offset_reg,
                 .op1 = NYACOperand{ .Register = value_reg },
-                .op2_addr = NYACOperand{ .Register = Unused },
+                .op2 = NYACOperand{ .Register = Unused },
             };
             try self.nyac_list.append(self.alloc, store_nyac);
             try self.emit(store_nyac);
@@ -415,7 +413,7 @@ pub const Compiler = struct {
             else => return CompileError.UnsupportedBinaryOp,
         };
 
-        const nyac = NYAC{ .instruction = instr, .return_addr = dest, .op1 = NYACOperand{ .Register = left_reg }, .op2_addr = .{ .Register = right_reg } };
+        const nyac = NYAC{ .instruction = instr, .return_addr = dest, .op1 = NYACOperand{ .Register = left_reg }, .op2 = .{ .Register = right_reg } };
 
         // Append to NYAC list and emit to file
         try self.nyac_list.append(self.alloc, nyac);
@@ -432,9 +430,9 @@ pub const Compiler = struct {
         const val = try std.fmt.parseInt(i32, root.value, 10);
         const nyac = NYAC{
             .instruction = .Constant,
-            .op1 = NYACOperand{ .Register = @intCast(val) },
+            .op1 = NYACOperand{ .Value = Value{ .Number = val } },
             .return_addr = dest,
-            .op2_addr = NYACOperand{ .Register = Unused },
+            .op2 = NYACOperand{ .Register = Unused },
         };
 
         // Append to list
@@ -457,7 +455,7 @@ pub const Compiler = struct {
             .instruction = .Return, // You'll need to add this to Instruction enum
             .return_addr = Unused,
             .op1 = NYACOperand{ .Register = return_reg },
-            .op2_addr = NYACOperand{ .Register = Unused },
+            .op2 = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
@@ -492,21 +490,21 @@ pub const Compiler = struct {
 
     pub fn emit_jump_false(self: *Compiler, cond: Register, label: usize) !void {
         if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC{ .instruction = .JumpFalse, .return_addr = Unused, .op1 = .{ .Register = cond }, .op2_addr = .{ .Label = "ElseBranch" } };
+        const nyac = NYAC{ .instruction = .JumpFalse, .return_addr = Unused, .op1 = .{ .Register = cond }, .op2 = .{ .Label = "ElseBranch" } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn emit_jump(self: *Compiler, label: usize) !void {
         if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC{ .instruction = .Jump, .return_addr = Unused, .op1 = .{ .Label = "ThenBranch" }, .op2_addr = .{ .Register = Unused } };
+        const nyac = NYAC{ .instruction = .Jump, .return_addr = Unused, .op1 = .{ .Label = "ThenBranch" }, .op2 = .{ .Register = Unused } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn emit_label(self: *Compiler, label: usize) !void {
         if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = .{ .Label = "End?Label" }, .op2_addr = .{ .Register = Unused } };
+        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = .{ .Label = "End?Label" }, .op2 = .{ .Register = Unused } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
@@ -552,7 +550,7 @@ pub const Compiler = struct {
             .instruction = instr,
             .return_addr = dest,
             .op1 = NYACOperand{ .Register = left_reg },
-            .op2_addr = .{ .Register = right_reg },
+            .op2 = .{ .Register = right_reg },
         };
 
         try self.nyac_list.append(self.alloc, nyac);
@@ -670,13 +668,37 @@ pub const Compiler = struct {
             },
         }
         try writer.appendSlice(self.alloc, tmp);
-        self.alloc.free(tmp);
 
-        if (inst.op2_addr == .Register and inst.op2_addr.Register != Unused) {
-            tmp = try std.fmt.allocPrint(self.alloc, ", {}", .{inst.op2_addr});
-            try writer.appendSlice(self.alloc, tmp);
-            self.alloc.free(tmp);
+        switch (inst.op2) {
+            .Register => |register| {
+                tmp = try std.fmt.allocPrint(self.alloc, ", (register: {d})", .{register});
+            },
+            .Label => |label| {
+                tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\")", .{label});
+            },
+            .Value => |label| {
+                // TODO is there a better way to do this? No I don't think it is that bad
+                switch (label) {
+                    .Number => |num| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d})", .{num});
+                    },
+                    .String => |str| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: \"{s}\")", .{str});
+                    },
+                    .Char => |character| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {c})", .{character});
+                    },
+                    .Void => |_| {
+                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: void)", .{});
+                    },
+                    // else => |c| {
+                    //     tmp = try std.fmt.allocPrint(self.alloc, ", (value: {any})", .{c});
+                    // }
+                }
+            },
         }
+        try writer.appendSlice(self.alloc, tmp);
+        self.alloc.free(tmp);
         try writer.append(self.alloc, '\n');
     }
     pub fn new_label(self: *Compiler) usize {
