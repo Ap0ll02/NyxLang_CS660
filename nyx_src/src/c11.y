@@ -47,7 +47,7 @@ struct Node* make_struct_or_union_node(enum yytokentype t);
 struct Node* append_struct_declaration_list(struct Node* declaration, struct Node* declarations);
 struct Node* make_struct_declaration(struct Node* specifier, struct Node* struct_declarators);
 struct Node* append_struct_declarator_list(struct Node* declarator, struct Node* declarators);
-
+struct Node* make_unary_node(char un_op, struct Node* val);
 struct Node* append_initializer_list(struct Node* item, struct Node* items);
 struct Node* make_assignment_op_node(enum yytokentype token);
 struct Node* make_float_node(float f);
@@ -96,6 +96,7 @@ extern struct Node* root;
 %type <node> struct_or_union_specifier struct_or_union struct_declaration_list struct_declaration struct_declarator_list struct_declarator specifier_qualifier_list storage_class_specifier
 %type <node> assignment_operator type_qualifier
 %type <node> string program
+%type <intval> unary_operator
 
 %%
 primary_expression
@@ -157,19 +158,19 @@ unary_expression
 	: postfix_expression
     | INC_OP unary_expression { $$ = make_pre_fix_node(INC_OP, $2); }
 	| DEC_OP unary_expression { $$ = make_pre_fix_node(DEC_OP, $2); }
-	| unary_operator cast_expression
-	| SIZEOF unary_expression
+	| unary_operator cast_expression { $$ = make_unary_node($1, $2); }
+	| SIZEOF unary_expression 
 	| SIZEOF '(' type_name ')'
 	| ALIGNOF '(' type_name ')'
 	;
 
 unary_operator
-	: '&'
-	| '*'
-	| '+'
-	| '-'
-	| '~'
-	| '!'
+    : '&' { $$ = '&'; }
+    | '*' { $$ = '*'; }
+    | '+' { $$ = '+'; }
+    | '-' { $$ = '-'; }
+    | '~' { $$ = '~'; }
+    | '!' { $$ = '!'; }
 	;
 
 cast_expression

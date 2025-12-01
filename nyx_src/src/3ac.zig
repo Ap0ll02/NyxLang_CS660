@@ -204,30 +204,41 @@ pub const Compiler = struct {
     pub fn handle_unary(self: *Compiler, root: *ast.UnaryNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
 
-        // Compile operand expression
+        const op = root.un_op;
+
+        // '&'  - address-of
+        // '*'  - dereference
+        // '+'  - unary plus (no-op)
+        // '-'  - negation
+        // '~'  - bitwise NOT
+        // '!'  - logical NOT
+
+        // for unary '+', just return the operand register
+        if (op == '+') {
+            return try self.compile_expr(root.val);
+        }
+
+        // compile operand expression
         const operand_reg = try self.compile_expr(root.val);
 
         self.count += 1;
         const dest = self.count;
 
-        const zero_reg = blk: {
+        var nyac: NYAC = undefined;
+
+        if (op == '-') {
+            // negate Negation: 0 - operand_reg
             self.count += 1;
-            const meow = self.count;
+            const zero_reg = self.count;
             const const_zero = NYAC{
                 .instruction = .Constant,
-                .return_addr = meow,
-                .op1 = NYACOperand{ .Value = Value{ .Number = 0} },
+                .return_addr = zero_reg,
+                .op1 = NYACOperand{ .Value = Value{ .Number = 0 } },
                 .op2 = NYACOperand{ .Register = Unused },
             };
             try self.nyac_list.append(self.alloc, const_zero);
             try self.emit(const_zero);
-            break :blk meow;
-        };
 
-        const op = root.un_op;
-        var nyac: NYAC = undefined;
-        if (op == '-') {
-            // we can do 0 - op_reg
             nyac = NYAC{
                 .instruction = .Subtract,
                 .return_addr = dest,
@@ -235,16 +246,64 @@ pub const Compiler = struct {
                 .op2 = NYACOperand{ .Register = operand_reg },
             };
         } else if (op == '!') {
-            // we can do operand_reg == 0 and treat it as bool
+            // nogical not with operand_reg == 0
+            self.count += 1;
+            const zero_reg = self.count;
+            const const_zero = NYAC{
+                .instruction = .Constant,
+                .return_addr = zero_reg,
+                .op1 = NYACOperand{ .Value = Value{ .Number = 0 } },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, const_zero);
+            try self.emit(const_zero);
+
             nyac = NYAC{
                 .instruction = .Equals,
                 .return_addr = dest,
-                .op1 = NYACOperand{ .Register = operand_reg},
-                .op2 = NYACOperand{ .Register = zero_reg},
+                .op1 = NYACOperand{ .Register = operand_reg },
+                .op2 = NYACOperand{ .Register = zero_reg },
+            };
+        } else if (op == '~') {
+            // bitwise not and used -1 - oper_reg
+            self.count += 1;
+            const neg_one_reg = self.count;
+            const const_neg_one = NYAC{
+                .instruction = .Constant,
+                .return_addr = neg_one_reg,
+                .op1 = NYACOperand{ .Value = Value{ .Number = -1 } },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, const_neg_one);
+            try self.emit(const_neg_one);
+
+            nyac = NYAC{
+                .instruction = .Subtract,
+                .return_addr = dest,
+                .op1 = NYACOperand{ .Register = neg_one_reg },
+                .op2 = NYACOperand{ .Register = operand_reg },
+            };
+        } else if (op == '*') {
+            // dereference load from address in operand_reg
+            nyac = NYAC{
+                .instruction = .LoadRegister,
+                .return_addr = dest,
+                .op1 = NYACOperand{ .Register = operand_reg },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+        } else if (op == '&') {
+            // address of using Imbue Register
+            nyac = NYAC{
+                .instruction = .ImbueRegister,
+                .return_addr = dest,
+                .op1 = NYACOperand{ .Register = operand_reg },
+                .op2 = NYACOperand{ .Register = Unused },
             };
         } else {
+            if (ast.debug_mode) std.debug.print("Unsupported unary operator: {c}\n", .{root.un_op});
             return CompileError.UnsupportedNode;
         }
+
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
 
