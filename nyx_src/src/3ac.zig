@@ -581,7 +581,7 @@ pub const Compiler = struct {
         const one_nyac = NYAC {
             .instruction = if (is_increment) .Add else .Subtract,
             .op1 = .{ .Register = val_reg },
-            .op2_addr = .{ .Register = Unused },
+            .op2 = .{ .Register = Unused },
             .return_addr = one_reg,
         };
         try self.nyac_list.append(self.alloc, one_nyac);
@@ -594,7 +594,7 @@ pub const Compiler = struct {
             .instruction = if (is_increment) .Add else .Subtract,
             .return_addr = result_reg,
             .op1 = NYACOperand{.Register = val_reg},
-            .op2_addr = NYACOperand{.Register = one_reg},
+            .op2 = NYACOperand{.Register = one_reg},
         };
         try self.nyac_list.append(self.alloc, op_nyac);
         try self.emit(op_nyac);
@@ -604,7 +604,7 @@ pub const Compiler = struct {
             .instruction = .StoreRegister,
             .return_addr = val_reg,
             .op1 = NYACOperand{.Register = result_reg},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op2 = NYACOperand{.Register = Unused},
         };
         try self.nyac_list.append(self.alloc, store_nyac);
         try self.emit(store_nyac);
@@ -626,7 +626,7 @@ pub const Compiler = struct {
             .instruction = .StoreRegister,
             .return_addr = old_val_reg,
             .op1 = NYACOperand{.Register = val_reg},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op2 = NYACOperand{.Register = Unused},
         };
         try self.nyac_list.append(self.alloc, save_nyac);
         try self.emit(save_nyac);
@@ -647,7 +647,7 @@ pub const Compiler = struct {
             .instruction = .Constant,
             .op1 = NYACOperand{.Register = 1},
             .return_addr = one_reg,
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op2 = NYACOperand{.Register = Unused},
         };
         try self.nyac_list.append(self.alloc, one_nyac);
         try self.emit(one_nyac);
@@ -659,7 +659,7 @@ pub const Compiler = struct {
             .instruction = if (is_increment) .Add else .Subtract,
             .return_addr = result_reg,
             .op1 = NYACOperand{.Register = val_reg},
-            .op2_addr = NYACOperand{.Register = one_reg},
+            .op2 = NYACOperand{.Register = one_reg},
         };
         try self.nyac_list.append(self.alloc, op_nyac);
         try self.emit(op_nyac);
@@ -669,7 +669,7 @@ pub const Compiler = struct {
             .instruction = .StoreRegister,
             .return_addr = val_reg,
             .op1 = NYACOperand{.Register = result_reg},
-            .op2_addr = NYACOperand{.Register = Unused},
+            .op2 = NYACOperand{.Register = Unused},
         };
         try self.nyac_list.append(self.alloc, store_nyac);
         try self.emit(store_nyac);
