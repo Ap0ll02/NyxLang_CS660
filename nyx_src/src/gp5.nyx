@@ -5,6 +5,12 @@ int y = 200;
 // Test Case 2
 int z = 900;
 
+// Test Case 5
+int josh() {
+    int x = 5;
+    return !x;
+}
+
 // Test Case 3
 int main() {
     if(x == 0) {
