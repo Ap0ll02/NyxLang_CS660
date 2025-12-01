@@ -77,6 +77,8 @@ Then, with this abstraction between AST and assembly, the 3ac or IR might be mor
 This is brought to mind by having unlimited registers, and not having to worry about hardware limits quite yet, as AST -> Assembly is quite a task.
 It can also be useful to have IR for optimization passes... or even Rust like borrow checking.
 
+Additionally, you don't have to write to a specific assembly language/instruction set architecture. This is beneficial for portability of code.
+
 #### Grad Question
 
 Other IR's useful to optimize programs include CFG's. They are very useful for dead code elimination optimizations.
