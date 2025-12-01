@@ -180,7 +180,7 @@ pub const Compiler = struct {
             // .AssOp => |node| try self.handle_some_node(node),
             .Declaration => |node| try self.handle_decl(node),
             .Assignment => |node| try self.handle_assignment(node),
-            // .WhileStmt => |node| try self.handle_some_node(node),
+            .WhileStmt => |node| try self.handle_while(node),
             .IfStmt => |node| try self.handle_if(node),
             .ReturnStmt => |node| try self.handle_return(node),
             // .String => |node| try self.handle_some_node(node),
@@ -315,6 +315,31 @@ pub const Compiler = struct {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         if (ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
         return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
+    }
+
+    pub fn handle_while(self: *Compiler, root: *ast.WhileNode) anyerror!Register {
+        self.cur_line = if (root.location) |loc| loc.line else 0;
+
+        // While Statements Top and Bottom Label
+        const start_label = self.new_label();
+        const end_label = self.new_label();
+        try self.emit_label(start_label);
+
+        // Get the condition register
+        const cond_reg = try self.compile_expr(root.cond);
+
+        // Jump to end if cond false
+        try self.emit_jump_false(cond_reg, end_label);
+
+        // Execute the loop body
+        _ = try self.compile_expr(root.body);
+
+        // Jump to start : Emit end label
+        try self.emit_jump(start_label);
+        try self.emit_label(end_label);
+
+        if(ast.debug_mode) std.debug.print("While Node Emitted\n", .{});
+        return Unused;
     }
 
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
@@ -536,6 +561,124 @@ pub const Compiler = struct {
         return dest;
     }
 
+    pub fn handle_prefix(self: *Compiler, root: *ast.PreFixNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0; 
+        const val_reg = try self.compile_expr(root.val);
+
+        // Determine the op
+        const op = root.pre_op;
+        const is_increment = std.mem.eql(u8, op, "++");
+        const is_decrement = std.mem.eql(u8, op, "--");
+
+        if (!is_increment and !is_decrement) {
+            return CompileError.UnsupportedNode;
+        }
+
+        // Create constant
+        self.count += 1;
+        const one_reg = self.count;
+
+        const one_nyac = NYAC {
+            .instruction = if (is_increment) .Add else .Subtract,
+            .op1 = .{ .Register = val_reg },
+            .op2_addr = .{ .Register = Unused },
+            .return_addr = one_reg,
+        };
+        try self.nyac_list.append(self.alloc, one_nyac);
+        try self.emit(one_nyac);
+
+        // Perform operation
+        self.count += 1;
+        const result_reg = self.count;
+        const op_nyac = NYAC {
+            .instruction = if (is_increment) .Add else .Subtract,
+            .return_addr = result_reg,
+            .op1 = NYACOperand{.Register = val_reg},
+            .op2_addr = NYACOperand{.Register = one_reg},
+        };
+        try self.nyac_list.append(self.alloc, op_nyac);
+        try self.emit(op_nyac);
+
+        // Store back to the variable
+        const store_nyac = NYAC {
+            .instruction = .StoreRegister,
+            .return_addr = val_reg,
+            .op1 = NYACOperand{.Register = result_reg},
+            .op2_addr = NYACOperand{.Register = Unused},
+        };
+        try self.nyac_list.append(self.alloc, store_nyac);
+        try self.emit(store_nyac);
+
+        // PREFIX: Return the NEW value
+        if(ast.debug_mode) std.debug.print("PreFix Node Emitted\n", .{});
+        return result_reg;
+    }
+
+    pub fn handle_postfix(self: *Compiler, root: *ast.PostFixNode) anyerror!Register {
+        self.cur_line = if(root.location) |loc| loc.line else 0;
+        // Get the variable being modified
+        const val_reg = try self.compile_expr(root.val);
+
+        // POSTFIX: Save the OLD value first
+        self.count += 1;
+        const old_val_reg = self.count;
+        const save_nyac = NYAC {
+            .instruction = .StoreRegister,
+            .return_addr = old_val_reg,
+            .op1 = NYACOperand{.Register = val_reg},
+            .op2_addr = NYACOperand{.Register = Unused},
+        };
+        try self.nyac_list.append(self.alloc, save_nyac);
+        try self.emit(save_nyac);
+
+        // Determine the operation
+        const op = root.post_op;
+        const is_increment = std.mem.eql(u8, op, "++");
+        const is_decrement = std.mem.eql(u8, op, "--");
+
+        if (!is_increment and !is_decrement) {
+            return CompileError.UnsupportedNode;
+        }
+
+        // Create constant 1
+        self.count += 1;
+        const one_reg = self.count;
+        const one_nyac = NYAC {
+            .instruction = .Constant,
+            .op1 = NYACOperand{.Register = 1},
+            .return_addr = one_reg,
+            .op2_addr = NYACOperand{.Register = Unused},
+        };
+        try self.nyac_list.append(self.alloc, one_nyac);
+        try self.emit(one_nyac);
+
+        // Perform operation
+        self.count += 1;
+        const result_reg = self.count;
+        const op_nyac = NYAC {
+            .instruction = if (is_increment) .Add else .Subtract,
+            .return_addr = result_reg,
+            .op1 = NYACOperand{.Register = val_reg},
+            .op2_addr = NYACOperand{.Register = one_reg},
+        };
+        try self.nyac_list.append(self.alloc, op_nyac);
+        try self.emit(op_nyac);
+
+        // Store back to the variable
+        const store_nyac = NYAC {
+            .instruction = .StoreRegister,
+            .return_addr = val_reg,
+            .op1 = NYACOperand{.Register = result_reg},
+            .op2_addr = NYACOperand{.Register = Unused},
+        };
+        try self.nyac_list.append(self.alloc, store_nyac);
+        try self.emit(store_nyac);
+
+        // POSTFIX: Return the OLD value
+        if(ast.debug_mode) std.debug.print("PostFix Node Emitted\n", .{});
+        return old_val_reg;
+    }
+
     pub fn handle_constant(self: *Compiler, root: *ast.ConstantNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         self.count += 1;
@@ -709,7 +852,8 @@ pub const Compiler = struct {
 
     pub fn emit(self: *Compiler, inst: NYAC) !void {
         const writer = &self.file_text;
-        if (self.cur_line > 0 and self.last_line != self.cur_line) {
+        if(ast.debug_mode) std.debug.print("Current: {d} <> Last: {d}\n", .{self.cur_line, self.last_line});
+        if(self.cur_line > 0 and self.last_line != self.cur_line) {
             const src = m.diagnostic_source(self.cur_line);
             try writer.appendSlice(self.alloc, src);
             try writer.append(self.alloc, '\n');
