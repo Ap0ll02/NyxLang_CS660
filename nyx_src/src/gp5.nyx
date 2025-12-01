@@ -18,6 +18,11 @@ int main() {
     } else {
         printf("Your dad");
     }
+    while(x < 20) {
+        printf("Yooooo\n");
+        x++;
+        ++x;
+    }
     return 20;
 }
 
