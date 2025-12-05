@@ -340,6 +340,31 @@ pub const Compiler = struct {
     pub fn handle_decl(self: *Compiler, root: *ast.DeclarationNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         var name: []const u8 = "";
+        var struct_size: usize = 0;
+
+        // Note to catgirl:
+        // We dont need to recurse down Declaration specifier because Identifier contains only type information, therefore
+        // doesnt produce operations.
+        // StructSpecifier on the other hand needs to allocate for its size in its declaration
+        // struct fields will later be handled in assignment
+        if (root.declaration_specifier) |spec| {
+            if (spec.* == .StructSpecifier) {
+                const struct_spec = spec.StructSpecifier;
+
+                if (struct_spec.typeNode) |tn| {
+                    struct_size = tn.size;
+
+                    // TODO store field offsets here too i think. i dont know where it would go tho
+
+                    if (struct_spec.identifier) |id| {
+                        const struct_name = id.Identifier.name;
+                        if (ast.debug_mode) {
+                            std.debug.print("Handling struct '{s}' with size: {d} bytes...\n", .{struct_name, struct_size});
+                        }
+                    }
+                }
+            }
+}
         if (root.assign_node) |ar| {
             name = switch (ar.Assignment.declarator.*) {
                 .Array => |array| array.*.identifier.?.*.Identifier.name,
@@ -354,6 +379,13 @@ pub const Compiler = struct {
         // track the variable and register
         try self.var_registers.put(name, dest);
         if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{ name, dest });
+        
+        if (struct_size > 0) {
+            try self.var_locations.put(name, struct_size);
+            if (ast.debug_mode) {
+                std.debug.print("Struct variable '{s}' allocated at register {d}\n", .{ name, dest});
+            }
+        }
 
         var nyac = NYAC{
             .instruction = .ImbueRegister,
