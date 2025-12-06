@@ -89,7 +89,8 @@ export fn yyerror(msg: [*c]const u8) void {
 
 pub fn diagnostic_source(line_no: usize) []const u8 {
     // Find the byte offsets for: start_of_line and end_of_line
-    var current_line: usize = 0;
+    if (line_no == 0) return "";
+    var current_line: usize = 1;
     var start: usize = 0;
     var i: usize = 0;
 
@@ -105,6 +106,10 @@ pub fn diagnostic_source(line_no: usize) []const u8 {
     // If requested line > total lines → return empty slice rather than panic
     if (current_line != line_no)
         return "";
+    
+    while (start < source_code.len and (source_code[start] == ' ' or source_code[start] == '\t')) {
+        start += 1;
+    }
 
     // 2️⃣ Find end of line or EOF
     var end = start;
