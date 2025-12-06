@@ -9,7 +9,7 @@ pub const SymbolTable = struct {
     upstream: std.mem.Allocator, // allocator that created this SymbolTable
     arena: std.heap.ArenaAllocator, // This SymbolTable's local allocator
     allocator: std.mem.Allocator, // derived from arena
-    //
+
     // Maps to hold types, variables, and functions
 
     type_map: std.StringHashMap(*ast.TypeNode),
@@ -39,6 +39,19 @@ pub const SymbolTable = struct {
         self.function_map = std.StringHashMap(*ast.FunctionNode).init(self.allocator);
 
         return self;
+    }
+    pub fn root(self: *SymbolTable) *SymbolTable {
+        var tbl = self;
+        while (tbl.parent) |p| {
+            tbl = p;
+        }
+        return tbl;
+    }
+
+    // We now want to use this allocator for all type allocations
+    // This is because types should be global to the entire compilation
+    pub fn typeAllocator(self: *SymbolTable) std.mem.Allocator {
+        return self.root().allocator;
     }
 
     // Full deinit of maps, local arena and
@@ -76,9 +89,17 @@ pub const SymbolTable = struct {
     // Param: string name, Node* node
     // we will use the Node* to grab all the relevant information to create our type, variable, and function structs then assign them to a key in the respective symbol table
     pub fn assign_type(self: *SymbolTable, type_node: *ast.TypeNode) !void {
+        const root_tbl = self.root();
         const type_string: []const u8 = std.mem.span(type_node.type_name);
-        const key = try self.allocator.dupe(u8, type_string);
-        try self.type_map.put(key, type_node);
+        const key = try root_tbl.allocator.dupe(u8, type_string);
+        try root_tbl.type_map.put(key, type_node);
+
+        if (ast.debug_mode) {
+            std.debug.print(
+                "assign_type: '{s}' -> {*}, size={d}\n",
+                .{ type_string, type_node, type_node.size },
+            );
+        }
     }
 
     pub fn assign_variable(self: *SymbolTable, decl_node: *ast.DeclarationNode) !void {

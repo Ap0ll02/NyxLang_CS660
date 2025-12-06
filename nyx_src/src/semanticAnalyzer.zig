@@ -70,7 +70,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                         } else {
                             if (ast.debug_mode) std.debug.print("Defining new struct: {s}\n", .{name_slice});
 
-                            const alloc = st().allocator;
+                            const alloc = st().typeAllocator();
                             const name_z = try alloc.dupeZ(u8, name_slice);
 
                             // Check for duplicate struct definition
