@@ -50,25 +50,20 @@ pub const Value = union(enum) {
 };
 
 // Reserved Register Allocation
-pub const Register = u32;
-// pub const Registers = enum { Unused, A0, A1, A2, A3, A4, A5, A6, A7 };
+pub const Register = usize;
 const Unused: Register = 0;
-const A0: Register = 1;
-const A1: Register = 2;
-const A2: Register = 3;
-const A3: Register = 4;
-const A4: Register = 5;
-const A5: Register = 6;
-const A6: Register = 7;
-const A7: Register = 8;
-
 pub const NYACOperand = union(enum) {
     Label: []const u8,
     Value: Value,
-    Register: u32,
+    Register: Register,
 };
 
-pub const NYAC = struct { return_addr: u32, instruction: Instruction, op1: NYACOperand, op2: NYACOperand };
+pub const NYAC = struct { 
+    return_addr: Register, 
+    instruction: Instruction,
+    op1: NYACOperand, 
+    op2: NYACOperand 
+};
 
 // Storage for registers, and the outputted nyac_list
 var registers: std.ArrayList(Value) = .empty;
@@ -91,7 +86,7 @@ pub const Compiler = struct {
     file_text: std.ArrayList(u8),
     var_registers: std.StringHashMap(Register),
     var_locations: std.StringHashMap(usize),
-    count: Register,
+    count: usize,
     label_counter: usize,
     fp_offset: usize,
     cur_line: usize,
@@ -444,7 +439,7 @@ pub const Compiler = struct {
         if (root.initializer) |izer| {
             const rhs_reg = switch (izer.*) {
                 .InitializerList => |init_list| {
-                    return create_init_list(self, init_list, lhs_reg);
+                    return create_init_list(self, init_list, @intCast(lhs_reg));
                 },
                 else => return try self.compile_expr(izer),
             };
@@ -895,14 +890,23 @@ pub const Compiler = struct {
             // else => "INVALID"
         });
 
-        // should be using appendSlide for strings
-        var tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{inst.return_addr});
-        try writer.appendSlice(self.alloc, tmp);
-        self.alloc.free(tmp);
+        // should be using appendSlice for strings
+        var tmp: []const u8 = "";
+        if(inst.return_addr == 0) {
+            tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
+            try writer.appendSlice(self.alloc, tmp);
+            self.alloc.free(tmp);
+        } else {
+            tmp = try std.fmt.allocPrint(self.alloc, " t{d}", .{inst.return_addr});
+            try writer.appendSlice(self.alloc, tmp);
+            self.alloc.free(tmp);
+        }
 
         switch (inst.op1) {
             .Register => |register| {
-                tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{register});
+                if (register == 0) {
+                tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
+                } else tmp = try std.fmt.allocPrint(self.alloc, " t{d}", .{register});
             },
             .Label => |label| {
                 tmp = try std.fmt.allocPrint(self.alloc, " \"{s}\"", .{label});
@@ -932,7 +936,9 @@ pub const Compiler = struct {
 
         switch (inst.op2) {
             .Register => |register| {
-                tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{register});
+                if (register == 0) {
+                tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
+                } else tmp = try std.fmt.allocPrint(self.alloc, " t{d}", .{register});
             },
             .Label => |label| {
                 tmp = try std.fmt.allocPrint(self.alloc, " \"{s}\")", .{label});
