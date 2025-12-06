@@ -466,7 +466,7 @@ pub const Compiler = struct {
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) anyerror!Register {
-        self.cur_line = if (root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.nameParam.NameParameterNode.name.Identifier.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
 
         const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2 = .{ .Register = Unused } };
@@ -857,10 +857,12 @@ pub const Compiler = struct {
         if(ast.debug_mode) std.debug.print("Current: {d} <> Last: {d}\n", .{self.cur_line, self.last_line});
         if(self.cur_line > 0 and self.last_line != self.cur_line) {
             const src = m.diagnostic_source(self.cur_line);
+            try writer.appendSlice(self.alloc, "SRC ");
             try writer.appendSlice(self.alloc, src);
             try writer.append(self.alloc, '\n');
             self.last_line = self.cur_line;
         }
+        try writer.appendSlice(self.alloc, "IR ");
         try writer.appendSlice(self.alloc, switch (inst.instruction) {
             .Add => "ADD",
             .Subtract => "SUB",
@@ -877,7 +879,7 @@ pub const Compiler = struct {
             .ImbueFrame => "IMBUE_FRAME",
             .ImbueRegister => "IMBUE_REGISTER",
             .ImbueLabel => "IMBUE_LABEL",
-            .StoreRegister => "SR", // TODO should this and LOAD_REGISTER be replaced w/ the LB, SB, etc?
+            .StoreRegister => "SR",
             .LoadRegister => "LR",
             .Jump => "JUMP",
             .JumpFalse => "JUMPFALSE",
@@ -900,25 +902,25 @@ pub const Compiler = struct {
 
         switch (inst.op1) {
             .Register => |register| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", (register: {d})", .{register});
+                tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{register});
             },
             .Label => |label| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\")", .{label});
+                tmp = try std.fmt.allocPrint(self.alloc, " \"{s}\"", .{label});
             },
             .Value => |label| {
                 // TODO is there a better way to do this? No I don't think it is that bad
                 switch (label) {
                     .Number => |num| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d})", .{num});
+                        tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{num});
                     },
                     .String => |str| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: \"{s}\")", .{str});
+                        tmp = try std.fmt.allocPrint(self.alloc, " \"{s}\"", .{str});
                     },
                     .Char => |character| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {c})", .{character});
+                        tmp = try std.fmt.allocPrint(self.alloc, " {c}", .{character});
                     },
                     .Void => |_| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: void)", .{});
+                        tmp = try std.fmt.allocPrint(self.alloc, " void", .{});
                     },
                     // else => |c| {
                     //     tmp = try std.fmt.allocPrint(self.alloc, ", (value: {any})", .{c});
@@ -930,25 +932,25 @@ pub const Compiler = struct {
 
         switch (inst.op2) {
             .Register => |register| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", (register: {d})", .{register});
+                tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{register});
             },
             .Label => |label| {
-                tmp = try std.fmt.allocPrint(self.alloc, ", (label: \"{s}\")", .{label});
+                tmp = try std.fmt.allocPrint(self.alloc, " \"{s}\")", .{label});
             },
             .Value => |label| {
                 // TODO is there a better way to do this? No I don't think it is that bad
                 switch (label) {
                     .Number => |num| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {d})", .{num});
+                        tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{num});
                     },
                     .String => |str| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: \"{s}\")", .{str});
+                        tmp = try std.fmt.allocPrint(self.alloc, " \"{s}\")", .{str});
                     },
                     .Char => |character| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: {c})", .{character});
+                        tmp = try std.fmt.allocPrint(self.alloc, " {c}", .{character});
                     },
                     .Void => |_| {
-                        tmp = try std.fmt.allocPrint(self.alloc, ", (value: void)", .{});
+                        tmp = try std.fmt.allocPrint(self.alloc, " void", .{});
                     },
                     // else => |c| {
                     //     tmp = try std.fmt.allocPrint(self.alloc, ", (value: {any})", .{c});
