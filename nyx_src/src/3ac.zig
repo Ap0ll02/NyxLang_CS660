@@ -545,7 +545,12 @@ pub const Compiler = struct {
             '-' => Instruction.Subtract,
             '*' => Instruction.Multiply,
             '/' => Instruction.Divide,
-            else => return CompileError.UnsupportedBinaryOp,
+            '<' => Instruction.LessThan,
+            '>' => Instruction.GreaterThan,
+            else => {
+                if (ast.debug_mode) std.debug.print("Binary Node Unexpected: {c}", .{node.op});
+                return CompileError.UnsupportedBinaryOp;
+            },
         };
 
         const nyac = NYAC{ .instruction = instr, .return_addr = dest, .op1 = NYACOperand{ .Register = left_reg }, .op2 = .{ .Register = right_reg } };
