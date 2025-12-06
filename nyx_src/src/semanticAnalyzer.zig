@@ -50,13 +50,14 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
 
                         // If there's no struct body, it's a variable declaration using an existing struct type
                         if (new_struct.struct_declaration_list == null) {
+                            
                             // Look up the existing struct type
                             if (st().get_type(name_slice)) |existing_type| {
                                 if (existing_type.base == .STRUCT) {
                                     // Use the existing struct type for this variable
                                     spec.* = .{ .Type = existing_type };
                                     if (ast.debug_mode) {
-                                        std.debug.print("Using existing struct type: {s}\n", .{name_slice});
+                                        std.debug.print("Using existing struct type: {s} with size: {d}\n", .{ name_slice, existing_type.size });
                                     }
                                 } else {
                                     log.ErrorLoc(decl.location.?, log.f_str("'{s}' is not a struct type", .{name_slice}), m.diagnostic_source(decl.location.?.line), "Use a struct type for struct variable declarations");
@@ -98,7 +99,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                             };
 
                             new_struct.typeNode = type_node;
-                            try st().assign_type(type_node);
 
                             var offset: usize = 0;
                             var struct_align: usize = 1;
@@ -200,7 +200,14 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
 
                             type_node.alignment = struct_align;
                             type_node.size = alignForward(offset, struct_align);
+                            if (ast.debug_mode) {
+                                std.debug.print("Struct '{s}' definition complete: size={d}, alignment={d}\n", .{ name_slice, type_node.size, type_node.alignment });
+                            }
                             spec.* = .{ .Type = type_node };
+                            st().assign_type(type_node) catch {
+                                log.ErrorLoc(new_struct.location.?, log.f_str("Failed to assign struct type '{s}' to symbol table", .{name_slice}), m.diagnostic_source(new_struct.location.?.line), "");
+                                return;
+                            };
                         }
                     },
                     else => |tag| {
@@ -969,6 +976,8 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
             if (ast.debug_mode) std.debug.print("Float node semantically analyzed!\n", .{});
         },
         .Type => {
+            // TODO BUG shouldn't want every syntactic Type node to create/register a type
+            // we should only register definitions
             st().assign_type(node.Type) catch {
                 log.Error(
                     node.Type.location.?.col,

@@ -83,6 +83,12 @@ struct Level3 {
     int c;
 };
 
+// TODO need to handle
+// struct Point {
+//     int x;
+//  int y;
+// } p1;
+
 // Test 12: Using struct in function
 int main() {
     struct Point p1;

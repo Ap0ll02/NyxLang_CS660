@@ -279,7 +279,7 @@ declaration_specifiers
 	: storage_class_specifier declaration_specifiers { }
 	| storage_class_specifier {}
 	| type_specifier_list declaration_specifiers {$$ = combine_type_node($1, $2); }
-	| type_specifier_list
+	| type_specifier_list { $$ = combine_type_node($1, NULL); }
 	| type_qualifier declaration_specifiers { $$ = combine_type_node($1, $2); }
 	| type_qualifier
 	| function_specifier declaration_specifiers {}

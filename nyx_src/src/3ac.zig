@@ -342,13 +342,20 @@ pub const Compiler = struct {
         var name: []const u8 = "";
         var struct_size: usize = 0;
 
-        // Note to catgirl:
-        // We dont need to recurse down Declaration specifier because Identifier contains only type information, therefore
-        // doesnt produce operations.
-        // StructSpecifier on the other hand needs to allocate for its size in its declaration
-        // struct fields will later be handled in assignment
         if (root.declaration_specifier) |spec| {
+            if (ast.debug_mode) std.debug.print("Declaration specifier type: {s}\n", .{@tagName(spec.*)});
+            if (spec.* == .Type) {
+                if (ast.debug_mode) std.debug.print("Type node size: {d}\n", .{spec.Type.size});
+                // if size > 0 then probably a struct
+                if (spec.Type.size > 0) {
+                    struct_size = spec.Type.size;
+                    if (ast.debug_mode) {
+                        std.debug.print("Handling type with size: {d} bytes (prob always struct?)\n", .{struct_size});
+                    }
+                }
+            }
             if (spec.* == .StructSpecifier) {
+
                 const struct_spec = spec.StructSpecifier;
 
                 if (struct_spec.typeNode) |tn| {
@@ -359,12 +366,16 @@ pub const Compiler = struct {
                     if (struct_spec.identifier) |id| {
                         const struct_name = id.Identifier.name;
                         if (ast.debug_mode) {
-                            std.debug.print("Handling struct '{s}' with size: {d} bytes...\n", .{struct_name, struct_size});
+                            std.debug.print("Handling struct '{s}' with size: {d} bytes...\n", .{ struct_name, struct_size });
                         }
                     }
                 }
+            } else if (spec.* == .Type) {
+                if (ast.debug_mode) {
+                    std.debug.print("Handling normie type declaration\n", .{});
+                }
             }
-}
+        }
         if (root.assign_node) |ar| {
             name = switch (ar.Assignment.declarator.*) {
                 .Array => |array| array.*.identifier.?.*.Identifier.name,
@@ -379,11 +390,11 @@ pub const Compiler = struct {
         // track the variable and register
         try self.var_registers.put(name, dest);
         if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{ name, dest });
-        
+
         if (struct_size > 0) {
             try self.var_locations.put(name, struct_size);
             if (ast.debug_mode) {
-                std.debug.print("Struct variable '{s}' allocated at register {d}\n", .{ name, dest});
+                std.debug.print("Struct variable '{s}' allocated at register {d} with size {d}\n", .{ name, dest, struct_size });
             }
         }
 
@@ -393,6 +404,14 @@ pub const Compiler = struct {
             .op1 = NYACOperand{ .Register = Unused },
             .op2 = NYACOperand{ .Register = Unused },
         };
+
+        if (struct_size > 0) {
+            const clamped_size = @min(struct_size, std.math.maxInt(i32));
+            nyac.op1 = NYACOperand{ 
+                .Value = Value{ .Number = @intCast(clamped_size) } 
+            };
+        }
+
         if (root.assign_node) |an| {
             // decrement temporary count to avoid skipping a temporary
             self.count -= 1;
@@ -596,7 +615,7 @@ pub const Compiler = struct {
     }
 
     pub fn handle_prefix(self: *Compiler, root: *ast.PreFixNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0; 
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         const val_reg = try self.compile_expr(root.val);
 
         // Determine the op
@@ -612,7 +631,7 @@ pub const Compiler = struct {
         self.count += 1;
         const one_reg = self.count;
 
-        const one_nyac = NYAC {
+        const one_nyac = NYAC{
             .instruction = if (is_increment) .Add else .Subtract,
             .op1 = .{ .Register = val_reg },
             .op2 = .{ .Register = Unused },
@@ -624,43 +643,43 @@ pub const Compiler = struct {
         // Perform operation
         self.count += 1;
         const result_reg = self.count;
-        const op_nyac = NYAC {
+        const op_nyac = NYAC{
             .instruction = if (is_increment) .Add else .Subtract,
             .return_addr = result_reg,
-            .op1 = NYACOperand{.Register = val_reg},
-            .op2 = NYACOperand{.Register = one_reg},
+            .op1 = NYACOperand{ .Register = val_reg },
+            .op2 = NYACOperand{ .Register = one_reg },
         };
         try self.nyac_list.append(self.alloc, op_nyac);
         try self.emit(op_nyac);
 
         // Store back to the variable
-        const store_nyac = NYAC {
+        const store_nyac = NYAC{
             .instruction = .StoreRegister,
             .return_addr = val_reg,
-            .op1 = NYACOperand{.Register = result_reg},
-            .op2 = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = result_reg },
+            .op2 = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, store_nyac);
         try self.emit(store_nyac);
 
         // PREFIX: Return the NEW value
-        if(ast.debug_mode) std.debug.print("PreFix Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("PreFix Node Emitted\n", .{});
         return result_reg;
     }
 
     pub fn handle_postfix(self: *Compiler, root: *ast.PostFixNode) anyerror!Register {
-        self.cur_line = if(root.location) |loc| loc.line else 0;
+        self.cur_line = if (root.location) |loc| loc.line else 0;
         // Get the variable being modified
         const val_reg = try self.compile_expr(root.val);
 
         // POSTFIX: Save the OLD value first
         self.count += 1;
         const old_val_reg = self.count;
-        const save_nyac = NYAC {
+        const save_nyac = NYAC{
             .instruction = .StoreRegister,
             .return_addr = old_val_reg,
-            .op1 = NYACOperand{.Register = val_reg},
-            .op2 = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = val_reg },
+            .op2 = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, save_nyac);
         try self.emit(save_nyac);
@@ -677,11 +696,11 @@ pub const Compiler = struct {
         // Create constant 1
         self.count += 1;
         const one_reg = self.count;
-        const one_nyac = NYAC {
+        const one_nyac = NYAC{
             .instruction = .Constant,
-            .op1 = NYACOperand{.Register = 1},
+            .op1 = NYACOperand{ .Register = 1 },
             .return_addr = one_reg,
-            .op2 = NYACOperand{.Register = Unused},
+            .op2 = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, one_nyac);
         try self.emit(one_nyac);
@@ -689,27 +708,27 @@ pub const Compiler = struct {
         // Perform operation
         self.count += 1;
         const result_reg = self.count;
-        const op_nyac = NYAC {
+        const op_nyac = NYAC{
             .instruction = if (is_increment) .Add else .Subtract,
             .return_addr = result_reg,
-            .op1 = NYACOperand{.Register = val_reg},
-            .op2 = NYACOperand{.Register = one_reg},
+            .op1 = NYACOperand{ .Register = val_reg },
+            .op2 = NYACOperand{ .Register = one_reg },
         };
         try self.nyac_list.append(self.alloc, op_nyac);
         try self.emit(op_nyac);
 
         // Store back to the variable
-        const store_nyac = NYAC {
+        const store_nyac = NYAC{
             .instruction = .StoreRegister,
             .return_addr = val_reg,
-            .op1 = NYACOperand{.Register = result_reg},
-            .op2 = NYACOperand{.Register = Unused},
+            .op1 = NYACOperand{ .Register = result_reg },
+            .op2 = NYACOperand{ .Register = Unused },
         };
         try self.nyac_list.append(self.alloc, store_nyac);
         try self.emit(store_nyac);
 
         // POSTFIX: Return the OLD value
-        if(ast.debug_mode) std.debug.print("PostFix Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("PostFix Node Emitted\n", .{});
         return old_val_reg;
     }
 
@@ -886,8 +905,8 @@ pub const Compiler = struct {
 
     pub fn emit(self: *Compiler, inst: NYAC) !void {
         const writer = &self.file_text;
-        if(ast.debug_mode) std.debug.print("Current: {d} <> Last: {d}\n", .{self.cur_line, self.last_line});
-        if(self.cur_line > 0 and self.last_line != self.cur_line) {
+        if (ast.debug_mode) std.debug.print("Current: {d} <> Last: {d}\n", .{ self.cur_line, self.last_line });
+        if (self.cur_line > 0 and self.last_line != self.cur_line) {
             const src = m.diagnostic_source(self.cur_line);
             try writer.appendSlice(self.alloc, "SRC ");
             try writer.appendSlice(self.alloc, src);
@@ -929,7 +948,7 @@ pub const Compiler = struct {
 
         // should be using appendSlice for strings
         var tmp: []const u8 = "";
-        if(inst.return_addr == 0) {
+        if (inst.return_addr == 0) {
             tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
             try writer.appendSlice(self.alloc, tmp);
             self.alloc.free(tmp);
@@ -942,7 +961,7 @@ pub const Compiler = struct {
         switch (inst.op1) {
             .Register => |register| {
                 if (register == 0) {
-                tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
+                    tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
                 } else tmp = try std.fmt.allocPrint(self.alloc, " t{d}", .{register});
             },
             .Label => |label| {
@@ -974,7 +993,7 @@ pub const Compiler = struct {
         switch (inst.op2) {
             .Register => |register| {
                 if (register == 0) {
-                tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
+                    tmp = try std.fmt.allocPrint(self.alloc, " -", .{});
                 } else tmp = try std.fmt.allocPrint(self.alloc, " t{d}", .{register});
             },
             .Label => |label| {
