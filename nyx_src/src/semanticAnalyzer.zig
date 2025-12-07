@@ -831,14 +831,59 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
         .IdPointer => {
             if (ast.debug_mode) std.debug.print("IdPointer node semantically analyzed!\n", .{});
             const id = node.IdPointer;
+            
+            // First analyze the base (struct instance)
             semantic_analyze_node(id.pointer) catch |err| {
                 if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
                 return;
             };
-            semantic_analyze_node(id.identifier) catch |err| {
-                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
-                return;
-            };
+            
+            // Get the type of the base identifier (the struct instance)
+            var struct_type: ?*ast.TypeNode = null;
+            if (id.pointer.* == .Identifier) {
+                const base_name = id.pointer.Identifier.name;
+                const base_decl = st().get_variable(base_name);
+                if (base_decl) |bd| {
+                    if (bd.declaration_specifier) |spec| {
+                        if (spec.* == .Type) {
+                            struct_type = spec.Type;
+                        }
+                    }
+                }
+            }
+            
+            // Validate that we have a struct type and the field exists
+            if (struct_type) |st_type| {
+                const field_name = id.identifier.Identifier.name;
+                if (st_type.field_map) |fm| {
+                    if (fm.get(field_name)) |field_info| {
+                        // Field exists, set the typeNode so 3AC can access field_map
+                        id.typeNode = st_type;
+                        if (ast.debug_mode) {
+                            std.debug.print("IdPointer member access: {s}.{s} (offset={?d})\n", 
+                                .{id.pointer.Identifier.name, field_name, field_info.offset});
+                        }
+                    } else {
+                        log.ErrorLoc(
+                            id.location.?,
+                            log.f_str("Struct has no member named '{s}'", .{field_name}),
+                            m.diagnostic_source(id.location.?.line),
+                            "Check the struct definition for available fields.",
+                        );
+                        return;
+                    }
+                } else {
+                    log.ErrorLoc(
+                        id.location.?,
+                        "Attempting to access member of non-struct type",
+                        m.diagnostic_source(id.location.?.line),
+                        "Member access is only valid on struct types.",
+                    );
+                    return;
+                }
+            } else {
+                if (ast.debug_mode) std.debug.print("IdPointer member access: {s} (type unknown)\n", .{id.identifier.Identifier.name});
+            }
         },
         .Pointer => {
             if (ast.debug_mode) std.debug.print("Pointer node semantically analyzed!\n", .{});

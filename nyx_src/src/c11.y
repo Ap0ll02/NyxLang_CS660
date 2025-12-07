@@ -141,8 +141,8 @@ postfix_expression
 	| postfix_expression '[' expression ']'
 	| postfix_expression '(' ')' { $$ = make_function_call_node($1, NULL); }
 	| postfix_expression '(' argument_expression_list ')' { $$ = make_function_call_node($1, $3); }
-	| postfix_expression '.' IDENTIFIER
-	| postfix_expression PTR_OP IDENTIFIER
+	| postfix_expression '.' IDENTIFIER { $$ = make_idpointer_node($1, make_identifier_node($3)); }
+	| postfix_expression PTR_OP IDENTIFIER { $$ = make_idpointer_node($1, make_identifier_node($3)); }
 	| postfix_expression INC_OP { $$ = make_post_fix_node($1, INC_OP); }
 	| postfix_expression DEC_OP	{ $$ = make_post_fix_node($1, DEC_OP); }  
 	| '(' type_name ')' '{' initializer_list '}'
@@ -309,7 +309,7 @@ storage_class_specifier
 
 type_specifier_list
     : type_specifier_list type_specifier { $$ = combine_type_node($1, $2); }
-    | type_specifier
+    | type_specifier { $$ = combine_type_node(NULL, $1); }
     ;
 
 type_specifier
@@ -538,9 +538,14 @@ initializer
 	;
 
 initializer_list
-    : initializer                               { $$ = append_initializer_list($1, NULL); }
-    | initializer_list ',' initializer          { $$ = append_initializer_list($3, $1); }
+    // : initializer                               { $$ = append_initializer_list($1, NULL); }
+    // | initializer_list ',' initializer          { $$ = append_initializer_list($3, $1); }
+    // | initializer_list ',' designation initializer { $$ = append_initializer_list($4, $1); }
+    // ;
+    : designation initializer                   { $$ = append_initializer_list($2, NULL); }
+    | initializer                               { $$ = append_initializer_list($1, NULL); }
     | initializer_list ',' designation initializer { $$ = append_initializer_list($4, $1); }
+    | initializer_list ',' initializer          { $$ = append_initializer_list($3, $1); }
     ;
 
 designation

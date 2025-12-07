@@ -333,7 +333,7 @@ pub const Compiler = struct {
         try self.emit_jump(start_label);
         try self.emit_label(end_label);
 
-        if(ast.debug_mode) std.debug.print("While Node Emitted\n", .{});
+        if (ast.debug_mode) std.debug.print("While Node Emitted\n", .{});
         return Unused;
     }
 
@@ -407,9 +407,7 @@ pub const Compiler = struct {
 
         if (struct_size > 0) {
             const clamped_size = @min(struct_size, std.math.maxInt(i32));
-            nyac.op1 = NYACOperand{ 
-                .Value = Value{ .Number = @intCast(clamped_size) } 
-            };
+            nyac.op1 = NYACOperand{ .Value = Value{ .Number = @intCast(clamped_size) } };
         }
 
         if (root.assign_node) |an| {
@@ -478,6 +476,11 @@ pub const Compiler = struct {
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
 
+        // Check if this is a struct member assignment
+        if (root.declarator.* == .IdPointer) {
+            return try self.handle_struct_member_assignment(root);
+        }
+
         const var_name = switch (root.declarator.*) {
             .Array => |array| array.*.identifier.?.*.Identifier.name,
             .Identifier => |ident| ident.*.name,
@@ -509,6 +512,86 @@ pub const Compiler = struct {
 
         if (ast.debug_mode) std.debug.print("Assign Node Emitted\n", .{});
         return lhs_reg;
+    }
+
+    pub fn handle_struct_member_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
+        // Extract struct member access: struct_var.field or struct_var->field
+        const id_pointer = root.declarator.IdPointer;
+
+        // Get the base struct variable name
+        const struct_name = blk: {
+            switch (id_pointer.pointer.*) {
+                .Identifier => |id| {
+                    if (id.name.len == 0) return CompileError.Invalid;
+                    break :blk id.name;
+                },
+                else => return CompileError.Invalid,
+            }
+        };
+
+        // Get the field name
+        const field_name = blk: {
+            switch (id_pointer.identifier.*) {
+                .Identifier => |id| {
+                    if (id.name.len == 0) return CompileError.Invalid;
+                    break :blk id.name;
+                },
+                else => return CompileError.Invalid,
+            }
+        };
+
+        // Get the base struct register
+        const base_reg = self.var_registers.get(struct_name) orelse return CompileError.UndefinedVariable;
+
+        // Get struct size to determine if we need field offset calculation
+        const struct_size = self.var_locations.get(struct_name) orelse 0;
+
+        if (ast.debug_mode) {
+            std.debug.print("Struct member assignment: {s}.{s} (base_reg={d}, struct_size={d})\n", .{ struct_name, field_name, base_reg, struct_size });
+        }
+
+        var field_offset: usize = 0;
+        if (id_pointer.typeNode) |tn| {
+            field_offset = tn.field_map.?.get(field_name).?.offset orelse return CompileError.Invalid;
+        } else {
+            return CompileError.Invalid;
+        }
+
+        if (ast.debug_mode) {
+            std.debug.print("Field '{s}' offset within struct '{s}': {d}\n", .{ field_name, struct_name, field_offset });
+        }
+
+
+        // Calculate the address of the struct field
+        self.count += 1;
+        const field_addr_reg = self.count;
+
+        const offset_nyac = NYAC{
+            .instruction = .Add,
+            .return_addr = field_addr_reg,
+            .op1 = NYACOperand{ .Register = base_reg },
+            .op2 = NYACOperand{ .Value = Value{ .Number = @intCast(field_offset) } },
+        };
+        try self.nyac_list.append(self.alloc, offset_nyac);
+        try self.emit(offset_nyac);
+
+        // Compile the right-hand side value
+        if (root.initializer) |initializer| {
+            const rhs_reg = try self.compile_expr(initializer);
+
+            // Store the value at the calculated field address
+            const store_nyac = NYAC{
+                .instruction = .StoreRegister,
+                .return_addr = field_addr_reg,
+                .op1 = NYACOperand{ .Register = rhs_reg },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, store_nyac);
+            try self.emit(store_nyac);
+        }
+
+        if (ast.debug_mode) std.debug.print("Struct Member Assign Node Emitted\n", .{});
+        return field_addr_reg;
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) anyerror!Register {
