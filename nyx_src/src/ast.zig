@@ -523,18 +523,18 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
     switch (token) {
         c.FLOAT => {
             const tn: [*c]const u8 = "float";
-            type_node_ptr.* = TypeNode{ .base = .FLOAT, .type_name = tn, .location = get_location() };
+            type_node_ptr.* = TypeNode{ .base = .FLOAT, .type_name = tn, .location = get_location(), .alignment = @alignOf(f32), .size = @sizeOf(f32) };
         },
         c.DOUBLE => {
             const tn: [*c]const u8 = "double";
-            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = tn, .location = get_location() };
+            type_node_ptr.* = TypeNode{ .base = .DOUBLE, .type_name = tn, .location = get_location(), .alignment = @alignOf(f64), .size = @alignOf(f64) };
         },
         c.INT => {
             type_node_ptr.* = TypeNode{ .base = .INT, .location = get_location() };
         },
         c.LONG => {
             const tn: [*c]const u8 = "long";
-            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1, .type_name = tn, .location = get_location() };
+            type_node_ptr.* = TypeNode{ .base = .INT, .qualifier = 1, .type_name = tn, .location = get_location(), .alignment = @alignOf(i32), .size = @sizeOf(i32) };
         },
         c.STRING_LITERAL => {
             const tn: [*c]const u8 = "string";
@@ -553,7 +553,7 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
         },
         c.CHAR => {
             const tn: [*c]const u8 = "char";
-            type_node_ptr.* = TypeNode{ .base = .CHAR, .is_unsigned = true, .type_name = tn, .location = get_location() };
+            type_node_ptr.* = TypeNode{ .base = .CHAR, .is_unsigned = true, .type_name = tn, .location = get_location(), .alignment = @alignOf(u8), .size = @sizeOf(u8) };
         },
         else => {
             type_node_ptr.* = TypeNode{ .base = .VOID, .location = get_location() };
