@@ -17,6 +17,7 @@ pub const Instruction = enum {
     Subtract,
     Multiply,
     Divide,
+    Modulo,
     And,
     Or,
     Equals,
@@ -395,7 +396,40 @@ pub const Compiler = struct {
                     return CompileError.Invalid;
                 },
                 .Identifier => |ident| ident.*.name,
-                else => return CompileError.Invalid,
+                .Pointer => |ptr| blk: {
+                    // Handle pointer declarations like int *p
+                    if (ast.debug_mode) std.debug.print("Processing Pointer declarator\n", .{});
+                    if (ptr.*.pointee) |pointee| {
+                        if (ast.debug_mode) std.debug.print("Pointee type: {s}\n", .{@tagName(pointee.*)});
+                        switch (pointee.*) {
+                            .Identifier => |ident| break :blk ident.name,
+                            else => {
+                                if (ast.debug_mode) std.debug.print("Unsupported pointee type in Pointer declarator\n", .{});
+                                return CompileError.Invalid;
+                            },
+                        }
+                    }
+                    if (ast.debug_mode) std.debug.print("Pointer has no pointee\n", .{});
+                    return CompileError.Invalid;
+                },
+                .IdPointer => |ip| blk: {
+                    // Handle IdPointer for things like function parameters or member pointers
+                    if (ast.debug_mode) std.debug.print("Processing IdPointer declarator\n", .{});
+                    switch (ip.identifier.*) {
+                        .Identifier => |ident| break :blk ident.name,
+                        else => {
+                            if (ast.debug_mode) std.debug.print("Unsupported identifier type in IdPointer: {s}\n", .{@tagName(ip.identifier.*)});
+                            return CompileError.Invalid;
+                        },
+                    }
+                },
+                .Type => blk: {
+                    break :blk ""; // TODO handle instead of ""
+                },
+                else => {
+                    if (ast.debug_mode) std.debug.print("Unsupported declarator type: {s}\n", .{@tagName(ar.Assignment.declarator.*)});
+                    return CompileError.Invalid;
+                },
             };
         } else return Unused;
         // allocate register slot
@@ -491,21 +525,80 @@ pub const Compiler = struct {
     pub fn handle_assignment(self: *Compiler, root: *ast.AssignmentNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
 
-        // Check if this is a struct member assignment
         if (root.declarator.* == .IdPointer) {
-            return try self.handle_struct_member_assignment(root);
+            const id_pointer = root.declarator.IdPointer;
+            if (id_pointer.pointer.* == .Identifier) {
+                // like p1.x = 10
+                return try self.handle_struct_member_assignment(root);
+            }
         }
 
         const var_name = switch (root.declarator.*) {
             .Array => |array| array.*.identifier.?.*.Identifier.name,
             .Identifier => |ident| ident.*.name,
-            else => return CompileError.Invalid,
+            .Pointer => |ptr| blk: {
+                if (ptr.*.pointee) |pointee| {
+                    switch (pointee.*) {
+                        .Identifier => |ident| break :blk ident.name,
+                        else => return CompileError.Invalid,
+                    }
+                }
+                return CompileError.Invalid;
+            },
+            .IdPointer => |ip| blk: {
+                switch (ip.identifier.*) {
+                    .Identifier => |ident| break :blk ident.name,
+                    else => return CompileError.Invalid,
+                }
+            },
+            .Unary => blk: {
+                break :blk ""; // TODO like *p = val
+            },
+            .Type => blk: {
+                break :blk ""; // TODO
+            },
+            else => {
+                if (ast.debug_mode) std.debug.print("Unsupported declarator in assignment: {s}\n", .{@tagName(root.declarator.*)});
+                return CompileError.Invalid;
+            },
         };
 
-        const lhs_reg = self.var_registers.get(var_name) orelse return CompileError.UndefinedVariable;
+        if (root.declarator.* == .Unary) {
+            const unary = root.declarator.Unary;
+            if (unary.un_op == '*') {
+                const ptr_reg = try self.compile_expr(unary.val);
+
+                if (root.initializer) |izer| {
+                    const value_reg = try self.compile_expr(izer);
+
+                    const nyac = NYAC{
+                        .instruction = .StoreRegister,
+                        .return_addr = ptr_reg,
+                        .op1 = NYACOperand{ .Register = value_reg },
+                        .op2 = NYACOperand{ .Register = Unused },
+                    };
+                    try self.nyac_list.append(self.alloc, nyac);
+                    try self.emit(nyac);
+                }
+
+                if (ast.debug_mode) std.debug.print("Unary Dereference Assign Node Emitted\n", .{});
+                return ptr_reg;
+            }
+            return CompileError.UnsupportedNode;
+        }
+
+        if (var_name.len == 0) {
+            return Unused;
+        }
+
+        const lhs_reg = self.var_registers.get(var_name) orelse {
+            if (ast.debug_mode) std.debug.print("Undefined variable in assignment: {s}\n", .{var_name});
+            return CompileError.UndefinedVariable;
+        };
 
         // separate logic required for initializer list for arrays
         if (root.initializer) |izer| {
+            if (ast.debug_mode) std.debug.print("Compiling initializer for assignment\n", .{});
             const rhs_reg = switch (izer.*) {
                 .InitializerList => |init_list| {
                     return create_init_list(self, init_list, @intCast(lhs_reg));
@@ -704,6 +797,7 @@ pub const Compiler = struct {
             '-' => Instruction.Subtract,
             '*' => Instruction.Multiply,
             '/' => Instruction.Divide,
+            '%' => Instruction.Modulo,
             '<' => Instruction.LessThan,
             '>' => Instruction.GreaterThan,
             else => {
@@ -855,6 +949,30 @@ pub const Compiler = struct {
                 .op2 = NYACOperand{ .Register = Unused },
             };
 
+            try self.nyac_list.append(self.alloc, nyac);
+            try self.emit(nyac);
+        } else if (root.value.len > 0 and root.value[0] == '\'') {
+            // Characters like 'a'
+            var char_val: u8 = 0;
+            if (root.value.len >= 3 and root.value[1] != '\\') {
+                char_val = root.value[1];
+            } else if (root.value.len >= 4 and root.value[1] == '\\') {
+                char_val = switch (root.value[2]) { // handles our escape sequences
+                    'n' => '\n',
+                    't' => '\t',
+                    'r' => '\r',
+                    '0' => 0,
+                    '\\' => '\\',
+                    '\'' => '\'',
+                    else => root.value[2],
+                };
+            }
+            const nyac = NYAC{
+                .instruction = .Constant,
+                .op1 = NYACOperand{ .Value = Value{ .Char = char_val } },
+                .return_addr = dest,
+                .op2 = NYACOperand{ .Register = Unused },
+            };
             try self.nyac_list.append(self.alloc, nyac);
             try self.emit(nyac);
         } else {
@@ -1040,6 +1158,7 @@ pub const Compiler = struct {
             .Subtract => "SUB",
             .Multiply => "MUL",
             .Divide => "DIV",
+            .Modulo => "MOD",
             .Constant => "CONST",
             .LoadByte => "LB",
             .StoreByte => "SB",
