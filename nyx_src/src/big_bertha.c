@@ -189,7 +189,11 @@ unsigned long long factorial(int n) {
         result *= i;
     } 
     return result;
-} 
+}
+
+float ret_float() {
+    return 3.14;
+}
 
 // TODO need to handle
 // struct Point {
@@ -200,6 +204,10 @@ unsigned long long factorial(int n) {
 
 int main(void)
 {
+
+    float f = ret_float();
+    printf("Returned float: %f\n", f);
+
     int a = add(2, 3);
     int b = max3(a, global_const, 7);
 
