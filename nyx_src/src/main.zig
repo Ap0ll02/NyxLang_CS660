@@ -17,7 +17,18 @@ pub export var column: c_int = 1;
 pub export var line: c_int = 1;
 pub const parse_alloc = std.heap.c_allocator;
 var source_code: []const u8 = undefined;
+
 pub fn main() !void {
+    _main() catch |err| {
+        if (ast.debug_mode) {
+            return err;
+        }
+        std.debug.print("NyxLang encountered an internal error.\n", .{});
+        std.process.exit(1);
+    };
+}
+
+fn _main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
