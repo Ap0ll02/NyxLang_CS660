@@ -1,4 +1,4 @@
-# GP5 - Compiler Back End
+# GP6 - Compiler Back End
 
 ## Installation
 
@@ -36,7 +36,7 @@ https://ziglang.org/download/
 ### Step 2: Clone the repository
 
 ```fish
-git clone https://github.com/Ap0ll02/NyxLang_CS660/tree/GP5
+git clone https://github.com/Ap0ll02/NyxLang_CS660/tree/GP6
 ```
 
 ```fish
@@ -71,20 +71,12 @@ Make sure to type valid c code for example
 
 #### Regular Question
 
-The benefits of having some IR instead of direct assembly is for easier cognitive load, and better optimization passes.
-If you have the AST converted into an IR like 3ac, it might be easier than converting the AST into assembly for the programmer.
-Then, with this abstraction between AST and assembly, the 3ac or IR might be more straightforwardly ported into Assembly.
-This is brought to mind by having unlimited registers, and not having to worry about hardware limits quite yet, as AST -> Assembly is quite a task.
-It can also be useful to have IR for optimization passes... or even Rust like borrow checking.
 
 Additionally, you don't have to write to a specific assembly language/instruction set architecture. This is beneficial for portability of code.
 
 #### Grad Question
 
-Other IR's useful to optimize programs include CFG's. They are very useful for dead code elimination optimizations.
-This helps see the flow of code, more importantly, we see when program scopes are entered and exited which is key for dead code analysis.
-Another IR that is useful is Rust's MLIR (mid-level intermediate representation). IT is mainly used for borrow checking, which is not *necessarily* a performance optimization,
-but I think it could still be considered an optimization.
+
 
 
 ![catgirl](../CatGirl&CatBoyPictures/catgirl1.png)
