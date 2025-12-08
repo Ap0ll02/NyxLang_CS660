@@ -3,3 +3,5 @@ rm -rf zig-out/
 rm src/lex.yy.c src/c11.tab.c  src/c11.tab.h
 rm src/c11.output 
 rm src/a.nyac
+rm a.nyac
+rm -rf .zig-cache/
