@@ -74,10 +74,11 @@ pub fn main() !void {
             std.debug.print("3AC compilation failed: {s}\n", .{@errorName(err)});
             return;
         };
+
         _ = compiler.compile() catch |err| {
             std.debug.print("Failed to compile w/ error: {s}\n", .{@errorName(err)});
         };
-        std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{if (result == 1) "failed." else "successful", log.err_count});
+        std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{ if (result == 1) "failed." else "successful", log.err_count });
     }
 }
 
@@ -106,7 +107,7 @@ pub fn diagnostic_source(line_no: usize) []const u8 {
     // If requested line > total lines → return empty slice rather than panic
     if (current_line != line_no)
         return "";
-    
+
     while (start < source_code.len and (source_code[start] == ' ' or source_code[start] == '\t')) {
         start += 1;
     }
@@ -120,7 +121,6 @@ pub fn diagnostic_source(line_no: usize) []const u8 {
     // Guarantee we produce a valid slice
     return source_code[start..end];
 }
-
 
 fn get_src() []const u8 {
     var current_line: usize = 0;

@@ -44,6 +44,7 @@ pub const Instruction = enum {
 };
 pub const Value = union(enum) {
     Number: i32,
+    Float: f32,
     String: []const u8,
     Char: u8,
     Void: void,
@@ -828,18 +829,31 @@ pub const Compiler = struct {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         self.count += 1;
         const dest = self.count;
-        const val = try std.fmt.parseInt(i32, root.value, 10);
-        const nyac = NYAC{
-            .instruction = .Constant,
-            .op1 = NYACOperand{ .Value = Value{ .Number = val } },
-            .return_addr = dest,
-            .op2 = NYACOperand{ .Register = Unused },
-        };
 
-        // Append to list
-        try self.nyac_list.append(self.alloc, nyac);
-        // Emit IR to file
-        try self.emit(nyac);
+        // check type of constant node
+        if (std.mem.eql(u8, std.mem.span(root.typeNode.type_name), "float")) {
+            const val = try std.fmt.parseFloat(f32, root.value);
+            const nyac = NYAC{
+                .instruction = .Constant,
+                .op1 = NYACOperand{ .Value = Value{ .Float = val } },
+                .return_addr = dest,
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+
+            try self.nyac_list.append(self.alloc, nyac);
+            try self.emit(nyac);
+        } else {
+            const val = try std.fmt.parseInt(i32, root.value, 10);
+            const nyac = NYAC{
+                .instruction = .Constant,
+                .op1 = NYACOperand{ .Value = Value{ .Number = val } },
+                .return_addr = dest,
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+
+            try self.nyac_list.append(self.alloc, nyac);
+            try self.emit(nyac);
+        }
 
         if (ast.debug_mode) std.debug.print("Constant Node Emitted\n", .{});
         return dest;
@@ -1062,6 +1076,9 @@ pub const Compiler = struct {
             .Value => |label| {
                 // TODO is there a better way to do this? No I don't think it is that bad
                 switch (label) {
+                    .Float => |flt| {
+                        tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{flt});
+                    },
                     .Number => |num| {
                         tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{num});
                     },
@@ -1094,6 +1111,9 @@ pub const Compiler = struct {
             .Value => |label| {
                 // TODO is there a better way to do this? No I don't think it is that bad
                 switch (label) {
+                    .Float => |flt| {
+                        tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{flt});
+                    },
                     .Number => |num| {
                         tmp = try std.fmt.allocPrint(self.alloc, " {d}", .{num});
                     },
