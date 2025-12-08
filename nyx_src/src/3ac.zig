@@ -58,12 +58,7 @@ pub const NYACOperand = union(enum) {
     Register: Register,
 };
 
-pub const NYAC = struct { 
-    return_addr: Register, 
-    instruction: Instruction,
-    op1: NYACOperand, 
-    op2: NYACOperand 
-};
+pub const NYAC = struct { return_addr: Register, instruction: Instruction, op1: NYACOperand, op2: NYACOperand };
 
 // Storage for registers, and the outputted nyac_list
 var registers: std.ArrayList(Value) = .empty;
@@ -315,6 +310,11 @@ pub const Compiler = struct {
     pub fn handle_while(self: *Compiler, root: *ast.WhileNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
 
+        // Handle for-loop initialization (if present)
+        if (root.init) |init_node| {
+            _ = try self.compile_expr(init_node);
+        }
+
         // While Statements Top and Bottom Label
         const start_label = self.new_label();
         const end_label = self.new_label();
@@ -355,7 +355,6 @@ pub const Compiler = struct {
                 }
             }
             if (spec.* == .StructSpecifier) {
-
                 const struct_spec = spec.StructSpecifier;
 
                 if (struct_spec.typeNode) |tn| {
@@ -561,7 +560,6 @@ pub const Compiler = struct {
             std.debug.print("Field '{s}' offset within struct '{s}': {d}\n", .{ field_name, struct_name, field_offset });
         }
 
-
         // Calculate the address of the struct field
         self.count += 1;
         const field_addr_reg = self.count;
@@ -602,6 +600,17 @@ pub const Compiler = struct {
 
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
+
+        // Should register parameters before compiling body
+        if (root.nameParam.NameParameterNode.parameterList) |param_list| {
+            const params = param_list.ParameterList.params;
+            for (params) |param| {
+                if (param.* == .Declaration) {
+                    _ = try self.compile_expr(param);
+                }
+            }
+        }
+
         _ = try self.compile_expr(root.body);
 
         return Unused;
