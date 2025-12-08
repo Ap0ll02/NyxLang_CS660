@@ -123,7 +123,7 @@ pub const Compiler = struct {
         switch (self.root.*) {
             .BlockItems => |bi| {
                 for (bi.items) |b| {
-                    std.debug.print("Processing item: {s}\n", .{@tagName(b.*)});
+                    if (ast.debug_mode) std.debug.print("Processing item: {s}\n", .{@tagName(b.*)});
                     try check_write(self);
                     self.root = b;
                     _ = try self.compile_node();
@@ -149,7 +149,7 @@ pub const Compiler = struct {
     }
 
     pub fn compile_node(self: *Compiler) anyerror!Register {
-        std.debug.print("Compiling node: {s}\n", .{@tagName(self.root.*)});
+        if (ast.debug_mode) std.debug.print("Compiling node: {s}\n", .{@tagName(self.root.*)});
 
         // Note: All of the diagnostic source prints need to be moved
         // to file writing, we will write the source line and then
