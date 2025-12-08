@@ -175,7 +175,7 @@ unary_operator
 
 cast_expression
 	: unary_expression
-	| '(' type_name ')' cast_expression { zig_error("Unsupported feature: Typecasting.", "Rewrite your code to have the correct type."); }
+	| '(' type_name ')' cast_expression { zig_error("Unsupported feature: Typecasting.", "Rewrite your code to have the correct type."); $$ = $4; } // had to add $$ = $4 to avoid seg fault
 	;
 
 multiplicative_expression

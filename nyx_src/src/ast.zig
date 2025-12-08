@@ -664,6 +664,9 @@ export fn make_assignment_op_node(token: c.yytokentype) ?*Node {
     const ass_op_node = glob_alloc.create(AssignmentOpNode) catch return null;
     if (@TypeOf(token) != c.yytokentype) return null;
     switch (token) {
+        '=' => {
+            ass_op_node.* = AssignmentOpNode{ .assign_op = "=", .location = get_location() };
+        },
         c.MUL_ASSIGN => {
             ass_op_node.* = AssignmentOpNode{ .assign_op = "*=", .location = get_location() };
         },

@@ -1,0 +1,248 @@
+
+/* Global variable: Declaration, Identifier, Constant, Type */
+int global_const = 5;
+
+/* Function: Function, BlockItems, Declarations, Binary, Assignment, ReturnStmt */
+int add(int a, int b)
+{
+    int sum = a + b; /* Declaration, Binary, Assignment, Identifier */
+    return sum;      /* ReturnStmt */
+}
+
+/* ConditionalExpression, Binary, ReturnStmt */
+int max3(int a, int b, int c)
+{
+    int m = a > b ? a : b; /* ConditionalExpression, Binary */
+    m = (m > c) ? m : c;   /* Assignment, ConditionalExpression, Binary */
+    return m;
+}
+
+/* Pointers, Unary (&, *), IdPointer-ish usage */
+void pointer_demo(int *out_result)
+{
+    int x = 10; /* Declaration, Constant */
+    int y = 20;
+    int *p = &x; /* Pointer, IdPointer, Unary '&', Assignment */
+    int *q = &y;
+
+    *p = *p + 1; /* Unary '*', Binary, Assignment */
+    *q = *q - 2; /* Unary '*', Binary, Assignment */
+
+    *out_result = *p + *q; /* Unary '*', Binary, Assignment, Identifier */
+}
+
+/* WhileStmt, PostFix, ExpressionStmt, Binary */
+int loop_demo(int n)
+{
+    int i = 0;
+    int acc = 0;
+
+    while (i < n)
+    {                  /* WhileStmt, Binary */
+        acc = acc + i; /* Assignment, Binary */
+        i++;           /* PostFix, ExpressionStmt */
+    }
+
+    return acc;
+}
+
+/* PreFix, IfStmt, Unary, Binary */
+int prefix_and_unary_demo(int n)
+{
+    int i = 0;
+    int count = 0;
+
+    while (i < n)
+    {
+        ++i; /* PreFix, ExpressionStmt */
+
+        /* Unary '!' and more Binary ops */
+        if (!(i % 2 == 0))
+        {                      /* IfStmt, Unary '!', Binary */
+            count = count + 1; /* Assignment, Binary */
+        }
+        else
+        {
+            count = count; /* Assignment, Identifier */
+        }
+    }
+
+    /* More Unary: arithmetic negation */
+    {
+        int dummy = -count; /* Unary '-', Declaration, Assignment */
+        (void)dummy;        /* ExpressionStmt; may lower to no-op */
+    }
+
+    return count;
+}
+
+/*
+Struct stuff
+*/
+// Test 1: Basic struct definition
+struct Point
+{
+    int x;
+    int y;
+};
+
+// Test 2: Struct with different types
+struct Mixed
+{
+    char c;
+    int i;
+    float f;
+    double d;
+};
+
+// Test 3: Nested struct (valid)
+struct Inner
+{
+    int value;
+};
+
+struct Outer
+{
+    struct Inner inner;
+    int other;
+};
+
+// Test 4: SHOULD ERROR - Duplicate struct definition
+struct DuplicateTest
+{
+    int x;
+};
+
+struct DuplicateTest
+{
+    int y;
+};
+
+// Test 5: SHOULD ERROR - Duplicate field names
+struct DuplicateFields
+{
+    int x;
+    float x;
+};
+
+// Test 6: SHOULD ERROR - Recursive struct direct
+struct RecursiveDirect
+{
+    int value;
+    struct RecursiveDirect self;
+};
+
+// Test 7: Valid - Recursive with pointer
+struct RecursiveValid
+{
+    int value;
+    struct RecursiveValid *next;
+};
+
+// Test 8: SHOULD ERROR - Unknown struct type
+struct IncompleteOuter
+{
+    struct Undefined inner;
+};
+
+// Test 9: Alignment and padding test
+struct Alignment
+{
+    char c;
+    int i;
+    char c2;
+    double d;
+};
+
+// Test 10: Struct with arrays
+struct WithArray
+{
+    int values[10];
+    char name[50];
+};
+
+// Test 11: Multiple nesting levels
+struct Level1
+{
+    int a;
+};
+
+struct Level2
+{
+    struct Level1 inner1;
+    int b;
+};
+
+struct Level3
+{
+    struct Level2 inner2;
+    int c;
+};
+
+unsigned long long factorial(int n) { 
+    if (n < 0) { 
+        printf("Error: Factorial of a negative number doesn't exist.\n");
+        return 0;
+    } 
+    unsigned long long result = 1;
+    for (int i = 1; i <= n; ++i) {
+        result *= i;
+    } 
+    return result;
+} 
+
+// TODO need to handle
+// struct Point {
+//     int x;
+//  int y;
+// } p1;
+/* -------------------------*/
+
+int main(void)
+{
+    int a = add(2, 3);
+    int b = max3(a, global_const, 7);
+
+    int loop_sum = loop_demo(5);
+    int prefix_count = prefix_and_unary_demo(10);
+
+    int ptr_result = 0;
+    pointer_demo(&ptr_result);
+
+    int final = a + b + loop_sum + prefix_count + ptr_result;
+
+    final + 1;
+
+    // struct stuff
+    struct Point p1;
+    struct Mixed m1;
+    struct Outer o1;
+
+    p1.x = 10;
+    p1.y = 20;
+
+    m1.c = 'a';
+    m1.i = 100;
+
+    o1.inner.value = 42;
+    o1.other = 99;
+
+    struct WithArray wa;
+    wa.values[0] = 1;
+    wa.name[0] = 'T';
+    // -----
+
+    // josh.nyx
+    int num = 5;
+    int x;
+    printf("Factorial of %d = %llu\n", num, factorial(num));
+
+    if (final > 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return 1;
+    }
+}
