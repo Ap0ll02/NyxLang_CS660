@@ -378,7 +378,22 @@ pub const Compiler = struct {
         }
         if (root.assign_node) |ar| {
             name = switch (ar.Assignment.declarator.*) {
-                .Array => |array| array.*.identifier.?.*.Identifier.name,
+                .Array => |array| blk: {
+                    if (array.*.identifier) |id| {
+                        switch (id.*) {
+                            .Identifier => |ident| break :blk ident.name,
+                            .IdPointer => |ip| {
+                                // For struct member arrays like wa.values[0]
+                                // Use the struct name as the base
+                                if (ip.pointer.* == .Identifier) {
+                                    break :blk ip.pointer.Identifier.name;
+                                }
+                            },
+                            else => {},
+                        }
+                    }
+                    return CompileError.Invalid;
+                },
                 .Identifier => |ident| ident.*.name,
                 else => return CompileError.Invalid,
             };

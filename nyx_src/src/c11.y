@@ -138,7 +138,7 @@ generic_association
 
 postfix_expression
 	: primary_expression 
-	| postfix_expression '[' expression ']'
+	| postfix_expression '[' expression ']' { $$ = make_array_node($1, $3); }
 	| postfix_expression '(' ')' { $$ = make_function_call_node($1, NULL); }
 	| postfix_expression '(' argument_expression_list ')' { $$ = make_function_call_node($1, $3); }
 	| postfix_expression '.' IDENTIFIER { $$ = make_idpointer_node($1, make_identifier_node($3)); }

@@ -100,6 +100,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
 
                             new_struct.typeNode = type_node;
 
+                            // Register the struct type
+                            st().assign_type(type_node) catch {
+                                log.ErrorLoc(new_struct.location.?, log.f_str("Failed to assign struct type '{s}' to symbol table", .{name_slice}), m.diagnostic_source(new_struct.location.?.line), "");
+                                return;
+                            };
+
                             var offset: usize = 0;
                             var struct_align: usize = 1;
 
@@ -137,6 +143,9 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                             }
 
                                             for (sd.declarators) |decltor_node| {
+                                                var is_array = false;
+                                                var array_size: usize = 0;
+                                                
                                                 const field_name: []const u8 = switch (decltor_node.*) {
                                                     .Identifier => |id| id.name,
                                                     .Pointer => |ptr| blk3: {
@@ -149,6 +158,20 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                                         } else {
                                                             continue;
                                                         }
+                                                    },
+                                                    .Array => |arr| blk4: {
+                                                        is_array = true;
+                                                        if (arr.constant) |const_node| {
+                                                            if (const_node.* == .Constant) {
+                                                                array_size = std.fmt.parseInt(usize, const_node.Constant.value, 10) catch 0;
+                                                            }
+                                                        }
+                                                        if (arr.identifier) |id_node| {
+                                                            if (id_node.* == .Identifier) {
+                                                                break :blk4 id_node.Identifier.name;
+                                                            }
+                                                        }
+                                                        continue;
                                                     },
                                                     else => continue,
                                                 };
@@ -168,7 +191,12 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                                     }
                                                 }
 
-                                                const field_size = if (is_pointer) @sizeOf(usize) else field_type.size;
+                                                const field_size = if (is_pointer) 
+                                                    @sizeOf(usize) 
+                                                else if (is_array) 
+                                                    field_type.size * array_size 
+                                                else 
+                                                    field_type.size;
                                                 const field_align = if (is_pointer) @alignOf(usize) else field_type.alignment;
 
                                                 if (!is_pointer and (field_align == 0 or field_size == 0)) {
@@ -191,6 +219,7 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                                 if (field_align > struct_align) struct_align = field_align;
 
                                                 is_pointer = false;
+                                                is_array = false;
                                             }
                                         },
                                         else => continue,
@@ -204,10 +233,6 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                                 std.debug.print("Struct '{s}' definition complete: size={d}, alignment={d}\n", .{ name_slice, type_node.size, type_node.alignment });
                             }
                             spec.* = .{ .Type = type_node };
-                            st().assign_type(type_node) catch {
-                                log.ErrorLoc(new_struct.location.?, log.f_str("Failed to assign struct type '{s}' to symbol table", .{name_slice}), m.diagnostic_source(new_struct.location.?.line), "");
-                                return;
-                            };
                         }
                     },
                     else => |tag| {
@@ -1033,6 +1058,24 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 );
             };
             if (ast.debug_mode) std.debug.print("Type node semantically analyzed!\n", .{});
+        },
+        .Array => {
+            if (ast.debug_mode) std.debug.print("Array node semantically analyzed!\n", .{});
+            const array = node.Array;
+            // Analyze the identifier (could be Identifier or IdPointer for struct.field[index])
+            if (array.identifier) |id| {
+                semantic_analyze_node(id) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            }
+            // Analyze the index expression
+            if (array.constant) |idx| {
+                semantic_analyze_node(idx) catch |err| {
+                    if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                    return;
+                };
+            }
         },
         else => |tag| {
             if (ast.debug_mode) std.debug.print("Unknown node type: {}\n", .{tag});
