@@ -391,8 +391,8 @@ fn emitFunctionBody(
     func: *Function,
     ar: *ActivationRecord,
 ) !void {
-    _ = ctx;
-    _ = ar;
+    // _ = ctx;
+    // _ = ar;
 
     // TODO:
     //  - iterate over func.instructions
@@ -553,7 +553,7 @@ fn emitBranchInstruction(
 ///   - build activation record
 ///   - allocate registers
 ///   - emit prologue/body/epilogue
-fn emitProgramRiscV(ctx: *BackendContext) !void {
+fn assemble(ctx: *BackendContext) !void {
     var stdout = std.io.getStdOut().writer();
     try stdout.print("    .text\n", .{});
 
