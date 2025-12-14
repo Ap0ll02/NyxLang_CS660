@@ -559,9 +559,11 @@ pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !v
     var stdout = std.io.getStdOut().writer();
     try stdout.print("    .text\n", .{});
 
-    for (nyac_list) |nyac| {
+    for (nyac_list.items) |nyac| {
         // Switch On The NYAC List Item
-        nyac 
+        switch(nyac.instruction) {
+
+        }
         // Build activation record
         var ar = try buildActivationRecord(ctx.allocator, nyac);
         nyac.activation_record = ar;
