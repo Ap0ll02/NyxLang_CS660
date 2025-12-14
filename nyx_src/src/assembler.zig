@@ -1,4 +1,5 @@
 const std = @import("std");
+const nya = @import("3ac.zig");
 
 /// =============================================================
 /// Backend Overview (NYAC / 3AC  →  RISC-V)
@@ -553,22 +554,25 @@ fn emitBranchInstruction(
 ///   - build activation record
 ///   - allocate registers
 ///   - emit prologue/body/epilogue
-fn assemble(ctx: *BackendContext) !void {
+pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !void { // TAKE IN NYAC LIST
+    const ctx = initBackendContext(alloc);
     var stdout = std.io.getStdOut().writer();
     try stdout.print("    .text\n", .{});
 
-    for (ctx.functions.items) |*func| {
+    for (nyac_list) |nyac| {
+        // Switch On The NYAC List Item
+        nyac 
         // Build activation record
-        var ar = try buildActivationRecord(ctx.allocator, func);
-        func.activation_record = ar;
+        var ar = try buildActivationRecord(ctx.allocator, nyac);
+        nyac.activation_record = ar;
 
         // Allocate registers
-        try allocateRegistersForFunction(ctx.allocator, ctx, func, &ar);
+        try allocateRegistersForFunction(ctx.allocator, ctx, nyac, &ar);
 
         // Emit function
-        try emitFunctionPrologue(stdout, func, &ar);
-        try emitFunctionBody(stdout, ctx, func, &ar);
-        try emitFunctionEpilogue(stdout, func, &ar);
+        try emitFunctionPrologue(stdout, nyac, &ar);
+        try emitFunctionBody(stdout, ctx, nyac, &ar);
+        try emitFunctionEpilogue(stdout, nyac, &ar);
     }
 }
 

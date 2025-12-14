@@ -7,6 +7,7 @@ const analyzer = @import("semanticAnalyzer.zig");
 const c = @cImport(@cInclude("c11.tab.h"));
 const bi = @import("builtin.zig");
 const nya = @import("3ac.zig");
+const asmb = @import("assembler.zig");
 
 pub const YY_BUFFER_STATE = *opaque {};
 extern fn yylex() c_int; // from your lexer
@@ -17,6 +18,7 @@ pub export var column: c_int = 1;
 pub export var line: c_int = 1;
 pub const parse_alloc = std.heap.c_allocator;
 var source_code: []const u8 = undefined;
+var assemble_flag: bool = false;
 
 pub fn main() !void {
     _main() catch |err| {
@@ -44,6 +46,13 @@ fn _main() !void {
     const filename = args[1];
     if (args.len > 2) {
         if (std.mem.eql(u8, args[2], "-d")) {
+            ast.debug_mode = true;
+        }
+        else if (std.mem.eql(u8, args[2], "-a")) {
+            ast.assemble_flag = true;
+        }
+        else if (std.mem.eql(u8, args[2], "-da") or std.mem.eql(u8, args[2], "-ad")) {
+            ast.assemble_flag = true;
             ast.debug_mode = true;
         }
     }
@@ -86,9 +95,13 @@ fn _main() !void {
             return;
         };
 
-        _ = compiler.compile() catch |err| {
+        const nyac_list: std.ArrayList(nya.NYAC) = compiler.compile() catch |err| {
             std.debug.print("Failed to compile w/ error: {s}\n", .{@errorName(err)});
         };
+
+        // Assembler
+        if(assemble_flag) asmb.assemble(nyac_list, parse_alloc);
+
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{ if (result == 1) "failed." else "successful", log.err_count });
     }
 }
