@@ -45,15 +45,14 @@ fn _main() !void {
     defer allocator.free(cwd);
     const filename = args[1];
     if (args.len > 2) {
-        if (std.mem.eql(u8, args[2], "-d")) {
+        const flags = args[2];
+        // Check for 'd' flag
+        if (std.mem.indexOf(u8, flags, "d") != null) {
             ast.debug_mode = true;
         }
-        else if (std.mem.eql(u8, args[2], "-a")) {
+        // Check for 'a' flag
+        if (std.mem.indexOf(u8, flags, "a") != null) {
             assemble_flag = true;
-        }
-        else if (std.mem.eql(u8, args[2], "-da") or std.mem.eql(u8, args[2], "-ad")) {
-            assemble_flag = true;
-            ast.debug_mode = true;
         }
     }
     if (ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
@@ -97,7 +96,7 @@ fn _main() !void {
 
         const nyac_list: *std.ArrayList(nya.NYAC) = try compiler.compile();
         // Assembler
-        if(assemble_flag) try asmb.assemble(parse_alloc, nyac_list.items);
+        if (assemble_flag) try asmb.assemble(parse_alloc, nyac_list.items);
 
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{ if (result == 1) "failed." else "successful", log.err_count });
     }
