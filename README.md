@@ -1,10 +1,10 @@
 # 🌑 NyxLang
 
 > *"Born of shadow, parsed by light."*
-
 NyxLang is a **modern C-inspired language** powered by **Flex**, **Bison**, and **Zig**.  
 It’s named after **Nyx**, the Greek Titaness of Night — because every language deserves a little darkness, mystery, and just the right amount of ✨chaotic feline energy✨.
 
+![NYX](./CatGirl&CatBoyPictures/Nyx.png)
 This project started as an academic exploration of compiler construction — but it’s quickly grown claws.  
 NyxLang aims to blend the **low-level precision of C** with **modern compilation in Zig**, creating a clean, experimental playground for language design.
 
