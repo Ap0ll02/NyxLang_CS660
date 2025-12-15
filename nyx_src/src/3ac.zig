@@ -60,7 +60,12 @@ pub const NYACOperand = union(enum) {
     Register: Register,
 };
 
-pub const NYAC = struct { return_addr: Register, instruction: Instruction, op1: NYACOperand, op2: NYACOperand };
+pub const NYAC = struct { 
+    return_addr: Register, 
+    instruction: Instruction, 
+    op1: NYACOperand, 
+    op2: NYACOperand 
+};
 
 // Storage for registers, and the outputted nyac_list
 var registers: std.ArrayList(Value) = .empty;
