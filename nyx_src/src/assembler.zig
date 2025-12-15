@@ -1,5 +1,7 @@
 const std = @import("std");
 const nya = @import("3ac.zig");
+const log = @import("Log.zig");
+const ast = @import("ast.zig");
 
 // -==============-
 //  MISSION ASSIGNMENTS:
@@ -533,7 +535,7 @@ fn emitCallInstruction(
 /// Example: lower a RETURN instruction.
 fn emitReturnInstruction(
     writer: anytype,
-    ctx: *BackendContext,[]const u8
+    ctx: *BackendContext,
     func: *Function,
     ar: *ActivationRecord,
     inst: *const Instruction,
@@ -602,7 +604,7 @@ pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !v
     }
 }
 
-fn get_address(address: nya.NYACOperand) Address { // CHANGE TO THE STRUCT IT WILL RETURN
+fn get_address(address: nya.NYACOperand) Address { 
     return address.Label; // change this shit
 }
 
@@ -613,6 +615,68 @@ fn handle_add(nyac: nya.NYAC) void {
 
     const add_ass = asmbl { .inst = "ADD", ra, ad_op1, ad_op2};
     emit(add_ass); // Write to .NYAssembly file
+}
+
+fn handle_sub(nyac: nya.NYAC) void {
+    const ra = get_address(nyac.return_addr);
+    const op1_ad = get_address(nyac.op1);
+    // const op2_ad = get_address(nyac.op2);
+    const instruction = assembl{.inst = "ADD", .ra = "", .op1 = "", .op2 = ""};
+    switch (ra) {
+        Address.reg => {
+            if (ast.debug_mode) log.log_basic(log.LogType.INFO, "Register return address for ADD Instruction: {d}", .{ra.reg});
+            instruction.ra = ra.reg;
+        },
+        Address.label => {
+            log.log_basic(
+                log.LogType.ERROR, 
+                "Invalid Address, expected register or frame pointer offset, found Label: {s}", 
+                .{ra.label}
+            );
+        },
+        Address.fp => {
+            if (ast.debug_mode) log.log_basic(log.LogType.INFO, "Register for ADD Instruction: {d}", .{ra.reg});
+            // new_address = frame pointer math, store into new address
+            // instruction.ra = new_address
+        }
+    }
+    switch (op1_ad) {
+        Address.reg => {
+            if (ast.debug_mode) log.log_basic(log.LogType.INFO, "Register op1 for ADD Instruction: {d}", .{op1_ad.reg});
+            instruction.op1 = op1_ad.reg;
+        },
+        Address.label => {
+            log.log_basic(
+                log.LogType.ERROR, 
+                "Invalid Address, expected register or frame pointer offset, found Label: {s}", 
+                .{ra.label}
+            );
+        },
+        Address.fp => {
+            if (ast.debug_mode) log.log_basic(log.LogType.INFO, "Register for ADD Instruction: {d}", .{ra.reg});
+            // new_address = frame pointer math, store into new address
+            // instruction.ra = new_address
+        }
+    }
+    switch (op2_ad) {
+        Address.reg => {
+            if (ast.debug_mode) log.log_basic(log.LogType.INFO, "Register op2 for ADD Instruction: {d}", .{op1_ad.reg});
+            instruction.op2 = op2_ad.reg;
+        },
+        Address.label => {
+            log.log_basic(
+                log.LogType.ERROR, 
+                "Invalid Address, expected register or frame pointer offset, found Label: {s}", 
+                .{ra.label}
+            );
+        },
+        Address.fp => {
+            if (ast.debug_mode) log.log_basic(log.LogType.INFO, "Register for ADD Instruction: {d}", .{ra.reg});
+            // new_address = frame pointer math, store into new address
+            // instruction.ra = new_address
+        }
+    }
+    emit(instruction);
 }
 
 /// Deinitialize backend context and free resources.
@@ -636,4 +700,8 @@ fn deinitBackendContext(ctx: *BackendContext) void {
 
     // Deinit physical registers array
     ctx.physical_registers.deinit();
+}
+
+fn emit(instruction: assembl) void {
+    if (ast.debug_mode) std.debug.print("{s} {s} {s} {s}", .{instruction.inst, instruction.ra, instruction.op1, instruction.op2});
 }
