@@ -66,11 +66,17 @@ zig build run -- src/<filename> [flags]
 | `-a` | Transpile 3AC to RISC-V assembly |
 | `-ad` | Compile to NYAC with debug output, then transpile to RISC-V |
 
-Here is a debug example: `zig build run -- jack.nyx -d`
+- Here is a debug example: `zig build run -- jack.nyx -d`
 
-Here is an assembly example: `zig build run -- jack.nyx -a`
+- Here is an assembly example: `zig build run -- jack.nyx -a`
 
 Note that assembly only prints to terminal as its development is still in progress.
+
+The generated NYAC can be found in `a.nyac`
+
+```fish
+cat a.nyac
+```
 
 <!-- ## Input and Running -->
 
