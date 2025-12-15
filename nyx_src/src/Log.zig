@@ -87,6 +87,18 @@ fn log(this_column: usize, this_line: usize, msg: []const u8, source: []const u8
         std.debug.print("\x1b[1;36mHint: \x1b[0m{s}\n", .{hint});
 }
 
+pub fn log_basic(l_type: LogType, str: []const u8, args: anytype) void {
+    const string = f_str(str, args);
+
+    // HEADER
+    switch (l_type) {
+        .INFO => std.debug.print("\x1b[1;32mNyxLang | Info: \x1b[0m", .{}),
+        .ERROR => std.debug.print("\x1b[1;33mNyxLang | Error: \x1b[0m", .{}),
+        .WARN => std.debug.print("\x1b[1;34mNyxLang | Warning: \x1b[0m", .{}),
+    }
+    std.debug.print("{s}\n", .{string});
+}
+
 pub fn f_str(comptime str: []const u8, args: anytype) []const u8 {
     const alloc = std.heap.c_allocator;
     return std.fmt.allocPrint(alloc, str, args) catch {
