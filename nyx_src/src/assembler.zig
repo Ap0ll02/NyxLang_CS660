@@ -611,17 +611,47 @@ fn handle_add(nyac: nya.NYAC) void {
     const ra = get_address(nyac.address);
     const ad_op1 = get_address(nyac.op1);
     const ad_op2 = get_address(nyac.op2);
+    // add a0, a1, a2
+    var assembl1 = assembl{.inst = "ADD"};
+    // Figure out what type of address return holds
     switch (ra){
         ra.Register =>{
-
+            // convert this to a string and use to build assembl struct
         }, //case for a register
         ra.Label => {
-
+            // This should be a go to instruction
         },
         ra.Value =>{
-            
+            // This is an offset It will most likely cause an error with an add instruction 
         },
     }
+    // Figure out what type of return address op1 holds 
+    switch (ad_op1){
+        ra.Register =>{
+            assembl{.ra = }
+        }, //case for a register
+        ra.Label => {
+            
+        },
+        ra.Value =>{
+            // This is an offset
+        },
+    }
+    // Figure out what type of return address op2 holds
+    switch (ad_op2){
+        ra.Register =>{
+            assembl{.ra = }
+        }, //case for a register
+        ra.Label => {
+            
+        },
+        ra.Value =>{
+            // This is an offset
+        },
+    }
+    
+    // ass a0, a1, a3
+
 
     const add_ass = asmbl { .inst = "ADD", ra, ad_op1, ad_op2};
     emit(add_ass); // Write to .NYAssembly file
