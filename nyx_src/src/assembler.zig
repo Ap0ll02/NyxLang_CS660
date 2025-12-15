@@ -1,6 +1,15 @@
 const std = @import("std");
 const nya = @import("3ac.zig");
 
+// -==============-
+//  MISSION ASSIGNMENTS:
+// -==============-
+// Jack - Assembl struct, sub, div  
+// Quinn - finish add, mul
+// Richie - Black Box Register Allocation, Ask for help when u need it good luck bro
+// Jake - WHatever needs help man, leggo
+
+
 /// =============================================================
 /// Backend Overview (NYAC / 3AC  →  RISC-V)
 ///
@@ -122,6 +131,12 @@ const BackendContext = struct {
     // Optional: config flags
 
 };
+
+// const realRegister = union {
+//     reg: ?[]const u8,
+//     label: ?[]const u8,
+//     fp: ?[]const u8
+// }
 
 // ===============================
 // Helper: BackendContext setup/teardown
@@ -510,7 +525,7 @@ fn emitCallInstruction(
 /// Example: lower a RETURN instruction.
 fn emitReturnInstruction(
     writer: anytype,
-    ctx: *BackendContext,
+    ctx: *BackendContext,[]const u8
     func: *Function,
     ar: *ActivationRecord,
     inst: *const Instruction,
@@ -552,7 +567,7 @@ fn emitBranchInstruction(
 /// For each function:
 ///   - analyze vregs + liveness
 ///   - build activation record
-///   - allocate registers
+///   - allocate registers[]const u8
 ///   - emit prologue/body/epilogue
 pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !void { // TAKE IN NYAC LIST
     const ctx = initBackendContext(alloc);
@@ -561,8 +576,9 @@ pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !v
 
     for (nyac_list.items) |nyac| {
         // Switch On The NYAC List Item
-        switch(nyac.instruction) {
-
+        switch (nyac.instruction) {
+            nya.Instruction.Add => handle_add(nyac),
+            else => {},
         }
         // Build activation record
         var ar = try buildActivationRecord(ctx.allocator, nyac);
@@ -576,6 +592,19 @@ pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !v
         try emitFunctionBody(stdout, ctx, nyac, &ar);
         try emitFunctionEpilogue(stdout, nyac, &ar);
     }
+}
+
+fn get_address(address: nya.NYACOperand) []const u8 { // CHANGE TO THE STRUCT IT WILL RETURN
+    return address.Label; // change this shit
+}
+
+fn handle_add(nyac: nya.NYAC) void {
+    const ra = get_address(nyac.address);
+    const ad_op1 = get_address(nyac.op1);
+    const ad_op2 = get_address(nyac.op2);
+
+    const add_ass = asmbl { .inst = "ADD", ra, ad_op1, ad_op2};
+    emit(add_ass); // Write to .NYAssembly file
 }
 
 /// Deinitialize backend context and free resources.
