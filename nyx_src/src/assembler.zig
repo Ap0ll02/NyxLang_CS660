@@ -140,11 +140,11 @@ const BackendContext = struct {
 
 };
 
-// const realRegister = union {
-//     reg: ?[]const u8,
-//     label: ?[]const u8,
-//     fp: ?[]const u8
-// }
+const Address = union {
+    reg: ?[]const u8,
+    label: ?[]const u8,
+    fp: ?[]const u8
+};
 
 // ===============================
 // Helper: BackendContext setup/teardown
@@ -602,7 +602,7 @@ pub fn assemble(nyac_list: std.ArrayList(nya.NYAC), alloc: std.mem.Allocator) !v
     }
 }
 
-fn get_address(address: nya.NYACOperand) []const u8 { // CHANGE TO THE STRUCT IT WILL RETURN
+fn get_address(address: nya.NYACOperand) Address { // CHANGE TO THE STRUCT IT WILL RETURN
     return address.Label; // change this shit
 }
 
