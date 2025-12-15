@@ -9,8 +9,7 @@ const ast = @import("ast.zig");
 // Jack - Assembl struct, sub, div  
 // Quinn - finish add, mul
 // Richie - Black Box Register Allocation, Ask for help when u need it good luck bro
-// Jake - WHatever needs help man, leggo
-
+// Jake - WHatever needs help man, leggo 8008135
 
 /// =============================================================
 /// Backend Overview (NYAC / 3AC  →  RISC-V)
@@ -612,6 +611,17 @@ fn handle_add(nyac: nya.NYAC) void {
     const ra = get_address(nyac.address);
     const ad_op1 = get_address(nyac.op1);
     const ad_op2 = get_address(nyac.op2);
+    switch (ra){
+        ra.Register =>{
+
+        }, //case for a register
+        ra.Label => {
+
+        },
+        ra.Value =>{
+            
+        },
+    }
 
     const add_ass = asmbl { .inst = "ADD", ra, ad_op1, ad_op2};
     emit(add_ass); // Write to .NYAssembly file
