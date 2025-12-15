@@ -28,6 +28,14 @@ const nya = @import("3ac.zig");
 // Basic enums & IR structs
 // ===============================
 
+// Assembl struct for emitting RISC-V 
+const assembl = struct {
+    inst: []const u8,
+    ra: []const u8,
+    op1: []const u8,
+    op2: []const u8
+};
+
 /// Opcodes that correspond to NYAC / 3AC instructions.
 const OpCode = enum {
     Label, // function/branch label
