@@ -53,7 +53,7 @@ pub const Value = union(enum) {
 
 // Reserved Register Allocation
 pub const Register = usize;
-const Unused: Register = 0;
+pub const Unused: Register = 0;
 pub const NYACOperand = union(enum) {
     Label: []const u8,
     Value: Value,
@@ -112,14 +112,14 @@ pub const Compiler = struct {
         return compiler;
     }
     pub fn deinit(self: *Compiler) void {
-        self.nyac_list.deinit(self.alloc);
+        //self.nyac_list.deinit(self.alloc);
         self.file_text.deinit(self.alloc);
         self.var_registers.deinit();
         self.var_locations.deinit();
         self.alloc.destroy(self);
     }
 
-    pub fn compile(self: *Compiler) !std.ArrayList(NYAC) {
+    pub fn compile(self: *Compiler) !*std.ArrayList(NYAC) {
         const old_root = self.root;
         self.cur_line = 0;
         switch (self.root.*) {
@@ -147,7 +147,7 @@ pub const Compiler = struct {
         if (ast.debug_mode) std.debug.print("{s}", .{self.file_text.items});
         try file.writeAll(self.file_text.items);
 
-        return self.nyac_list;
+        return &self.nyac_list;
     }
 
     pub fn compile_node(self: *Compiler) anyerror!Register {
@@ -382,6 +382,7 @@ pub const Compiler = struct {
                 }
             }
         }
+
         if (root.assign_node) |ar| {
             name = switch (ar.Assignment.declarator.*) {
                 .Array => |array| blk: {
@@ -437,11 +438,12 @@ pub const Compiler = struct {
                 },
             };
         } else return Unused;
-        // allocate register slot
+
+        // Allocate register slot for the new variable
         self.count += 1;
         const dest = self.count;
 
-        // track the variable and register
+        // Track the variable and register
         try self.var_registers.put(name, dest);
         if (ast.debug_mode) std.debug.print("Identifier \"{s}\" assigned to register {d}\n", .{ name, dest });
 
@@ -452,7 +454,8 @@ pub const Compiler = struct {
             }
         }
 
-        var nyac = NYAC{
+        // Emit IMBUE_REGISTER to allocate space
+        var imbue_nyac = NYAC{
             .instruction = .ImbueRegister,
             .return_addr = dest,
             .op1 = NYACOperand{ .Register = Unused },
@@ -461,16 +464,36 @@ pub const Compiler = struct {
 
         if (struct_size > 0) {
             const clamped_size = @min(struct_size, std.math.maxInt(i32));
-            nyac.op1 = NYACOperand{ .Value = Value{ .Number = @intCast(clamped_size) } };
+            imbue_nyac.op1 = NYACOperand{ .Value = Value{ .Number = @intCast(clamped_size) } };
         }
 
+        try self.nyac_list.append(self.alloc, imbue_nyac);
+        try self.emit(imbue_nyac);
+
+        // NOW compile the initializer/assignment if present
         if (root.assign_node) |an| {
-            // decrement temporary count to avoid skipping a temporary
-            self.count -= 1;
-            nyac.return_addr = try self.compile_expr(an);
+            if (an.Assignment.initializer) |initializer| {
+                // Compile the RHS expression (this will look up 'x' and return t9)
+                const rhs_reg = switch (initializer.*) {
+                    .InitializerList => |init_list| {
+                        return create_init_list(self, init_list, @intCast(dest));
+                    },
+                    else => try self.compile_expr(initializer),
+                };
+
+                // Store the value from rhs_reg into our new variable
+                const store_nyac = NYAC{
+                    .instruction = .StoreRegister,
+                    .return_addr = dest,
+                    .op1 = NYACOperand{ .Register = rhs_reg },
+                    .op2 = NYACOperand{ .Register = Unused },
+                };
+
+                try self.nyac_list.append(self.alloc, store_nyac);
+                try self.emit(store_nyac);
+            }
         }
-        try self.nyac_list.append(self.alloc, nyac);
-        try self.emit(nyac);
+
         if (ast.debug_mode) std.debug.print("Decl Node Emitted\n", .{});
         return dest;
     }

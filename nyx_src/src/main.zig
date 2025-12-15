@@ -49,10 +49,10 @@ fn _main() !void {
             ast.debug_mode = true;
         }
         else if (std.mem.eql(u8, args[2], "-a")) {
-            ast.assemble_flag = true;
+            assemble_flag = true;
         }
         else if (std.mem.eql(u8, args[2], "-da") or std.mem.eql(u8, args[2], "-ad")) {
-            ast.assemble_flag = true;
+            assemble_flag = true;
             ast.debug_mode = true;
         }
     }
@@ -95,12 +95,9 @@ fn _main() !void {
             return;
         };
 
-        const nyac_list: std.ArrayList(nya.NYAC) = compiler.compile() catch |err| {
-            std.debug.print("Failed to compile w/ error: {s}\n", .{@errorName(err)});
-        };
-
+        const nyac_list: *std.ArrayList(nya.NYAC) = try compiler.compile();
         // Assembler
-        if(assemble_flag) asmb.assemble(nyac_list, parse_alloc);
+        if(assemble_flag) try asmb.assemble(parse_alloc, nyac_list.items);
 
         std.debug.print("\nParse {s} with \x1b[1;31m{d} errors\x1b[0m.\n", .{ if (result == 1) "failed." else "successful", log.err_count });
     }

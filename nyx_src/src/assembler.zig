@@ -10,8 +10,8 @@ pub fn assemble(
     defer alloc.free(allocated);
     
     // 2. Lower to RISC-V instructions
-    const riscv = try lower_to_riscv(alloc, allocated);
-    defer riscv.deinit();
+    var riscv = try lower_to_riscv(alloc, allocated);
+    defer riscv.deinit(alloc);
     
     // 3. Emit assembly
     try emit_assembly(riscv);
@@ -90,11 +90,11 @@ fn build_interference_graph(
     // Adjacency list representation
     var graph = try alloc.alloc(std.ArrayList(usize), temp_count);
     for (graph) |*adj| {
-        adj.* = std.ArrayList(usize).init(alloc);
+        adj.* = std.ArrayList(usize).empty;
     }
     
     errdefer {
-        for (graph) |*adj| adj.deinit();
+        for (graph) |*adj| adj.deinit(alloc);
         alloc.free(graph);
     }
     
@@ -108,8 +108,8 @@ fn build_interference_graph(
         while (iter.next()) |live_reg| {
             if (live_reg != def) {
                 // Add edge: def <-> live_reg
-                try add_edge(&graph[def], live_reg);
-                try add_edge(&graph[live_reg], def);
+                try add_edge(&graph[def], live_reg, alloc);
+                try add_edge(&graph[live_reg], def, alloc);
             }
         }
     }
@@ -117,12 +117,12 @@ fn build_interference_graph(
     return graph;
 }
 
-fn add_edge(adj_list: *std.ArrayList(usize), neighbor: usize) !void {
+fn add_edge(adj_list: *std.ArrayList(usize), neighbor: usize, alloc: std.mem.Allocator) !void {
     // Avoid duplicates
     for (adj_list.items) |n| {
         if (n == neighbor) return;
     }
-    try adj_list.append(neighbor);
+    try adj_list.append(alloc, neighbor);
 }
 
 fn color_graph(
@@ -165,7 +165,7 @@ fn color_graph(
 }
 
 fn free_graph(alloc: std.mem.Allocator, graph: []std.ArrayList(usize)) void {
-    for (graph) |*adj| adj.deinit();
+    for (graph) |*adj| adj.deinit(alloc);
     alloc.free(graph);
 }
 
@@ -235,12 +235,12 @@ fn lower_to_riscv(
     alloc: std.mem.Allocator,
     nyac: []const nya.NYAC,
 ) !std.ArrayList(RiscVInst) {
-    var out = std.ArrayList(RiscVInst).init(alloc);
+    var out = std.ArrayList(RiscVInst).empty;
     
     for (nyac) |inst| {
         switch (inst.instruction) {
             .Add => {
-                try out.append(.{
+                try out.append(alloc, .{
                     .op = .add,
                     .rd = inst.return_addr,
                     .rs1 = inst.op1.Register,
@@ -248,7 +248,7 @@ fn lower_to_riscv(
                 });
             },
             .Constant => {
-                try out.append(.{
+                try out.append(alloc, .{
                     .op = .li,
                     .rd = inst.return_addr,
                     .imm = inst.op1.Value.Number,
@@ -256,7 +256,7 @@ fn lower_to_riscv(
             },
             .JumpFalse => {
                 // JUMPFALSE t1, L2 -> beq t1, x0, L2
-                try out.append(.{
+                try out.append(alloc, .{
                     .op = .beq,
                     .rs1 = inst.op1.Register,
                     .rs2 = 0, // x0 (zero register)
@@ -264,7 +264,7 @@ fn lower_to_riscv(
                 });
             },
             .Label => {
-                try out.append(.{
+                try out.append(alloc, .{
                     .op = .label,
                     .label = inst.op1.Label,
                 });
@@ -277,14 +277,12 @@ fn lower_to_riscv(
 }
 
 fn emit_assembly(riscv: std.ArrayList(RiscVInst)) !void {
-    const stdout = std.io.getStdOut().writer();
-    
     for (riscv.items) |inst| {
         switch (inst.op) {
-            .add => try stdout.print("    add t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
-            .li => try stdout.print("    li t{d}, {d}\n", .{inst.rd, inst.imm}),
-            .beq => try stdout.print("    beq t{d}, x{d}, {s}\n", .{inst.rs1, inst.rs2, inst.label}),
-            .label => try stdout.print("{s}:\n", .{inst.label}),
+            .add => std.debug.print("    add t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
+            .li => std.debug.print("    li t{d}, {d}\n", .{inst.rd, inst.imm}),
+            .beq => std.debug.print("    beq t{d}, x{d}, {s}\n", .{inst.rs1, inst.rs2, inst.label}),
+            .label => std.debug.print("{s}:\n", .{inst.label}),
             else => {},
         }
     }
