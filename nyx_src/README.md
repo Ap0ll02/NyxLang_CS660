@@ -51,15 +51,7 @@ cd NyxLang_CS660
 
 #### Compilation Modes
 
-By default, the compiler produces **3-address code (3AC)**.
-
-Optional flags can enable:
-
-- **Debug output** of 3AC
-- **Transpilation** of 3AC into **RISC-V assembly**
-  - Assembly to file **coming soon...**
-
-Note that flags may be combined.
+Currently, the compiler produces **3-address code (NYAC)** and it's translation to RISCV assembly is in the works.
 
 ```fish
 cd nyx_src
@@ -72,11 +64,13 @@ zig build run -- src/<filename> [flags]
 | ----- | ----------- |
 | `-d` | Debug Mode Output |
 | `-a` | Transpile 3AC to RISC-V assembly |
-| `-ad` | Compile to 3AC with debug output, then transpile to RISC-V |
+| `-ad` | Compile to NYAC with debug output, then transpile to RISC-V |
 
 Here is a debug example: `zig build run -- jack.nyx -d`
 
 Here is an assembly example: `zig build run -- jack.nyx -a`
+
+Note that assembly only prints to terminal as its development is still in progress.
 
 <!-- ## Input and Running -->
 
