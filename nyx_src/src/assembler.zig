@@ -140,7 +140,7 @@ const BackendContext = struct {
 
 };
 
-const Address = union {
+const Address = union(enum) {
     reg: ?[]const u8,
     label: ?[]const u8,
     fp: ?[]const u8
