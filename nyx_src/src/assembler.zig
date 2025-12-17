@@ -314,12 +314,31 @@ fn lower_to_riscv(
             // Arethmetic Operations ////
             /////////////////////////////
             .Add => {
-                try out.append(alloc, .{
-                    .op = .add,
-                    .rd = inst.return_addr,
-                    .rs1 = inst.op1.Register,
-                    .rs2 = inst.op2.Register,
-                });
+                if (inst.op1 == .Register and inst.op2 == .Register) {
+                    try out.append(alloc, .{
+                        .op = .add,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = inst.op2.Register,
+                    });
+                } else if (inst.op1 == .Register and inst.op2 == .Value) {
+                    try out.append(alloc, .{
+                        .op = .addi,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .imm = inst.op2.Value.Number,
+                    });
+                } else if (inst.op1 == .Value and inst.op2 == .Register) {
+                    // swap to use addi
+                    try out.append(alloc, .{
+                        .op = .addi,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op2.Register,
+                        .imm = inst.op1.Value.Number,
+                    });
+                } else {
+                    return error.UnsupportedAddOperands;
+                }
             },
             .Subtract => {
                 try out.append(alloc, .{
@@ -419,29 +438,30 @@ fn lower_to_riscv(
             },
 
             .LoadRegister => {
-                const dst = inst.return_addr; // t14
-                const slot_id = inst.op1.Register; // t9
-                const off = slot_off.get(slot_id) orelse return error.UnknownSlot;
+                // LR dst, addr
+                const dst = inst.return_addr;
+                const addr = inst.op1.Register;
 
                 try out.append(alloc, .{
                     .op = .lw,
                     .rd = dst,
-                    .rs1 = 2, // sp
-                    .offset = off,
+                    .rs1 = addr,
+                    .offset = 0,
                 });
             },
             .StoreRegister => {
-                const slot_id = inst.return_addr; // t9 (destination slot)
-                const value = inst.op1.Register; // t10 (value register)
-                const off = slot_off.get(slot_id) orelse return error.UnknownSlot;
+                // SR addr, value
+                const addr = inst.return_addr;
+                const value = inst.op1.Register;
 
                 try out.append(alloc, .{
                     .op = .sw,
-                    .rs1 = 2, // sp
+                    .rs1 = addr,
                     .rs2 = value,
-                    .offset = off,
+                    .offset = 0,
                 });
             },
+
             .Return => {
                 // restore stack pointer
                 if (fs != 0) {
