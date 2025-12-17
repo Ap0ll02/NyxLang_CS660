@@ -1,5 +1,6 @@
 const std = @import("std");
 const nya = @import("3ac.zig");
+const ast = @import("ast.zig");
 
 pub fn assemble(
     alloc: std.mem.Allocator,
@@ -13,8 +14,8 @@ pub fn assemble(
     var riscv = try lower_to_riscv(alloc, allocated);
     defer riscv.deinit(alloc);
 
-    // 3. Emit assembly
-    try emit_assembly(riscv);
+    // 3. Emit assembly to file
+    try emit_assembly(alloc, riscv, "ass.s");
 }
 
 // These are the actual physical regiesters that we are assign
@@ -485,68 +486,111 @@ fn lower_to_riscv(
     return out;
 }
 
-fn emit_assembly(riscv: std.ArrayList(RiscVInst)) !void {
+fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst), output_path: []const u8) !void {
+    _ = alloc;
+    const file = try std.fs.cwd().createFile(output_path, .{});
+    defer file.close();
+
+    var file_buf: [8192]u8 = undefined;
+    var file_writer_wrapper = file.writer(&file_buf);
+    const writer: *std.Io.Writer = &file_writer_wrapper.interface;
+    
     for (riscv.items) |inst| {
         switch (inst.op) {
             .label => {
-                std.debug.print("{s}:\n", .{inst.label});
+                try writer.print("{s}:\n", .{inst.label});
+                // if (ast.debug_mode) try std.debug.print("{s}:\n", .{inst.label});
             },
 
             .li => {
-                std.debug.print("    li x{d}, {d}\n", .{ inst.rd, inst.imm });
+                try writer.print("    li x{d}, {d}\n", .{ inst.rd, inst.imm });
+                // if (ast.debug_mode) try std.debug.print("    li x{d}, {d}\n", .{ inst.rd, inst.imm });
             },
 
             // 3-register ALU ops
             .add, .sub, .mul, .div, .rem, .band, .bor, .bxor, .slt, .sltu => {
-                std.debug.print(
+                try writer.print(
                     "    {s} x{d}, x{d}, x{d}\n",
                     .{ @tagName(inst.op), inst.rd, inst.rs1, inst.rs2 },
                 );
+                // if (ast.debug_mode) try std.debug.print(
+                //     "    {s} x{d}, x{d}, x{d}\n",
+                //     .{ @tagName(inst.op), inst.rd, inst.rs1, inst.rs2 },
+                // );
             },
 
             // branches
             .beq, .bne, .blt, .bge => {
-                std.debug.print(
+                try writer.print(
                     "    {s} x{d}, x{d}, {s}\n",
                     .{ @tagName(inst.op), inst.rs1, inst.rs2, inst.label },
                 );
+                // if (ast.debug_mode) try std.debug.print(
+                //     "    {s} x{d}, x{d}, {s}\n",
+                //     .{ @tagName(inst.op), inst.rs1, inst.rs2, inst.label },
+                // );
             },
 
             // jumps
             .jal => {
-                std.debug.print(
+                try writer.print(
                     "    jal x{d}, {s}\n",
                     .{ inst.rd, inst.label },
                 );
+                // if (ast.debug_mode) try std.debug.print(
+                //     "    jal x{d}, {s}\n",
+                //     .{ inst.rd, inst.label },
+                // );
             },
 
             // loads
             .lw => {
-                std.debug.print(
+                try writer.print(
                     "    lw x{d}, {d}(x{d})\n",
                     .{ inst.rd, inst.offset, inst.rs1 },
                 );
+                // if (ast.debug_mode) try std.debug.print(
+                //     "    lw x{d}, {d}(x{d})\n",
+                //     .{ inst.rd, inst.offset, inst.rs1 },
+                // );
             },
 
             // stores
             .sw => {
-                std.debug.print(
+                try writer.print(
                     "    sw x{d}, {d}(x{d})\n",
                     .{ inst.rs2, inst.offset, inst.rs1 },
                 );
+                // if (ast.debug_mode) try std.debug.print(
+                //     "    sw x{d}, {d}(x{d})\n",
+                //     .{ inst.rs2, inst.offset, inst.rs1 },
+                // );
             },
 
-            .addi => std.debug.print("    addi x{d},x{d}, {d}\n", .{ inst.rd, inst.rs1, inst.imm }),
-            .ret => std.debug.print("    ret\n", .{}),
+            .addi => {
+                try writer.print("    addi x{d},x{d}, {d}\n", .{ inst.rd, inst.rs1, inst.imm });
+                // if (ast.debug_mode) try std.debug.print("    addi x{d},x{d}, {d}\n", .{ inst.rd, inst.rs1, inst.imm });
+            },
+
+            .ret => {
+                try writer.print("    ret\n", .{});
+                // if (ast.debug_mode) try std.debug.print("    ret\n", .{});
+            },
 
             else => {
-                std.debug.print(
+                try writer.print(
                     "    # UNEMITTED OP: {s}\n",
                     .{@tagName(inst.op)},
                 );
+                // if (ast.debug_mode) try std.debug.print(
+                //     "    # UNEMITTED OP: {s}\n",
+                //     .{@tagName(inst.op)},
+                // );
             },
         }
     }
+
+    try writer.flush();
 }
 
 fn align16(n: i32) i32 {
