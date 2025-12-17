@@ -2,6 +2,15 @@ const std = @import("std");
 const nya = @import("3ac.zig");
 const ast = @import("ast.zig");
 
+// Not sure what to think about this yet:
+// zig cc -target riscv64-freestanding -c ass.s -o ass.o
+// llvm-objdump -d ass.o
+
+// This is more of a full emulator though, is it a better option?
+// qemu-riscv64
+
+// What was the reasoning behind 32 instead of 64 again?
+
 pub fn assemble(
     alloc: std.mem.Allocator,
     nyac: []const nya.NYAC,
