@@ -8,6 +8,18 @@ const ast = @import("ast.zig");
 
 // This is more of a full emulator though, is it a better option?
 // qemu-riscv64
+// sudo pacman -S qemu-user
+// zig cc -target riscv64-linux-musl -static -O0 ass.s -o a.out
+// qemu-riscv64 ./a.out
+// echo $?
+// should return 5
+
+// TODO Need to move return values to a0
+// TODO we are using x1/s1 but this should be a callee saved register. We need the prelonngs and prolouge and stuff
+
+// TODO need .globl
+
+
 
 // What was the reasoning behind 32 instead of 64 again?
 
