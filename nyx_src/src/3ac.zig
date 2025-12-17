@@ -741,6 +741,14 @@ pub const Compiler = struct {
     }
 
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) anyerror!Register {
+        const name = root.nameParam.NameParameterNode.name.Identifier.name;
+
+        if (std.mem.eql(u8, name, "printf")) {
+            // should prob bug it a custom external instrubtion name so can can handle it easier in RA
+            return Unused;
+        }
+
+
         self.cur_line = if (root.nameParam.NameParameterNode.name.Identifier.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
 
