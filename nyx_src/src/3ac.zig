@@ -60,12 +60,7 @@ pub const NYACOperand = union(enum) {
     Register: Register,
 };
 
-pub const NYAC = struct { 
-    return_addr: Register, 
-    instruction: Instruction, 
-    op1: NYACOperand, 
-    op2: NYACOperand 
-};
+pub const NYAC = struct { return_addr: Register, instruction: Instruction, op1: NYACOperand, op2: NYACOperand };
 
 // Storage for registers, and the outputted nyac_list
 var registers: std.ArrayList(Value) = .empty;
@@ -310,8 +305,24 @@ pub const Compiler = struct {
 
     pub fn handle_ident(self: *Compiler, root: *ast.IdentifierNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
+
+        const addr_reg = self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
+
+        // Load the value from the variable slot
+        self.count += 1;
+        const val_reg = self.count;
+
+        const nyac = NYAC{
+            .instruction = .LoadRegister, // LR
+            .return_addr = val_reg,
+            .op1 = .{ .Register = addr_reg },
+            .op2 = .{ .Register = Unused },
+        };
+        try self.nyac_list.append(self.alloc, nyac);
+        try self.emit(nyac);
+
         if (ast.debug_mode) std.debug.print("Identifier ({s}) Node Emitted\n", .{root.name});
-        return self.var_registers.get(root.name) orelse return CompileError.UndefinedVariable;
+        return val_reg;
     }
 
     pub fn handle_while(self: *Compiler, root: *ast.WhileNode) anyerror!Register {

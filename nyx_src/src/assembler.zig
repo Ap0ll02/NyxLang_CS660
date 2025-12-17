@@ -17,6 +17,15 @@ pub fn assemble(
     try emit_assembly(riscv);
 }
 
+// These are the actual physical regiesters that we are assign
+const PHYS_REGS = [_]u8{
+    // Avoid x0 (zero), x1 (ra), x2 (sp)
+    5, 6, 7, // t0–t2
+    28, 29, 30, 31, // t3–t6
+    10, 11, 12, 13, 14, 15, 16, 17, // a0–a7 (optional)
+    8, 9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, // s0–s11 (optional)
+};
+
 fn allocate_registers(
     alloc: std.mem.Allocator,
     nyac: []const nya.NYAC,
@@ -129,8 +138,7 @@ fn color_graph(
     alloc: std.mem.Allocator,
     graph: []const std.ArrayList(usize),
 ) ![]usize {
-    const num_colors = 28; // t0-t6 (7) + s0-s11 (12) + a0-a7 (8) = 27 usable registers
-
+    const num_colors = PHYS_REGS.len;
     var coloring = try alloc.alloc(usize, graph.len);
     @memset(coloring, std.math.maxInt(usize)); // uncolored
 
@@ -175,21 +183,31 @@ fn rewrite_registers(
     coloring: []const usize,
 ) ![]nya.NYAC {
     var result = try alloc.alloc(nya.NYAC, nyac.len);
+    var is_slot = try alloc.alloc(bool, coloring.len);
+    defer alloc.free(is_slot);
+    @memset(is_slot, false);
+
+    for (nyac) |inst| {
+        if (inst.instruction == .ImbueRegister and inst.return_addr != nya.Unused) {
+            is_slot[inst.return_addr] = true;
+        }
+    }
 
     for (nyac, 0..) |inst, i| {
         result[i] = inst;
 
         // Map virtual register to physical register
-        if (inst.return_addr != nya.Unused) {
-            result[i].return_addr = @intCast(coloring[inst.return_addr]);
+        if (inst.return_addr != nya.Unused and !is_slot[inst.return_addr]) {
+            const c = coloring[inst.return_addr];
+            result[i].return_addr = PHYS_REGS[c];
         }
-
-        if (inst.op1 == .Register) {
-            result[i].op1 = .{ .Register = @intCast(coloring[inst.op1.Register]) };
+        if (inst.op1 == .Register and !is_slot[inst.op1.Register]) {
+            const c = coloring[inst.op1.Register];
+            result[i].op1 = .{ .Register = PHYS_REGS[c] };
         }
-
-        if (inst.op2 == .Register) {
-            result[i].op2 = .{ .Register = @intCast(coloring[inst.op2.Register]) };
+        if (inst.op2 == .Register and !is_slot[inst.op2.Register]) {
+            const c = coloring[inst.op2.Register];
+            result[i].op2 = .{ .Register = PHYS_REGS[c] };
         }
     }
 
@@ -226,6 +244,7 @@ const RiscVInst = struct {
 
 const Op = enum {
     // arithmetic
+    addi,
     add,
     sub,
     mul,
@@ -252,6 +271,7 @@ const Op = enum {
     blt,
     bge,
     jal,
+    ret,
 
     // memory
     lw,
@@ -266,6 +286,27 @@ fn lower_to_riscv(
     nyac: []const nya.NYAC,
 ) !std.ArrayList(RiscVInst) {
     var out = std.ArrayList(RiscVInst).empty;
+
+    // slot id (virtual temp number) -> stack offset
+    var slot_off = std.AutoHashMap(usize, i32).init(alloc);
+
+    var frame_size: i32 = 0;
+
+    // PASS 1: assign each IMBUE_REGISTER a stack slot
+    for (nyac) |inst| {
+        if (inst.instruction == .ImbueRegister) {
+            const slot_id = inst.return_addr;
+            const bytes: i32 = inst.op1.Value.Number;
+
+            if (!slot_off.contains(slot_id)) {
+                slot_off.put(slot_id, frame_size) catch return error.OutOfMemory;
+                frame_size += bytes;
+            }
+        }
+    }
+
+    const fs = align16(frame_size);
+    // PASS 2:
 
     for (nyac) |inst| {
         switch (inst.instruction) {
@@ -332,7 +373,25 @@ fn lower_to_riscv(
             //////////////////
             ///// JUMPS /////
             /////////////////
-            .Label => try out.append(alloc, .{ .op = .label, .label = inst.op1.Label }),
+            .Label => {
+                const name = inst.op1.Label;
+
+                // Emit a label pseudo-instruction
+                try out.append(alloc, .{
+                    .op = .label,
+                    .label = name,
+                });
+
+                // Function prologue for main (you can generalize later)
+                if (std.mem.eql(u8, name, "main") and fs != 0) {
+                    try out.append(alloc, .{
+                        .op = .addi,
+                        .rd = 2, // sp
+                        .rs1 = 2, // sp
+                        .imm = -fs,
+                    });
+                }
+            },
 
             .Goto, .Jump => {
                 // unconditional jump to label
@@ -346,11 +405,58 @@ fn lower_to_riscv(
             //////////////////
             ///// Arrays /////
             /////////////////
+            .ImbueRegister => {
+                const slot_id = inst.return_addr;
+                const off = slot_off.get(slot_id) orelse return error.UnknownSlot;
+
+                // slot register holds an ADDRESS (pointer to its stack space)
+                try out.append(alloc, .{
+                    .op = .addi,
+                    .rd = slot_id,
+                    .rs1 = 2, // sp
+                    .imm = off,
+                });
+            },
+
             .LoadRegister => {
-                try out.append(alloc, .{ .op = .lw, .rd = inst.return_addr, .rs1 = inst.op1.Register, .offset = 0 });
+                const dst = inst.return_addr; // t14
+                const slot_id = inst.op1.Register; // t9
+                const off = slot_off.get(slot_id) orelse return error.UnknownSlot;
+
+                try out.append(alloc, .{
+                    .op = .lw,
+                    .rd = dst,
+                    .rs1 = 2, // sp
+                    .offset = off,
+                });
             },
             .StoreRegister => {
-                try out.append(alloc, .{ .op = .sw, .rs1 = inst.return_addr, .rs2 = inst.op1.Register, .offset = 0 });
+                const slot_id = inst.return_addr; // t9 (destination slot)
+                const value = inst.op1.Register; // t10 (value register)
+                const off = slot_off.get(slot_id) orelse return error.UnknownSlot;
+
+                try out.append(alloc, .{
+                    .op = .sw,
+                    .rs1 = 2, // sp
+                    .rs2 = value,
+                    .offset = off,
+                });
+            },
+            .Return => {
+                // restore stack pointer
+                if (fs != 0) {
+                    try out.append(alloc, .{
+                        .op = .addi,
+                        .rd = 2, // sp
+                        .rs1 = 2, // sp
+                        .imm = fs,
+                    });
+                }
+
+                // return
+                try out.append(alloc, .{
+                    .op = .ret,
+                });
             },
             else => {},
         }
@@ -410,6 +516,9 @@ fn emit_assembly(riscv: std.ArrayList(RiscVInst)) !void {
                 );
             },
 
+            .addi => std.debug.print("    addi x{d},x{d}, {d}\n", .{ inst.rd, inst.rs1, inst.imm }),
+            .ret => std.debug.print("    ret\n", .{}),
+
             else => {
                 std.debug.print(
                     "    # UNEMITTED OP: {s}\n",
@@ -418,4 +527,8 @@ fn emit_assembly(riscv: std.ArrayList(RiscVInst)) !void {
             },
         }
     }
+}
+
+fn align16(n: i32) i32 {
+    return (n + 15) & ~@as(i32, 15);
 }
