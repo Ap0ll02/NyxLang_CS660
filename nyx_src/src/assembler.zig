@@ -14,7 +14,7 @@ pub fn assemble(
     defer riscv.deinit(alloc);
     
     // 3. Emit assembly
-    try emit_assembly(riscv);
+    try emit_assembly(alloc, riscv);
 }
 
 fn allocate_registers(
@@ -73,7 +73,7 @@ fn analyze_lifetimes(
         if (inst.op1 == .Register) {
             live_now.set(inst.op1.Register);
         }
-        if (inst.op2 == .Register) {  // Fixed: was op2_addr
+        if (inst.op2 == .Register) {
             live_now.set(inst.op2.Register);
         }
     }
@@ -276,14 +276,38 @@ fn lower_to_riscv(
     return out;
 }
 
-fn emit_assembly(riscv: std.ArrayList(RiscVInst)) !void {
+fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !void {
+    // Create output file
+    const file_name = "a.s";
+    const file = try std.fs.cwd().createFile(file_name, .{
+        .truncate = true,
+        .exclusive = false,
+    });
+    defer file.close();
+
+    // Build assembly text
+    var asm_text = std.ArrayList(u8).empty;
+    defer asm_text.deinit(alloc);
+
+    // Optional: Add header
+    try asm_text.appendSlice(alloc, "# RISC-V Assembly Output\n");
+    try asm_text.appendSlice(alloc, "    .text\n");
+    try asm_text.appendSlice(alloc, "    .globl main\n\n");
+
     for (riscv.items) |inst| {
-        switch (inst.op) {
-            .add => std.debug.print("    add t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
-            .li => std.debug.print("    li t{d}, {d}\n", .{inst.rd, inst.imm}),
-            .beq => std.debug.print("    beq t{d}, x{d}, {s}\n", .{inst.rs1, inst.rs2, inst.label}),
-            .label => std.debug.print("{s}:\n", .{inst.label}),
-            else => {},
-        }
+        var line_buf: [256]u8 = undefined;
+        const line = switch (inst.op) {
+            .add => try std.fmt.bufPrint(&line_buf, "    add t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
+            .sub => try std.fmt.bufPrint(&line_buf, "    sub t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
+            .li => try std.fmt.bufPrint(&line_buf, "    li t{d}, {d}\n", .{inst.rd, inst.imm}),
+            .beq => try std.fmt.bufPrint(&line_buf, "    beq t{d}, x{d}, {s}\n", .{inst.rs1, inst.rs2, inst.label}),
+            .label => try std.fmt.bufPrint(&line_buf, "{s}:\n", .{inst.label}),
+        };
+        try asm_text.appendSlice(alloc, line);
     }
+
+    // Write to file
+    try file.writeAll(asm_text.items);
+    
+    std.debug.print("Assembly written to {s}\n", .{file_name});
 }

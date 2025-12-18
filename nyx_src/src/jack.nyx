@@ -1,6 +1,5 @@
-int x = 100;
 int main() {
-    x = 400;
+    int x = 400;
     int y = 10;
-    int z = x;
+    printf("X: %d", x);
 }
