@@ -3,6 +3,8 @@ void swap_by_ptr(int *ptr1, int *ptr2){
     int tmp = *ptr1;
     *ptr1 = *ptr2;
     *ptr2 = tmp;
+
+    return;
 }
 
 // Before swap: 142, 632
