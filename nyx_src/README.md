@@ -47,7 +47,112 @@ git clone https://github.com/Ap0ll02/NyxLang_CS660/tree/GP6
 cd NyxLang_CS660
 ```
 
-### Step 3: Compile
+### Step 3: RISC-V 32-bit Toolchain & Spike (Required for Backend Testing)
+
+To assemble and run the generated RISC-V output, you will need:
+
+riscv32-unknown-elf toolchain (assembler + linker)
+
+Spike RISC-V ISA simulator
+
+PK (Proxy Kernel) for running bare-metal RISC-V programs
+
+⚠️ Important:
+These tools are not required to be installed system-wide and should not override your normal GCC toolchain.
+We strongly recommend installing them in an isolated directory and invoking them explicitly.
+
+#### Option 1: Prebuilt Toolchain (Recommended)
+
+Download the official prebuilt RISC-V GNU toolchain:
+
+Toolchain:
+
+riscv32-unknown-elf-gcc
+
+riscv32-unknown-elf-as
+
+riscv32-unknown-elf-ld
+
+From the official RISC-V toolchain releases:
+
+👉 https://github.com/riscv-collab/riscv-gnu-toolchain/releases
+
+Extract it somewhere safe, for example:
+
+~/riscv/
+
+
+You should end up with:
+
+~/riscv/bin/riscv32-unknown-elf-gcc
+`~/riscv/bin/riscv32-unknown-elf-as`
+`~/riscv/bin/riscv32-unknown-elf-ld`
+
+
+To verify:
+
+`~/riscv/bin/riscv32-unknown-elf-gcc --version`
+
+
+No PATH changes are required — just call the binaries directly.
+
+Option 2: Build Toolchain from Source (Advanced)
+
+If you prefer building from source:
+
+```
+git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git
+cd riscv-gnu-toolchain
+./configure --prefix=$HOME/riscv --with-arch=rv32im --with-abi=ilp32
+make newlib
+```
+
+
+This installs everything under:
+
+~/riscv/
+
+Step 5: Install Spike + Proxy Kernel (PK)
+
+Spike is the official RISC-V ISA simulator, and PK is required to run ELF binaries.
+
+Build Spike
+```
+git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+cd riscv-isa-sim
+mkdir build && cd build
+../configure --prefix=$HOME/riscv
+make
+make install
+```
+
+Build Proxy Kernel (PK)
+```
+git clone https://github.com/riscv-software-src/riscv-pk.git
+cd riscv-pk
+mkdir build && cd build
+../configure --prefix=$HOME/riscv --host=riscv32-unknown-elf
+make
+make install
+```
+
+
+This installs:
+
+~/riscv/bin/spike
+~/riscv/riscv32-unknown-elf/bin/pk
+
+Step 6: Running Generated RISC-V Code
+
+Once NYAC → RISC-V assembly is enabled:
+```
+~/riscv/bin/riscv32-unknown-elf-gcc a.s
+~/riscv/bin/spike --isa=RV32GC ~/riscv/riscv32-unknown-elf/bin/pk a.out
+```
+
+This runs your compiled program inside the Spike simulator.
+
+### Step 4: Compile
 
 #### Compilation Modes
 
