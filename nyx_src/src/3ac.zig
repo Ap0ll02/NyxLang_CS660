@@ -333,6 +333,11 @@ pub const Compiler = struct {
         // Execute the loop body
         _ = try self.compile_expr(root.body);
 
+        // Handle for-loop post-iteration expression
+        if (root.post) |post_node| {
+            _ = try self.compile_expr(post_node);
+        }
+
         // Jump to start : Emit end label
         try self.emit_jump(start_label);
         try self.emit_label(end_label);
@@ -1193,7 +1198,7 @@ pub const Compiler = struct {
     pub fn handle_expr_stmt(self: *Compiler, root: *ast.ExpressionStmtNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         if (root.expr) |re| {
-            _ = try self.compile_expr(re);
+            return try self.compile_expr(re);
         }
         return Unused;
     }

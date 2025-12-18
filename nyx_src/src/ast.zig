@@ -126,6 +126,7 @@ pub const WhileNode = struct {
     cond: *Node,
     body: *Node,
     init: ?*Node, //optional initializer to handle for loops
+    post: ?*Node, //optional post-iteration expression for for loops
     typeNode: ?*TypeNode = null,
     location: ?*Location = null,
 };
@@ -438,10 +439,10 @@ export fn make_conditional_expression_node(expr1: *Node, token: c.yytokentype, e
 }
 export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     // null check
-    if(debug_mode) std.debug.print("\nNULL CHECKING: \n", .{});
+    if (debug_mode) std.debug.print("\nNULL CHECKING: \n", .{});
     if (right_type == null) return left_type;
     if (left_type == null) return right_type;
-    if(debug_mode) std.debug.print("PASSED NULL CHECKING: {s} {s}\n", .{right_type.?.Type.type_name, left_type.?.Type.type_name});
+    if (debug_mode) std.debug.print("PASSED NULL CHECKING: {s} {s}\n", .{ right_type.?.Type.type_name, left_type.?.Type.type_name });
     // std.debug.print("Both Nodes Valid: Checking Details\n", .{});
     const new_type = glob_alloc.create(TypeNode) catch return null;
     const rt = right_type.?;
@@ -511,7 +512,7 @@ export fn combine_type_node(left_type: ?*Node, right_type: ?*Node) ?*Node {
     const new_name = std.mem.join(alloc, " ", name_parts.items) catch "unknown";
     // std.debug.print("\n Type Node Created: {any}\n", .{new_base});
     new_type.* = TypeNode{ .base = new_base, .is_const = new_const, .is_unsigned = new_sign, .alignment = alignment, .size = size, .type_name = new_name.ptr, .qualifier = new_qual, .location = get_location() };
-    if(debug_mode) std.debug.print("Node Type: {s}:{any}\n", .{new_name, new_type.is_const});
+    if (debug_mode) std.debug.print("Node Type: {s}:{any}\n", .{ new_name, new_type.is_const });
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .Type = new_type };
     return node;
@@ -545,10 +546,12 @@ export fn make_type_node(token: c.yytokentype) ?*Node {
         },
         c.CONST => {
             const tn: [*c]const u8 = "void";
-            type_node_ptr.* = TypeNode
-            { .base = .VOID, .is_unsigned = true, 
-                .type_name = tn, .location = get_location(),
-                .is_const = true, 
+            type_node_ptr.* = TypeNode{
+                .base = .VOID,
+                .is_unsigned = true,
+                .type_name = tn,
+                .location = get_location(),
+                .is_const = true,
             };
         },
         c.CHAR => {
@@ -1048,19 +1051,9 @@ export fn make_if_stmt(cond: *Node, if_branch: *Node, el_branch: ?*Node) ?*Node 
 export fn make_iteration_stmt(cond: *Node, body: *Node, init: ?*Node, post_expr: ?*Node) ?*Node {
     // std.debug.print("make_iteration_stmt function reached\n", .{});
 
-    // make new body with old body and post_expr
-    var new_body: *Node = body;
-    if (post_expr) |pe| {
-        // create expr_stmt for post_expr
-        const expr_stmt = make_expr_stmt(pe);
-        if (expr_stmt) |es| {
-            new_body = append_block_list(es, body).?;
-        }
-    }
-
-    // create while node
+    // create while node with separate post field for for-loops
     const while_node = glob_alloc.create(WhileNode) catch return null;
-    while_node.* = WhileNode{ .cond = cond, .body = new_body, .init = init, .location = get_location() };
+    while_node.* = WhileNode{ .cond = cond, .body = body, .init = init, .post = post_expr, .location = get_location() };
 
     const node = glob_alloc.create(Node) catch return null;
     node.* = Node{ .WhileStmt = while_node };
