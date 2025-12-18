@@ -3,7 +3,7 @@ const nya = @import("3ac.zig");
 
 // Map color (0-18) to actual RISC-V register name
 // Colors 0-6 -> t0-t6 and
-// Colors 7-18 -> s0-s11 
+// Colors 7-18 -> s0-s11
 fn color_to_reg_name(color: usize, buf: []u8) ![]const u8 {
     if (color >= 100 and color < 108) {
         // Argument registers
@@ -442,9 +442,6 @@ fn lower_to_riscv(
                 else
                     4; // default to 4 bytes
 
-                stack_offset -= size;
-                try reg_to_stack.put(inst.return_addr, stack_offset);
-
                 // rd = sp + offset
                 try out.append(alloc, .{
                     .op = .addi,
@@ -452,6 +449,9 @@ fn lower_to_riscv(
                     .rs1 = 2, // sp register
                     .imm = stack_offset,
                 });
+
+                stack_offset += size;
+                try reg_to_stack.put(inst.return_addr, stack_offset);
             },
             .StoreRegister => {
                 // Store value from op2 to memory at address in op1
@@ -588,8 +588,8 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
 
     // First pass: calculate maximum stack usage
     for (riscv.items) |inst| {
-        if (inst.op == .addi and inst.rs1 == 2 and inst.imm < 0) {
-            if (inst.imm < max_stack) {
+        if (inst.op == .addi and inst.rs1 == 2 and inst.imm > 0) {
+            if (inst.imm > max_stack) {
                 max_stack = inst.imm;
             }
         }
@@ -656,9 +656,9 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 break :blk try std.fmt.bufPrint(&line_buf, "    lw {s}, {d}({s})\n", .{ rd_name, inst.imm, rs1_name });
             },
             .prologue => blk: {
-                if (max_stack < 0) {
+                if (max_stack > 0) {
                     // Align to 16 bytes
-                    const aligned_stack = @divTrunc(((-max_stack) + 15), 16) * 16;
+                    const aligned_stack = @divTrunc(((max_stack) + 15), 16) * 16;
                     break :blk try std.fmt.bufPrint(&line_buf, "    addi sp, sp, -{d}\n", .{aligned_stack});
                 } else {
                     break :blk try std.fmt.bufPrint(&line_buf, "", .{});
