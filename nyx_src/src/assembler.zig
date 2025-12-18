@@ -138,7 +138,7 @@ fn color_graph(
     // RISCV has 19 usable registrs
     // t0-t6 and s0-s11
     // a0-a7 are reserved for arguments
-    const num_colors = 19; 
+    const num_colors = 19;
 
     var coloring = try alloc.alloc(usize, graph.len);
     @memset(coloring, std.math.maxInt(usize)); // uncolored
@@ -231,7 +231,7 @@ const RiscVInst = struct {
     imm: i32 = 0,
     label: []const u8 = "",
 
-    const Op = enum { add, sub, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue };
+    const Op = enum { add, sub, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue, j, slt };
 };
 
 fn lower_to_riscv(
@@ -266,6 +266,42 @@ fn lower_to_riscv(
                         .imm = inst.op2.Value.Number,
                     });
                 }
+            },
+            .Subtract => {
+                // Handle register-register subtraction
+                if (inst.op2 == .Register) {
+                    try out.append(alloc, .{
+                        .op = .sub,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = inst.op2.Register,
+                    });
+                } else if (inst.op2 == .Value and inst.op2.Value == .Number) {
+                    // Subtract with immediate by add negative value
+                    try out.append(alloc, .{
+                        .op = .addi,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .imm = -inst.op2.Value.Number,
+                    });
+                }
+            },
+            .LessThan => {
+                try out.append(alloc, .{
+                    .op = .slt,
+                    .rd = inst.return_addr,
+                    .rs1 = inst.op1.Register,
+                    .rs2 = inst.op2.Register,
+                });
+            },
+            .GreaterThan => {
+                // GT: swap operands for SLT
+                try out.append(alloc, .{
+                    .op = .slt,
+                    .rd = inst.return_addr,
+                    .rs1 = inst.op2.Register,
+                    .rs2 = inst.op1.Register,
+                });
             },
             .Constant => {
                 if (inst.op1 == .Value) {
@@ -308,6 +344,12 @@ fn lower_to_riscv(
                     .label = inst.op2.Label,
                 });
             },
+            .Jump => {
+                try out.append(alloc, .{
+                    .op = .j,
+                    .label = inst.op1.Label,
+                });
+            },
             .Label => {
                 // Track if this is a function label
                 if (inst.op1 == .Label) {
@@ -323,7 +365,7 @@ fn lower_to_riscv(
                     .op = .label,
                     .label = inst.op1.Label,
                 });
-                // Add prologue for non-main functions 
+                // Add prologue for non-main functions
                 if (inst.op1 == .Label) {
                     const label = inst.op1.Label;
                     if (label.len > 0 and label[0] != 'L') {
@@ -353,7 +395,7 @@ fn lower_to_riscv(
                     const reg = inst.op1.Register;
                     // Use 100+ for argument registers to distinguish from allocated registers
                     const arg_reg = 100 + arg_count;
-                    // Check if this register was created by IMBUE_REGISTER 
+                    // Check if this register was created by IMBUE_REGISTER
                     // but don't dereference constants like string addresses
                     if (reg_to_stack.contains(reg) and !const_regs.contains(reg)) {
                         // This is a stack address, load the value first
@@ -540,6 +582,7 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
         const line = switch (inst.op) {
             .add => try std.fmt.bufPrint(&line_buf, "    add t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
             .sub => try std.fmt.bufPrint(&line_buf, "    sub t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
+            .slt => try std.fmt.bufPrint(&line_buf, "    slt t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
             .li => blk: {
                 var reg_buf: [16]u8 = undefined;
                 const reg_name = if (inst.rd >= 100 and inst.rd < 108)
@@ -587,6 +630,7 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 break :blk str_label;
             },
             .beq => try std.fmt.bufPrint(&line_buf, "    beq t{d}, x{d}, {s}\n", .{ inst.rs1, inst.rs2, inst.label }),
+            .j => try std.fmt.bufPrint(&line_buf, "    j {s}\n", .{inst.label}),
             .label => try std.fmt.bufPrint(&line_buf, "{s}:\n", .{inst.label}),
             .mv => blk: {
                 var rd_buf: [16]u8 = undefined;

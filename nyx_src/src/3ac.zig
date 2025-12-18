@@ -628,7 +628,7 @@ pub const Compiler = struct {
                 .InitializerList => |init_list| {
                     return create_init_list(self, init_list, @intCast(lhs_reg));
                 },
-                else => return try self.compile_expr(izer),
+                else => try self.compile_expr(izer),
             };
 
             // TODO different NYAC structs probably need to be created here for StoreByte, StoreDouble, depending on type
@@ -839,7 +839,7 @@ pub const Compiler = struct {
 
             const value_reg = try self.compile_expr(initializer);
 
-            // If the initializer is an identifier 
+            // If the initializer is an identifier
             // Check if this is a variable reference by seeing if it's in var_registers
             var actual_value_reg = value_reg;
             if (initializer.* == .Identifier) {
@@ -882,10 +882,40 @@ pub const Compiler = struct {
         self.cur_line = if (node.location) |loc| loc.line else 0;
         // Compiling the left and right nodes into registers
         self.root = node.lhs;
-        const left_reg = try self.compile_node();
+        var left_reg = try self.compile_node();
+
+        // If left operand is a variable then its the stack address and we load its value
+        if (node.lhs.* == .Identifier) {
+            self.count += 1;
+            const loaded_left = self.count;
+            const load_nyac = NYAC{
+                .instruction = .LoadRegister,
+                .return_addr = loaded_left,
+                .op1 = NYACOperand{ .Register = left_reg },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, load_nyac);
+            try self.emit(load_nyac);
+            left_reg = loaded_left;
+        }
 
         self.root = node.rhs;
-        const right_reg = try self.compile_node();
+        var right_reg = try self.compile_node();
+
+        // Same for right operand as above
+        if (node.rhs.* == .Identifier) {
+            self.count += 1;
+            const loaded_right = self.count;
+            const load_nyac = NYAC{
+                .instruction = .LoadRegister,
+                .return_addr = loaded_right,
+                .op1 = NYACOperand{ .Register = right_reg },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, load_nyac);
+            try self.emit(load_nyac);
+            right_reg = loaded_right;
+        }
 
         // Destination reg
         self.count += 1;
@@ -1170,8 +1200,37 @@ pub const Compiler = struct {
 
     pub fn handle_cond_expr(self: *Compiler, root: *ast.ConditionalExpressionNode) anyerror!Register {
         self.cur_line = if (root.location) |loc| loc.line else 0;
-        const left_reg = try self.compile_expr(root.expr1);
-        const right_reg = try self.compile_expr(root.expr2);
+        var left_reg = try self.compile_expr(root.expr1);
+
+        if (root.expr1.* == .Identifier) {
+            self.count += 1;
+            const loaded_left = self.count;
+            const load_nyac = NYAC{
+                .instruction = .LoadRegister,
+                .return_addr = loaded_left,
+                .op1 = NYACOperand{ .Register = left_reg },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, load_nyac);
+            try self.emit(load_nyac);
+            left_reg = loaded_left;
+        }
+
+        var right_reg = try self.compile_expr(root.expr2);
+
+        if (root.expr2.* == .Identifier) {
+            self.count += 1;
+            const loaded_right = self.count;
+            const load_nyac = NYAC{
+                .instruction = .LoadRegister,
+                .return_addr = loaded_right,
+                .op1 = NYACOperand{ .Register = right_reg },
+                .op2 = NYACOperand{ .Register = Unused },
+            };
+            try self.nyac_list.append(self.alloc, load_nyac);
+            try self.emit(load_nyac);
+            right_reg = loaded_right;
+        }
 
         self.count += 1;
         const dest = self.count;
