@@ -1,7 +1,0 @@
-float foo() {
-    return 3.14159;
-}
-
-int main() {
-    float yippee = foo();
-}
