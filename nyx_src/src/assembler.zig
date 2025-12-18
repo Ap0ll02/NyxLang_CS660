@@ -701,6 +701,9 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
 
     // Add exit code for main
     try asm_text.appendSlice(alloc,
+        \\    # flush stdout
+        \\    li a0, 0
+        \\    call fflush
         \\    # Exit
         \\    li a7, 93
         \\    li a0, 0
