@@ -1132,21 +1132,24 @@ pub const Compiler = struct {
 
     pub fn emit_jump_false(self: *Compiler, cond: Register, label: usize) !void {
         if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC{ .instruction = .JumpFalse, .return_addr = Unused, .op1 = .{ .Register = cond }, .op2 = .{ .Label = "ElseBranch" } };
+        const label_name = try std.fmt.allocPrint(self.alloc, "L{d}", .{label});
+        const nyac = NYAC{ .instruction = .JumpFalse, .return_addr = Unused, .op1 = .{ .Register = cond }, .op2 = .{ .Label = label_name } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn emit_jump(self: *Compiler, label: usize) !void {
         if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC{ .instruction = .Jump, .return_addr = Unused, .op1 = .{ .Label = "ThenBranch" }, .op2 = .{ .Register = Unused } };
+        const label_name = try std.fmt.allocPrint(self.alloc, "L{d}", .{label});
+        const nyac = NYAC{ .instruction = .Jump, .return_addr = Unused, .op1 = .{ .Label = label_name }, .op2 = .{ .Register = Unused } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
 
     pub fn emit_label(self: *Compiler, label: usize) !void {
         if (ast.debug_mode) std.debug.print("Label: {d} to emit\n", .{label});
-        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = .{ .Label = "End?Label" }, .op2 = .{ .Register = Unused } };
+        const label_name = try std.fmt.allocPrint(self.alloc, "L{d}", .{label});
+        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = .{ .Label = label_name }, .op2 = .{ .Register = Unused } };
         try self.nyac_list.append(self.alloc, nyac);
         try self.emit(nyac);
     }
