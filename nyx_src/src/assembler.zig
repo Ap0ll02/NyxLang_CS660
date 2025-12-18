@@ -135,7 +135,10 @@ fn color_graph(
     alloc: std.mem.Allocator,
     graph: []const std.ArrayList(usize),
 ) ![]usize {
-    const num_colors = 28; // t0-t6 (7) + s0-s11 (12) + a0-a7 (8) = 27 usable registers
+    // RISCV has 19 usable registrs
+    // t0-t6 and s0-s11
+    // a0-a7 are reserved for arguments
+    const num_colors = 19; 
 
     var coloring = try alloc.alloc(usize, graph.len);
     @memset(coloring, std.math.maxInt(usize)); // uncolored
@@ -228,7 +231,7 @@ const RiscVInst = struct {
     imm: i32 = 0,
     label: []const u8 = "",
 
-    const Op = enum { add, sub, li, la, beq, label, call, mv, ret };
+    const Op = enum { add, sub, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue };
 };
 
 fn lower_to_riscv(
@@ -238,19 +241,36 @@ fn lower_to_riscv(
     var arg_count: usize = 0;
     var out = std.ArrayList(RiscVInst).empty;
     var current_function: ?[]const u8 = null;
+    var stack_offset: i32 = 0;
+    var reg_to_stack = std.AutoHashMap(usize, i32).init(alloc);
+    defer reg_to_stack.deinit();
+    var const_regs = std.AutoHashMap(usize, void).init(alloc);
+    defer const_regs.deinit();
 
     for (nyac) |inst| {
         switch (inst.instruction) {
             .Add => {
-                try out.append(alloc, .{
-                    .op = .add,
-                    .rd = inst.return_addr,
-                    .rs1 = inst.op1.Register,
-                    .rs2 = inst.op2.Register,
-                });
+                // Handle both register-register and register-immediate adds
+                if (inst.op2 == .Register) {
+                    try out.append(alloc, .{
+                        .op = .add,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = inst.op2.Register,
+                    });
+                } else if (inst.op2 == .Value and inst.op2.Value == .Number) {
+                    try out.append(alloc, .{
+                        .op = .addi,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .imm = inst.op2.Value.Number,
+                    });
+                }
             },
             .Constant => {
                 if (inst.op1 == .Value) {
+                    try const_regs.put(inst.return_addr, {});
+
                     switch (inst.op1.Value) {
                         .String => |str| {
                             try out.append(alloc, .{
@@ -295,12 +315,21 @@ fn lower_to_riscv(
                     // Function labels don't start with L (which are loop/if labels)
                     if (label.len > 0 and label[0] != 'L') {
                         current_function = label;
+                        stack_offset = 0;
+                        reg_to_stack.clearRetainingCapacity();
                     }
                 }
                 try out.append(alloc, .{
                     .op = .label,
                     .label = inst.op1.Label,
                 });
+                // Add prologue for non-main functions 
+                if (inst.op1 == .Label) {
+                    const label = inst.op1.Label;
+                    if (label.len > 0 and label[0] != 'L') {
+                        try out.append(alloc, .{ .op = .prologue });
+                    }
+                }
             },
             .Call => {
                 arg_count = 0;
@@ -309,14 +338,103 @@ fn lower_to_riscv(
                     .label = inst.op1.Label,
                     .rd = inst.return_addr,
                 });
+                // Move return value from a0 to destination register
+                if (inst.return_addr != nya.Unused) {
+                    try out.append(alloc, .{
+                        .op = .mv,
+                        .rd = inst.return_addr,
+                        .rs1 = 0, // a0 (mapped to register 0 in our system)
+                    });
+                }
             },
             .PushArg => {
-                try out.append(alloc, .{
-                    .op = .mv,
-                    .rd = arg_count,
-                    .rs1 = inst.op1.Register,
-                });
+                // If the register holds a stack address, we need to load the value
+                if (inst.op1 == .Register) {
+                    const reg = inst.op1.Register;
+                    // Use 100+ for argument registers to distinguish from allocated registers
+                    const arg_reg = 100 + arg_count;
+                    // Check if this register was created by IMBUE_REGISTER 
+                    // but don't dereference constants like string addresses
+                    if (reg_to_stack.contains(reg) and !const_regs.contains(reg)) {
+                        // This is a stack address, load the value first
+                        try out.append(alloc, .{
+                            .op = .lw,
+                            .rd = arg_reg,
+                            .rs1 = reg,
+                            .imm = 0,
+                        });
+                    } else {
+                        // This is a regular value or constant, just move it
+                        try out.append(alloc, .{
+                            .op = .mv,
+                            .rd = arg_reg,
+                            .rs1 = reg,
+                        });
+                    }
+                }
                 arg_count += 1;
+            },
+            .ImbueRegister => {
+                // Allocate stack space for a variable/struct
+                // op1 is the register itself and op2 contains the size
+                const size = if (inst.op2 == .Value and inst.op2.Value == .Number)
+                    inst.op2.Value.Number
+                else
+                    4; // default to 4 bytes
+
+                stack_offset -= size;
+                try reg_to_stack.put(inst.return_addr, stack_offset);
+
+                // rd = sp + offset
+                try out.append(alloc, .{
+                    .op = .addi,
+                    .rd = inst.return_addr,
+                    .rs1 = 2, // sp register
+                    .imm = stack_offset,
+                });
+            },
+            .StoreRegister => {
+                // Store value from op2 to memory at address in op1
+                const dest_addr = inst.op1.Register;
+                const src = inst.op2.Register;
+
+                // Check if source is a stack address that needs dereferencing
+                if (reg_to_stack.contains(src)) {
+                    // Source is a stack address, load the value first into a temp
+                    // Use t6 as scratch register
+                    const temp_reg: usize = 6;
+                    try out.append(alloc, .{
+                        .op = .lw,
+                        .rd = temp_reg,
+                        .rs1 = src,
+                        .imm = 0,
+                    });
+                    // Now store that value to destination
+                    try out.append(alloc, .{
+                        .op = .sw,
+                        .rs1 = temp_reg,
+                        .rs2 = dest_addr,
+                        .imm = 0,
+                    });
+                } else {
+                    // Source is a value register, store it directly
+                    try out.append(alloc, .{
+                        .op = .sw,
+                        .rs1 = src,
+                        .rs2 = dest_addr,
+                        .imm = 0,
+                    });
+                }
+            },
+            .LoadRegister => {
+                // Load from memory at address in op1 to rd
+                try out.append(alloc, .{
+                    .op = .lw,
+                    .rd = inst.return_addr,
+                    .rs1 = inst.op1.Register, // address
+                    .imm = 0,
+                });
+                _ = reg_to_stack.remove(inst.return_addr);
             },
             .Return => {
                 if (inst.op1 == .Register and inst.op1.Register != nya.Unused) {
@@ -326,17 +444,15 @@ fn lower_to_riscv(
                         .rs1 = inst.op1.Register,
                     });
                 }
-                // Emit ret for all functions
-                // Main will have its exit syscall added at the very end
+
                 const is_main = if (current_function) |func|
                     std.mem.eql(u8, func, "main")
                 else
                     false;
 
                 if (!is_main) {
-                    try out.append(alloc, .{
-                        .op = .ret,
-                    });
+                    try out.append(alloc, .{ .op = .epilogue });
+                    try out.append(alloc, .{ .op = .ret });
                 }
             },
             else => {},
@@ -408,12 +524,63 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
     try asm_text.appendSlice(alloc, "\n");
 
     var str_index: usize = 0;
+    var max_stack: i32 = 0;
+
+    // First pass: calculate maximum stack usage
+    for (riscv.items) |inst| {
+        if (inst.op == .addi and inst.rs1 == 2 and inst.imm < 0) {
+            if (inst.imm < max_stack) {
+                max_stack = inst.imm;
+            }
+        }
+    }
+
     for (riscv.items) |inst| {
         var line_buf: [256]u8 = undefined;
         const line = switch (inst.op) {
             .add => try std.fmt.bufPrint(&line_buf, "    add t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
             .sub => try std.fmt.bufPrint(&line_buf, "    sub t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
-            .li => try std.fmt.bufPrint(&line_buf, "    li t{d}, {d}\n", .{ inst.rd, inst.imm }),
+            .li => blk: {
+                var reg_buf: [16]u8 = undefined;
+                const reg_name = if (inst.rd >= 100 and inst.rd < 108)
+                    try std.fmt.bufPrint(&reg_buf, "a{d}", .{inst.rd - 100})
+                else
+                    try std.fmt.bufPrint(&reg_buf, "t{d}", .{inst.rd});
+                break :blk try std.fmt.bufPrint(&line_buf, "    li {s}, {d}\n", .{ reg_name, inst.imm });
+            },
+            .addi => blk: {
+                if (inst.rs1 == 2) { // rs1 == 2 then its a  sp
+                    break :blk try std.fmt.bufPrint(&line_buf, "    addi t{d}, sp, {d}\n", .{ inst.rd, inst.imm });
+                } else {
+                    break :blk try std.fmt.bufPrint(&line_buf, "    addi t{d}, t{d}, {d}\n", .{ inst.rd, inst.rs1, inst.imm });
+                }
+            },
+            .sw => try std.fmt.bufPrint(&line_buf, "    sw t{d}, {d}(t{d})\n", .{ inst.rs1, inst.imm, inst.rs2 }),
+            .lw => blk: {
+                var reg_buf: [16]u8 = undefined;
+                const rd_name = if (inst.rd >= 100 and inst.rd < 108)
+                    try std.fmt.bufPrint(&reg_buf, "a{d}", .{inst.rd - 100})
+                else
+                    try std.fmt.bufPrint(&reg_buf, "t{d}", .{inst.rd});
+                break :blk try std.fmt.bufPrint(&line_buf, "    lw {s}, {d}(t{d})\n", .{ rd_name, inst.imm, inst.rs1 });
+            },
+            .prologue => blk: {
+                if (max_stack < 0) {
+                    // Align to 16 bytes
+                    const aligned_stack = @divTrunc(((-max_stack) + 15), 16) * 16;
+                    break :blk try std.fmt.bufPrint(&line_buf, "    addi sp, sp, -{d}\n", .{aligned_stack});
+                } else {
+                    break :blk try std.fmt.bufPrint(&line_buf, "", .{});
+                }
+            },
+            .epilogue => blk: {
+                if (max_stack < 0) {
+                    const aligned_stack = @divTrunc(((-max_stack) + 15), 16) * 16;
+                    break :blk try std.fmt.bufPrint(&line_buf, "    addi sp, sp, {d}\n", .{aligned_stack});
+                } else {
+                    break :blk try std.fmt.bufPrint(&line_buf, "", .{});
+                }
+            },
             .la => blk: {
                 const str_label = try std.fmt.bufPrint(&line_buf, "    la t{d}, .str{d}\n", .{ inst.rd, str_index });
                 str_index += 1;
@@ -422,13 +589,17 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
             .beq => try std.fmt.bufPrint(&line_buf, "    beq t{d}, x{d}, {s}\n", .{ inst.rs1, inst.rs2, inst.label }),
             .label => try std.fmt.bufPrint(&line_buf, "{s}:\n", .{inst.label}),
             .mv => blk: {
-                const rd_name = if (inst.rd < 8)
-                    try std.fmt.bufPrint(&line_buf, "a{d}", .{inst.rd})
+                var rd_buf: [16]u8 = undefined;
+                const rd_name = if (inst.rd >= 100 and inst.rd < 108)
+                    try std.fmt.bufPrint(&rd_buf, "a{d}", .{inst.rd - 100})
                 else
-                    try std.fmt.bufPrint(&line_buf, "t{d}", .{inst.rd});
+                    try std.fmt.bufPrint(&rd_buf, "t{d}", .{inst.rd});
 
                 var rs_buf: [16]u8 = undefined;
-                const rs_name = try std.fmt.bufPrint(&rs_buf, "t{d}", .{inst.rs1});
+                const rs_name = if (inst.rs1 >= 100 and inst.rs1 < 108)
+                    try std.fmt.bufPrint(&rs_buf, "a{d}", .{inst.rs1 - 100})
+                else
+                    try std.fmt.bufPrint(&rs_buf, "t{d}", .{inst.rs1});
 
                 var final_buf: [256]u8 = undefined;
                 break :blk try std.fmt.bufPrint(&final_buf, "    mv {s}, {s}\n", .{ rd_name, rs_name });
