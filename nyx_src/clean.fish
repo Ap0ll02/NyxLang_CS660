@@ -5,3 +5,4 @@ rm src/c11.output
 rm src/a.nyac
 rm a.nyac
 rm -rf .zig-cache/
+rm -rf a.s a.out src/a.s src/a.out
