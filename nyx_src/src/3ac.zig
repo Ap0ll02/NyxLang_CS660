@@ -734,11 +734,27 @@ pub const Compiler = struct {
     pub fn handle_function(self: *Compiler, root: *ast.FunctionNode) anyerror!Register {
         self.cur_line = if (root.nameParam.NameParameterNode.name.Identifier.location) |loc| loc.line else 0;
         const func_ident_node = root.nameParam.NameParameterNode.name.Identifier;
+        const builtin_functions = [_][]const u8 { "printf"};
+        const is_builtin = blk: {
+            for(builtin_functions) |builtin| {
+                if(std.mem.eql(u8, func_ident_node.name, builtin)) {
+                    break :blk true;
+                }
+            }
+            break :blk false;
+        };
 
-        const nyac = NYAC{ .instruction = .Label, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2 = .{ .Register = Unused } };
+        if (!is_builtin) {
+            const nyac = NYAC{ 
+                .instruction = .Label, 
+                .return_addr = Unused, 
+                .op1 = NYACOperand{ .Label = func_ident_node.name }, 
+                .op2 = .{ .Register = Unused } 
+            };
 
-        try self.nyac_list.append(self.alloc, nyac);
-        try self.emit(nyac);
+            try self.nyac_list.append(self.alloc, nyac);
+            try self.emit(nyac);
+        }
 
         // Should register parameters before compiling body
         if (root.nameParam.NameParameterNode.parameterList) |param_list| {
@@ -750,7 +766,9 @@ pub const Compiler = struct {
             }
         }
 
-        _ = try self.compile_expr(root.body);
+        if(!is_builtin) {
+            _ = try self.compile_expr(root.body);
+        }
 
         return Unused;
     }
