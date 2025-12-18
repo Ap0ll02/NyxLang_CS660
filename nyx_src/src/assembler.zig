@@ -393,11 +393,13 @@ fn lower_to_riscv(
             },
             .Call => {
                 arg_count = 0;
+
                 try out.append(alloc, .{
                     .op = .call,
                     .label = inst.op1.Label,
                     .rd = inst.return_addr,
                 });
+
                 // Move return value from a0 to destination register
                 if (inst.return_addr != nya.Unused) {
                     try out.append(alloc, .{
@@ -665,8 +667,8 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 }
             },
             .epilogue => blk: {
-                if (max_stack < 0) {
-                    const aligned_stack = @divTrunc(((-max_stack) + 15), 16) * 16;
+                if (max_stack > 0) {
+                    const aligned_stack = @divTrunc(((max_stack) + 15), 16) * 16;
                     break :blk try std.fmt.bufPrint(&line_buf, "    addi sp, sp, {d}\n", .{aligned_stack});
                 } else {
                     break :blk try std.fmt.bufPrint(&line_buf, "", .{});
@@ -693,7 +695,38 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 const rs_name = try color_to_reg_name(inst.rs1, &rs_buf);
                 break :blk try std.fmt.bufPrint(&line_buf, "    mv {s}, {s}\n", .{ rd_name, rs_name });
             },
-            .call => try std.fmt.bufPrint(&line_buf, "    call {s}\n", .{inst.label}),
+            .call => blk: {
+                // push all temporaries to stack TODO actually check which temporaries are needed
+                try asm_text.appendSlice(alloc,
+                    \\    addi sp, sp, -28
+                    \\    sw t0, 0(sp)
+                    \\    sw t1, 4(sp)
+                    \\    sw t2, 8(sp)
+                    \\    sw t3, 12(sp)
+                    \\    sw t4, 16(sp)
+                    \\    sw t5, 20(sp)
+                    \\    sw t6, 24(sp)
+                    \\
+                );
+
+                const call_asm = try std.fmt.bufPrint(&line_buf, "    call {s}\n", .{inst.label});
+                try asm_text.appendSlice(alloc, call_asm);
+
+                // pop all temporaries off stack
+                try asm_text.appendSlice(alloc,
+                    \\    lw t0, 0(sp)
+                    \\    lw t1, 4(sp)
+                    \\    lw t2, 8(sp)
+                    \\    lw t3, 12(sp)
+                    \\    lw t4, 16(sp)
+                    \\    lw t5, 20(sp)
+                    \\    lw t6, 24(sp)
+                    \\    addi sp, sp, 28
+                    \\
+                );
+
+                break :blk "";
+            },
             .ret => try std.fmt.bufPrint(&line_buf, "    ret\n", .{}),
         };
         try asm_text.appendSlice(alloc, line);
