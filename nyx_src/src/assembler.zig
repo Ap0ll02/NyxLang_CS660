@@ -17,6 +17,15 @@ pub fn assemble(
     try emit_assembly(alloc, riscv);
 }
 
+pub fn assemble_file(
+    alloc: std.mem.Allocator,
+    nyac: []const u8
+) !void {
+    _ = try alloc.alloc(u8, 8);
+    _ = try std.fs.cwd().openFile(nyac, .{});
+    return;
+}
+
 fn allocate_registers(
     alloc: std.mem.Allocator,
     nyac: []const nya.NYAC,
@@ -226,8 +235,12 @@ const RiscVInst = struct {
         add,
         sub,
         li,
+        la,
         beq,
         label,
+        call,
+        mv,
+        ret
     };
 };
 
@@ -235,6 +248,7 @@ fn lower_to_riscv(
     alloc: std.mem.Allocator,
     nyac: []const nya.NYAC,
 ) !std.ArrayList(RiscVInst) {
+    var arg_count: usize = 0;
     var out = std.ArrayList(RiscVInst).empty;
     
     for (nyac) |inst| {
@@ -248,18 +262,45 @@ fn lower_to_riscv(
                 });
             },
             .Constant => {
-                try out.append(alloc, .{
-                    .op = .li,
-                    .rd = inst.return_addr,
-                    .imm = inst.op1.Value.Number,
-                });
+                if(inst.op1 == .Value) {
+                    switch (inst.op1.Value) {
+                        .String => |str| {
+                            try out.append(alloc, .{
+                                .op = .la,
+                                .rd = inst.return_addr,
+                                .label = str,
+                            });
+                        },
+                        .Number => |num| {
+                            try out.append(alloc, .{
+                                .op = .li,
+                                .rd = inst.return_addr,
+                                .imm = num
+                            });
+                        },
+                        .Char => |ch| {
+                            try out.append(alloc, .{
+                                .op = .li,
+                                .rd = inst.return_addr,
+                                .imm = @intCast(ch),
+                            });
+                        },
+                        .Float => |flt| {
+                            try out.append(alloc, .{
+                                .op = .li,
+                                .rd = inst.return_addr,
+                                .imm = @intFromFloat(flt),
+                            });
+                        },
+                        .Void => {},
+                    }
+                }
             },
             .JumpFalse => {
-                // JUMPFALSE t1, L2 -> beq t1, x0, L2
                 try out.append(alloc, .{
                     .op = .beq,
                     .rs1 = inst.op1.Register,
-                    .rs2 = 0, // x0 (zero register)
+                    .rs2 = 0,
                     .label = inst.op2.Label,
                 });
             },
@@ -269,6 +310,33 @@ fn lower_to_riscv(
                     .label = inst.op1.Label,
                 });
             },
+            .Call => {
+                arg_count = 0;
+                try out.append(alloc, .{
+                    .op = .call,
+                    .label = inst.op1.Label,
+                    .rd = inst.return_addr,
+                });
+            },
+            .PushArg => {
+                try out.append(alloc, .{
+                    .op = .mv,
+                    .rd = arg_count,
+                    .rs1 = inst.op1.Register,
+                });
+                arg_count += 1;
+            },
+            .Return => {
+                if (inst.op1 == .Register and inst.op1.Register != nya.Unused) {
+                    try out.append(alloc, .{
+                        .op = .mv,
+                        .rd = 0,
+                        .rs1 = inst.op1.Register,
+                    });
+                }
+                // Don't emit ret - let it fall through to exit syscall
+                // The exit code will be added at the end of main
+            },
             else => {},
         }
     }
@@ -277,7 +345,6 @@ fn lower_to_riscv(
 }
 
 fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !void {
-    // Create output file
     const file_name = "a.s";
     const file = try std.fs.cwd().createFile(file_name, .{
         .truncate = true,
@@ -285,29 +352,83 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
     });
     defer file.close();
 
-    // Build assembly text
     var asm_text = std.ArrayList(u8).empty;
     defer asm_text.deinit(alloc);
 
-    // Optional: Add header
+    // First pass: collect all string literals
+    var strings = std.ArrayList([]const u8).empty;
+    defer strings.deinit(alloc);
+    
+    for (riscv.items) |inst| {
+        if (inst.op == .la) {
+            try strings.append(alloc, inst.label);
+        }
+    }
+
+    // Emit .data section if we have strings
     try asm_text.appendSlice(alloc, "# RISC-V Assembly Output\n");
+    
+    if (strings.items.len > 0) {
+        try asm_text.appendSlice(alloc, "    .data\n");
+        for (strings.items, 0..) |str, i| {
+            // Strip quotes if they exist
+            const clean_str = if (str.len >= 2 and str[0] == '"' and str[str.len - 1] == '"')
+                str[1..str.len - 1]
+            else
+                str;
+            
+            var buf: [512]u8 = undefined;
+            const data_line = try std.fmt.bufPrint(&buf, ".str{d}:\n    .string \"{s}\"\n", .{i, clean_str});
+            try asm_text.appendSlice(alloc, data_line);
+        }
+        try asm_text.appendSlice(alloc, "\n");
+    }
+    
+    // Emit .text section
     try asm_text.appendSlice(alloc, "    .text\n");
     try asm_text.appendSlice(alloc, "    .globl main\n\n");
 
+    var str_index: usize = 0;
     for (riscv.items) |inst| {
         var line_buf: [256]u8 = undefined;
         const line = switch (inst.op) {
             .add => try std.fmt.bufPrint(&line_buf, "    add t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
             .sub => try std.fmt.bufPrint(&line_buf, "    sub t{d}, t{d}, t{d}\n", .{inst.rd, inst.rs1, inst.rs2}),
             .li => try std.fmt.bufPrint(&line_buf, "    li t{d}, {d}\n", .{inst.rd, inst.imm}),
+            .la => blk: {
+                const str_label = try std.fmt.bufPrint(&line_buf, "    la t{d}, .str{d}\n", .{inst.rd, str_index});
+                str_index += 1;
+                break :blk str_label;
+            },
             .beq => try std.fmt.bufPrint(&line_buf, "    beq t{d}, x{d}, {s}\n", .{inst.rs1, inst.rs2, inst.label}),
             .label => try std.fmt.bufPrint(&line_buf, "{s}:\n", .{inst.label}),
+            .mv => blk: {
+                const rd_name = if (inst.rd < 8) 
+                    try std.fmt.bufPrint(&line_buf, "a{d}", .{inst.rd})
+                else 
+                    try std.fmt.bufPrint(&line_buf, "t{d}", .{inst.rd});
+                
+                var rs_buf: [16]u8 = undefined;
+                const rs_name = try std.fmt.bufPrint(&rs_buf, "t{d}", .{inst.rs1});
+                
+                var final_buf: [256]u8 = undefined;
+                break :blk try std.fmt.bufPrint(&final_buf, "    mv {s}, {s}\n", .{rd_name, rs_name});
+            },
+            .call => try std.fmt.bufPrint(&line_buf, "    call {s}\n", .{inst.label}),
+            .ret => try std.fmt.bufPrint(&line_buf, "    ret\n", .{}),
         };
         try asm_text.appendSlice(alloc, line);
     }
 
-    // Write to file
+    // Add exit code for main
+    try asm_text.appendSlice(alloc, 
+        \\    # Exit
+        \\    li a7, 93
+        \\    li a0, 0
+        \\    ecall
+        \\
+    );
+
     try file.writeAll(asm_text.items);
-    
     std.debug.print("Assembly written to {s}\n", .{file_name});
 }

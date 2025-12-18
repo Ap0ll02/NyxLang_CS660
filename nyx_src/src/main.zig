@@ -34,6 +34,7 @@ fn _main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
+    var nyac_file_flag: bool = false;
 
     if (args.len == 1 or args.len > 3) {
         std.debug.print("Usage: {s} <filename>. Found {d} args\n", .{ args[0], args.len });
@@ -57,8 +58,15 @@ fn _main() !void {
     }
     if (ast.debug_mode) std.debug.print("\n\nFILENAME: {s}\n\n", .{filename});
     const file = try std.fs.cwd().openFile(filename, .{});
+    const file_end = filename[filename.len-5..filename.len];
+    if (std.mem.eql(u8, file_end, ".nyac")) {
+        nyac_file_flag = true;
+    }
     defer file.close();
-
+    if(nyac_file_flag) { 
+        try asmb.assemble_file(parse_alloc, filename);
+        return;
+    }
     const contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     source_code = contents;
     defer allocator.free(contents);

@@ -42,6 +42,8 @@ pub const Instruction = enum {
     StoreRegister,
     LoadRegister,
     Return,
+    Call,
+    PushArg,
 };
 pub const Value = union(enum) {
     Number: i32,
@@ -757,12 +759,58 @@ pub const Compiler = struct {
         self.cur_line = if (root.location) |loc| loc.line else 0;
         const func_ident_node = root.name.Identifier;
 
-        const nyac = NYAC{ .instruction = .Goto, .return_addr = Unused, .op1 = NYACOperand{ .Label = func_ident_node.name }, .op2 = .{ .Register = Unused } };
+        // Handle arguments if present
+        if (root.args) |arg_list| {
+            const args = arg_list.ArgumentList.args;
 
-        try self.nyac_list.append(self.alloc, nyac);
-        try self.emit(nyac);
+            // Push arguments in order
+            for (args) |arg| {
+                // Special handling for string literals
+                const arg_reg = if (arg.* == .String) blk: {
+                    // Create a constant with string value
+                    self.count += 1;
+                    const str_reg = self.count;
 
-        return Unused;
+                    const str_nyac = NYAC{
+                        .instruction = .Constant,
+                        .return_addr = str_reg,
+                        .op1 = NYACOperand{ .Value = Value{ .String = arg.String.raw_val } },
+                        .op2 = NYACOperand{ .Register = Unused },
+                    };
+                    try self.nyac_list.append(self.alloc, str_nyac);
+                    try self.emit(str_nyac);
+
+                    break :blk str_reg;
+                } else try self.compile_expr(arg);
+
+                const push_nyac = NYAC{
+                    .instruction = .PushArg,
+                    .return_addr = Unused,
+                    .op1 = NYACOperand{ .Register = arg_reg },
+                    .op2 = NYACOperand{ .Register = Unused },
+                };
+                try self.nyac_list.append(self.alloc, push_nyac);
+                try self.emit(push_nyac);
+            }
+        }
+
+        // Allocate register for return value
+        self.count += 1;
+        const return_reg = self.count;
+
+        // Emit the call instruction
+        const call_nyac = NYAC{
+            .instruction = .Call,
+            .return_addr = return_reg,
+            .op1 = NYACOperand{ .Label = func_ident_node.name },
+            .op2 = NYACOperand{ .Register = Unused },
+        };
+
+        try self.nyac_list.append(self.alloc, call_nyac);
+        try self.emit(call_nyac);
+
+        if (ast.debug_mode) std.debug.print("Function Call Node Emitted: {s}\n", .{func_ident_node.name});
+        return return_reg;
     }
 
     pub fn create_init_list(self: *Compiler, root: *ast.InitializerListNode, base_reg: u32) !Register {
@@ -1211,6 +1259,8 @@ pub const Compiler = struct {
             .GreaterEquals => "GTE",
             .LessEquals => "LTE",
             .Return => "RETURN",
+            .Call => "CALL",
+            .PushArg => "PUSH_ARG"
             // else => "INVALID"
         });
 

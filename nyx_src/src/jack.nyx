@@ -1,5 +1,5 @@
 int main() {
-    int x = 400;
-    int y = 10;
-    printf("X: %d", x);
+    int x = 100;
+    printf("X: %d\n", x);
+    return 0;
 }
