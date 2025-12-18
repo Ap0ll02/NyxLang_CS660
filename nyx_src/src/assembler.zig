@@ -1,6 +1,24 @@
 const std = @import("std");
 const nya = @import("3ac.zig");
 
+// Map color (0-18) to actual RISC-V register name
+// Colors 0-6 -> t0-t6 and
+// Colors 7-18 -> s0-s11 
+fn color_to_reg_name(color: usize, buf: []u8) ![]const u8 {
+    if (color >= 100 and color < 108) {
+        // Argument registers
+        return try std.fmt.bufPrint(buf, "a{d}", .{color - 100});
+    } else if (color < 7) {
+        // t0-t6
+        return try std.fmt.bufPrint(buf, "t{d}", .{color});
+    } else if (color < 19) {
+        // s0-s11
+        return try std.fmt.bufPrint(buf, "s{d}", .{color - 7});
+    } else {
+        return error.InvalidRegisterColor;
+    }
+}
+
 pub fn assemble(
     alloc: std.mem.Allocator,
     nyac: []const nya.NYAC,
@@ -580,32 +598,62 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
     for (riscv.items) |inst| {
         var line_buf: [256]u8 = undefined;
         const line = switch (inst.op) {
-            .add => try std.fmt.bufPrint(&line_buf, "    add t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
-            .sub => try std.fmt.bufPrint(&line_buf, "    sub t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
-            .slt => try std.fmt.bufPrint(&line_buf, "    slt t{d}, t{d}, t{d}\n", .{ inst.rd, inst.rs1, inst.rs2 }),
+            .add => blk: {
+                var rd_buf: [16]u8 = undefined;
+                var rs1_buf: [16]u8 = undefined;
+                var rs2_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    add {s}, {s}, {s}\n", .{ rd_name, rs1_name, rs2_name });
+            },
+            .sub => blk: {
+                var rd_buf: [16]u8 = undefined;
+                var rs1_buf: [16]u8 = undefined;
+                var rs2_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    sub {s}, {s}, {s}\n", .{ rd_name, rs1_name, rs2_name });
+            },
+            .slt => blk: {
+                var rd_buf: [16]u8 = undefined;
+                var rs1_buf: [16]u8 = undefined;
+                var rs2_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    slt {s}, {s}, {s}\n", .{ rd_name, rs1_name, rs2_name });
+            },
             .li => blk: {
                 var reg_buf: [16]u8 = undefined;
-                const reg_name = if (inst.rd >= 100 and inst.rd < 108)
-                    try std.fmt.bufPrint(&reg_buf, "a{d}", .{inst.rd - 100})
-                else
-                    try std.fmt.bufPrint(&reg_buf, "t{d}", .{inst.rd});
+                const reg_name = try color_to_reg_name(inst.rd, &reg_buf);
                 break :blk try std.fmt.bufPrint(&line_buf, "    li {s}, {d}\n", .{ reg_name, inst.imm });
             },
             .addi => blk: {
+                var rd_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
                 if (inst.rs1 == 2) { // rs1 == 2 then its a  sp
-                    break :blk try std.fmt.bufPrint(&line_buf, "    addi t{d}, sp, {d}\n", .{ inst.rd, inst.imm });
+                    break :blk try std.fmt.bufPrint(&line_buf, "    addi {s}, sp, {d}\n", .{ rd_name, inst.imm });
                 } else {
-                    break :blk try std.fmt.bufPrint(&line_buf, "    addi t{d}, t{d}, {d}\n", .{ inst.rd, inst.rs1, inst.imm });
+                    var rs1_buf: [16]u8 = undefined;
+                    const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                    break :blk try std.fmt.bufPrint(&line_buf, "    addi {s}, {s}, {d}\n", .{ rd_name, rs1_name, inst.imm });
                 }
             },
-            .sw => try std.fmt.bufPrint(&line_buf, "    sw t{d}, {d}(t{d})\n", .{ inst.rs1, inst.imm, inst.rs2 }),
+            .sw => blk: {
+                var rs1_buf: [16]u8 = undefined;
+                var rs2_buf: [16]u8 = undefined;
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    sw {s}, {d}({s})\n", .{ rs1_name, inst.imm, rs2_name });
+            },
             .lw => blk: {
-                var reg_buf: [16]u8 = undefined;
-                const rd_name = if (inst.rd >= 100 and inst.rd < 108)
-                    try std.fmt.bufPrint(&reg_buf, "a{d}", .{inst.rd - 100})
-                else
-                    try std.fmt.bufPrint(&reg_buf, "t{d}", .{inst.rd});
-                break :blk try std.fmt.bufPrint(&line_buf, "    lw {s}, {d}(t{d})\n", .{ rd_name, inst.imm, inst.rs1 });
+                var rd_buf: [16]u8 = undefined;
+                var rs1_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    lw {s}, {d}({s})\n", .{ rd_name, inst.imm, rs1_name });
             },
             .prologue => blk: {
                 if (max_stack < 0) {
@@ -625,28 +673,25 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 }
             },
             .la => blk: {
-                const str_label = try std.fmt.bufPrint(&line_buf, "    la t{d}, .str{d}\n", .{ inst.rd, str_index });
+                var rd_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const str_label = try std.fmt.bufPrint(&line_buf, "    la {s}, .str{d}\n", .{ rd_name, str_index });
                 str_index += 1;
                 break :blk str_label;
             },
-            .beq => try std.fmt.bufPrint(&line_buf, "    beq t{d}, x{d}, {s}\n", .{ inst.rs1, inst.rs2, inst.label }),
+            .beq => blk: {
+                var rs1_buf: [16]u8 = undefined;
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    beq {s}, x{d}, {s}\n", .{ rs1_name, inst.rs2, inst.label });
+            },
             .j => try std.fmt.bufPrint(&line_buf, "    j {s}\n", .{inst.label}),
             .label => try std.fmt.bufPrint(&line_buf, "{s}:\n", .{inst.label}),
             .mv => blk: {
                 var rd_buf: [16]u8 = undefined;
-                const rd_name = if (inst.rd >= 100 and inst.rd < 108)
-                    try std.fmt.bufPrint(&rd_buf, "a{d}", .{inst.rd - 100})
-                else
-                    try std.fmt.bufPrint(&rd_buf, "t{d}", .{inst.rd});
-
                 var rs_buf: [16]u8 = undefined;
-                const rs_name = if (inst.rs1 >= 100 and inst.rs1 < 108)
-                    try std.fmt.bufPrint(&rs_buf, "a{d}", .{inst.rs1 - 100})
-                else
-                    try std.fmt.bufPrint(&rs_buf, "t{d}", .{inst.rs1});
-
-                var final_buf: [256]u8 = undefined;
-                break :blk try std.fmt.bufPrint(&final_buf, "    mv {s}, {s}\n", .{ rd_name, rs_name });
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs_name = try color_to_reg_name(inst.rs1, &rs_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    mv {s}, {s}\n", .{ rd_name, rs_name });
             },
             .call => try std.fmt.bufPrint(&line_buf, "    call {s}\n", .{inst.label}),
             .ret => try std.fmt.bufPrint(&line_buf, "    ret\n", .{}),
