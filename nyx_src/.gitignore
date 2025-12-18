@@ -8,3 +8,4 @@ zig-out/
 .vscode/
 c11.output
 a.nyac
+a.s
