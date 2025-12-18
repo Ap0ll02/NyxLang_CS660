@@ -962,6 +962,31 @@ export fn make_function_node(retType: *Node, nameParameter: *Node, body: *Node) 
     if (nameParameter.NameParameterNode.parameterList) |np| {
         func_arity = np.ParameterList.params.len;
     }
+
+    if (retType.Type.base == .VOID) {
+        const old_items = body.BlockItems.items;
+
+        // Check if last item is already a return
+        const needs_return = old_items.len == 0 or
+            old_items[old_items.len - 1].* != .ReturnStmt;
+
+        if (needs_return) {
+            // Create return node
+            const return_node = glob_alloc.create(ReturnNode) catch return null;
+            return_node.* = ReturnNode{ .val = null };
+
+            const ret_node = glob_alloc.create(Node) catch return null;
+            ret_node.* = Node{ .ReturnStmt = return_node };
+
+            // Reallocate and append
+            const new_items = glob_alloc.alloc(*Node, old_items.len + 1) catch return null;
+            @memcpy(new_items[0..old_items.len], old_items);
+            new_items[old_items.len] = ret_node;
+
+            body.BlockItems.items = new_items;
+        }
+    }
+
     function_node.* = FunctionNode{ .retType = retType.Type, .nameParam = nameParameter, .body = body, .location = get_location(), .arity = func_arity };
 
     const node = glob_alloc.create(Node) catch return null;
