@@ -249,7 +249,7 @@ const RiscVInst = struct {
     imm: i32 = 0,
     label: []const u8 = "",
 
-    const Op = enum { add, sub, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue, j, slt };
+    const Op = enum { add, sub, mul, div, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue, j, slt };
 };
 
 fn lower_to_riscv(
@@ -282,6 +282,56 @@ fn lower_to_riscv(
                         .rd = inst.return_addr,
                         .rs1 = inst.op1.Register,
                         .imm = inst.op2.Value.Number,
+                    });
+                }
+            },
+            .Multiply => {
+                // Handle both register-register and register-immediate adds
+                if (inst.op2 == .Register) {
+                    try out.append(alloc, .{
+                        .op = .mul,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = inst.op2.Register,
+                    });
+                } else if (inst.op2 == .Value and inst.op2.Value == .Number) {
+                    const temp_reg = 31;
+                    try out.append(alloc, .{
+                        .op = .li,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .imm = inst.op2.Value.Number,
+                    });
+                    try out.append(alloc, .{
+                        .op = .mul,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = temp_reg,
+                    });
+                }
+            },
+            .Divide => {
+                // Handle both register-register and register-immediate adds
+                if (inst.op2 == .Register) {
+                    try out.append(alloc, .{
+                        .op = .div,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = inst.op2.Register,
+                    });
+                } else if (inst.op2 == .Value and inst.op2.Value == .Number) {
+                    const temp_reg = 31;
+                    try out.append(alloc, .{
+                        .op = .li,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .imm = inst.op2.Value.Number,
+                    });
+                    try out.append(alloc, .{
+                        .op = .div,
+                        .rd = inst.return_addr,
+                        .rs1 = inst.op1.Register,
+                        .rs2 = temp_reg
                     });
                 }
             },
@@ -617,6 +667,24 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
                 const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
                 break :blk try std.fmt.bufPrint(&line_buf, "    sub {s}, {s}, {s}\n", .{ rd_name, rs1_name, rs2_name });
+            },
+            .mul => blk: {
+                var rd_buf: [16]u8 = undefined;
+                var rs1_buf: [16]u8 = undefined;
+                var rs2_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    mul {s}, {s}, {s}\n", .{ rd_name, rs1_name, rs2_name });
+            },
+            .div => blk: {
+                var rd_buf: [16]u8 = undefined;
+                var rs1_buf: [16]u8 = undefined;
+                var rs2_buf: [16]u8 = undefined;
+                const rd_name = try color_to_reg_name(inst.rd, &rd_buf);
+                const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
+                const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
+                break :blk try std.fmt.bufPrint(&line_buf, "    div {s}, {s}, {s}\n", .{ rd_name, rs1_name, rs2_name });
             },
             .slt => blk: {
                 var rd_buf: [16]u8 = undefined;
