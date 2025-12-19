@@ -1,5 +1,8 @@
 int main() {
     int x = 100;
     printf("X: %d\n", x);
+
+    int y = x * 100;
+    printf("Y: %d\n", y);
     return 0;
 }
