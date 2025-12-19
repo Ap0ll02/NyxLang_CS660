@@ -1,0 +1,41 @@
+
+int add_number(int a, int b)
+{
+    return a + b;
+}
+
+struct Josh {
+    int value;
+    int value;
+};
+
+struct Josh {
+  int my_favorite_word;
+};
+
+
+int main()
+{
+    int x = 5;
+    int y = 6; 
+    int z = 7;
+
+    int a[5] = {1,2,3};
+    int a2[2.5] = {1,2,3};
+    int b[2] = {1,2,3};
+
+    int c = 5;
+    float d = 5.6;  
+    int e = c + d;
+
+    add_number(x);
+    add_number(x,y,z);
+
+    int const f = 5;
+    f = 6;
+    e = c + d;
+
+    new_function();
+
+    return 0;
+}

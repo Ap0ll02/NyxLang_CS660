@@ -163,6 +163,13 @@ cd nyx_src
 zig build run -- src/<filename> [flags]
 ```
 
+### Step 5: Testing Error Suit 
+run ```zig build run -- errortest.nyx```
+This should display many of the errors associated with nyx 
+
+### Step 6: Testing Extra Credit 
+run ```zig build run -- extracredit.nyx -d```
+This will show that structs and our modified c syntax fully works
 #### Flags
 
 | Flags | Description |
