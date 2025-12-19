@@ -47,6 +47,16 @@ fn allocate_registers(
 ) ![]nya.NYAC {
     const temp_count = find_max_temp(nyac) + 1;
 
+    // Track which registers are stack addresses (from IMBUE_REGISTER)
+    var address_regs = try std.bit_set.DynamicBitSet.initEmpty(alloc, temp_count);
+    defer address_regs.deinit();
+
+    for (nyac) |inst| {
+        if (inst.instruction == .ImbueRegister and inst.return_addr != nya.Unused) {
+            address_regs.set(inst.return_addr);
+        }
+    }
+
     // 1. Liveness analysis
     const live_list = try analyze_lifetimes(alloc, nyac, temp_count);
     defer {
@@ -58,8 +68,8 @@ fn allocate_registers(
     const graph = try build_interference_graph(alloc, nyac, live_list, temp_count);
     defer free_graph(alloc, graph);
 
-    // 3. Graph coloring
-    const coloring = try color_graph(alloc, graph);
+    // 3. Graph coloring with preference for s-registers on addresses
+    const coloring = try color_graph(alloc, graph, &address_regs);
     defer alloc.free(coloring);
 
     // 4. Rewrite NYAC with physical registers
@@ -152,16 +162,18 @@ fn add_edge(adj_list: *std.ArrayList(usize), neighbor: usize, alloc: std.mem.All
 fn color_graph(
     alloc: std.mem.Allocator,
     graph: []const std.ArrayList(usize),
+    address_regs: *const std.bit_set.DynamicBitSet,
 ) ![]usize {
     // RISCV has 19 usable registrs
-    // t0-t6 and s0-s11
+    // t0-t6 (colors 0-6) are caller-saved
+    // s0-s11 (colors 7-18) are callee-saved
     // a0-a7 are reserved for arguments
     const num_colors = 19;
 
     var coloring = try alloc.alloc(usize, graph.len);
     @memset(coloring, std.math.maxInt(usize)); // uncolored
 
-    // Simple greedy coloring
+    // Simple greedy coloring with preference for s-registers on addresses
     for (graph, 0..) |neighbors, node| {
         var used_colors = try std.bit_set.DynamicBitSet.initEmpty(alloc, num_colors);
         defer used_colors.deinit();
@@ -173,12 +185,37 @@ fn color_graph(
             }
         }
 
-        // Find first available color
-        var color: usize = 0;
-        while (color < num_colors) : (color += 1) {
-            if (!used_colors.isSet(color)) {
-                coloring[node] = color;
-                break;
+        // Determine color range based on whether this is an address register
+        const is_address = node < address_regs.capacity() and address_regs.isSet(node);
+
+        var color: usize = undefined;
+        if (is_address) {
+            // For addresses, prefer s-registers (7-18) first, then fall back to t-registers (0-6)
+            color = 7;
+            while (color < num_colors) : (color += 1) {
+                if (!used_colors.isSet(color)) {
+                    coloring[node] = color;
+                    break;
+                }
+            }
+            // If no s-register available, try t-registers
+            if (coloring[node] == std.math.maxInt(usize)) {
+                color = 0;
+                while (color < 7) : (color += 1) {
+                    if (!used_colors.isSet(color)) {
+                        coloring[node] = color;
+                        break;
+                    }
+                }
+            }
+        } else {
+            // For values, prefer t-registers (0-6) first, then s-registers (7-18)
+            color = 0;
+            while (color < num_colors) : (color += 1) {
+                if (!used_colors.isSet(color)) {
+                    coloring[node] = color;
+                    break;
+                }
             }
         }
 
@@ -249,7 +286,7 @@ const RiscVInst = struct {
     imm: i32 = 0,
     label: []const u8 = "",
 
-    const Op = enum { add, sub, mul, div, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue, j, slt };
+    const Op = enum { add, sub, mul, div, li, la, beq, label, call, mv, ret, sw, lw, addi, prologue, epilogue, j, slt, restore_temps };
 };
 
 fn lower_to_riscv(
@@ -327,12 +364,7 @@ fn lower_to_riscv(
                         .rs1 = inst.op1.Register,
                         .imm = inst.op2.Value.Number,
                     });
-                    try out.append(alloc, .{
-                        .op = .div,
-                        .rd = inst.return_addr,
-                        .rs1 = inst.op1.Register,
-                        .rs2 = temp_reg
-                    });
+                    try out.append(alloc, .{ .op = .div, .rd = inst.return_addr, .rs1 = inst.op1.Register, .rs2 = temp_reg });
                 }
             },
             .Subtract => {
@@ -455,7 +487,19 @@ fn lower_to_riscv(
                     try out.append(alloc, .{
                         .op = .mv,
                         .rd = inst.return_addr,
-                        .rs1 = 0, // a0 (mapped to register 0 in our system)
+                        .rs1 = 100, // a0 register
+                    });
+
+                    // Restore caller-saved registers, but skip the one holding return value
+                    try out.append(alloc, .{
+                        .op = .restore_temps,
+                        .rd = inst.return_addr, // Skip restoring this register
+                    });
+                } else {
+                    // No return value, restore all temps
+                    try out.append(alloc, .{
+                        .op = .restore_temps,
+                        .rd = nya.Unused, // Don't skip any
                     });
                 }
             },
@@ -552,7 +596,7 @@ fn lower_to_riscv(
                 if (inst.op1 == .Register and inst.op1.Register != nya.Unused) {
                     try out.append(alloc, .{
                         .op = .mv,
-                        .rd = 0,
+                        .rd = 100, // a0 register for return value
                         .rs1 = inst.op1.Register,
                     });
                 }
@@ -764,7 +808,7 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 break :blk try std.fmt.bufPrint(&line_buf, "    mv {s}, {s}\n", .{ rd_name, rs_name });
             },
             .call => blk: {
-                // push all temporaries to stack TODO actually check which temporaries are needed
+                // Save caller-saved registers (t0-t6) before call
                 try asm_text.appendSlice(alloc,
                     \\    addi sp, sp, -28
                     \\    sw t0, 0(sp)
@@ -780,19 +824,39 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 const call_asm = try std.fmt.bufPrint(&line_buf, "    call {s}\n", .{inst.label});
                 try asm_text.appendSlice(alloc, call_asm);
 
-                // pop all temporaries off stack
-                try asm_text.appendSlice(alloc,
-                    \\    lw t0, 0(sp)
-                    \\    lw t1, 4(sp)
-                    \\    lw t2, 8(sp)
-                    \\    lw t3, 12(sp)
-                    \\    lw t4, 16(sp)
-                    \\    lw t5, 20(sp)
-                    \\    lw t6, 24(sp)
-                    \\    addi sp, sp, 28
-                    \\
-                );
+                break :blk "";
+            },
+            .restore_temps => blk: {
+                // Restore caller-saved registers after call
+                // inst.rd contains the physical register number to skip (if any)
+                const skip_reg = inst.rd;
 
+                var restore_buf: [512]u8 = undefined;
+                var restore_code = std.ArrayList(u8).empty;
+                defer restore_code.deinit(alloc);
+
+                // Restore each t0-t6 register unless it's the skip_reg
+                const temp_regs = [_]struct { reg: usize, offset: i32 }{
+                    .{ .reg = 0, .offset = 0 }, // t0
+                    .{ .reg = 1, .offset = 4 }, // t1
+                    .{ .reg = 2, .offset = 8 }, // t2
+                    .{ .reg = 3, .offset = 12 }, // t3
+                    .{ .reg = 4, .offset = 16 }, // t4
+                    .{ .reg = 5, .offset = 20 }, // t5
+                    .{ .reg = 6, .offset = 24 }, // t6
+                };
+
+                for (temp_regs) |t| {
+                    if (t.reg != skip_reg) {
+                        const restore_line = try std.fmt.bufPrint(&restore_buf, "    lw t{d}, {d}(sp)\n", .{ t.reg, t.offset });
+                        try restore_code.appendSlice(alloc, restore_line);
+                    } else {
+                        std.debug.print("DEBUG: skipping restore of t{d}\n", .{t.reg});
+                    }
+                }
+
+                try restore_code.appendSlice(alloc, "    addi sp, sp, 28\n");
+                try asm_text.appendSlice(alloc, restore_code.items);
                 break :blk "";
             },
             .ret => try std.fmt.bufPrint(&line_buf, "    ret\n", .{}),
