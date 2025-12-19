@@ -460,8 +460,8 @@ pub const Compiler = struct {
         var imbue_nyac = NYAC{
             .instruction = .ImbueRegister,
             .return_addr = dest,
-            .op1 = NYACOperand{ .Register = dest }, // Use dest to keep it live
-            .op2 = NYACOperand{ .Value = Value{ .Number = 4 } }, // default size
+            .op1 = NYACOperand{ .Value = Value{ .Number = 4 } },
+            .op2 = NYACOperand{ .Register = 0 },
         };
 
         if (struct_size > 0) {
@@ -1130,8 +1130,23 @@ pub const Compiler = struct {
     pub fn handle_return(self: *Compiler, node: *ast.ReturnNode) anyerror!Register {
         self.cur_line = if (node.location) |nl| nl.line else 0;
         var return_reg = Unused;
+
         if (node.val) |nv| {
             return_reg = try self.compile_expr(nv);
+            // If returning a variable, we need to load its value
+            if (nv.* == .Identifier) {
+                self.count += 1;
+                const loaded_val = self.count;
+                const load_nyac = NYAC{
+                    .instruction = .LoadRegister,
+                    .return_addr = loaded_val,
+                    .op1 = NYACOperand{ .Register = return_reg },
+                    .op2 = NYACOperand{ .Register = Unused },
+                };
+                try self.nyac_list.append(self.alloc, load_nyac);
+                try self.emit(load_nyac);
+                return_reg = loaded_val;
+            }
         }
         // Actually emit a RETURN instruction
         const nyac = NYAC{

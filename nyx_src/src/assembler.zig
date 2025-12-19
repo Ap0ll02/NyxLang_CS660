@@ -489,8 +489,8 @@ fn lower_to_riscv(
             .ImbueRegister => {
                 // Allocate stack space for a variable/struct
                 // op1 is the register itself and op2 contains the size
-                const size = if (inst.op2 == .Value and inst.op2.Value == .Number)
-                    inst.op2.Value.Number
+                const size = if (inst.op1 == .Value and inst.op1.Value == .Number)
+                    inst.op1.Value.Number
                 else
                     4; // default to 4 bytes
 
@@ -511,7 +511,7 @@ fn lower_to_riscv(
                 const src = inst.op2.Register;
 
                 // Check if source is a stack address that needs dereferencing
-                if (reg_to_stack.contains(src)) {
+                if (reg_to_stack.contains(src) and !const_regs.contains(src)) {
                     // Source is a stack address, load the value first into a temp
                     // Use t6 as scratch register
                     const temp_reg: usize = 6;
@@ -524,16 +524,16 @@ fn lower_to_riscv(
                     // Now store that value to destination
                     try out.append(alloc, .{
                         .op = .sw,
-                        .rs1 = temp_reg,
-                        .rs2 = dest_addr,
+                        .rs1 = dest_addr,
+                        .rs2 = temp_reg,
                         .imm = 0,
                     });
                 } else {
                     // Source is a value register, store it directly
                     try out.append(alloc, .{
                         .op = .sw,
-                        .rs1 = src,
-                        .rs2 = dest_addr,
+                        .rs1 = dest_addr,
+                        .rs2 = src,
                         .imm = 0,
                     });
                 }
@@ -716,7 +716,7 @@ fn emit_assembly(alloc: std.mem.Allocator, riscv: std.ArrayList(RiscVInst)) !voi
                 var rs2_buf: [16]u8 = undefined;
                 const rs1_name = try color_to_reg_name(inst.rs1, &rs1_buf);
                 const rs2_name = try color_to_reg_name(inst.rs2, &rs2_buf);
-                break :blk try std.fmt.bufPrint(&line_buf, "    sw {s}, {d}({s})\n", .{ rs1_name, inst.imm, rs2_name });
+                break :blk try std.fmt.bufPrint(&line_buf, "    sw {s}, {d}({s})\n", .{ rs2_name, inst.imm, rs1_name });
             },
             .lw => blk: {
                 var rd_buf: [16]u8 = undefined;
