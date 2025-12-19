@@ -1,0 +1,26 @@
+
+int add_number(int a, int b)
+{
+    return a + b;
+}
+
+
+int main()
+{
+    int x = 5;
+    int y = 6; 
+    int z = 7;
+
+    int a[5] = {1,2,3};
+    int b[2] = {1,2,3};
+
+    int c = 5;
+    float d = 5.6;
+    e = c + d;  
+    int e = c + d; 
+
+    add_number(x);
+    add_number(x,y,z);
+
+    return 0;
+}
