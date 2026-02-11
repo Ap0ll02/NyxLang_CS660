@@ -614,14 +614,20 @@ iteration_statement
 	: WHILE '(' expression ')' statement { $$ = make_iteration_stmt($3, $5, NULL, NULL); }
 	| WHILE expression compound_statement { $$ = make_iteration_stmt($2, $3, NULL, NULL); }
 	| DO statement WHILE '(' expression ')' ';'
-    | FOR expression_statement expression_statement compound_statement {$$ = make_iteration_stmt($3, $4, $2, NULL);}
+    | FOR expression_statement expression_statement compound_statement {
+        $$ = make_iteration_stmt($3, $4, $2, NULL);
+    }
     | FOR expression_statement expression_statement expression_statement compound_statement {$$ = make_iteration_stmt($3, $5, $2, $4);}
     | FOR declaration expression_statement expression compound_statement {$$ = make_iteration_stmt($3, $5, $2, $4);}
     | FOR declaration expression_statement compound_statement {$$ = make_iteration_stmt($3, $4, $2, NULL);}
 	| FOR '(' expression_statement expression_statement ')' statement { $$ = make_iteration_stmt($4, $6, $3, NULL);}
-	| FOR '(' expression_statement expression_statement expression ')' statement {$$ = make_iteration_stmt($4, $7, $3, $5);}
+	| FOR '(' expression_statement expression_statement expression ')' statement {
+        $$ = make_iteration_stmt($4, $7, $3, $5);
+    }
 	| FOR '(' declaration expression_statement ')' statement { $$ = make_iteration_stmt($4, $6, $3, NULL);}
-	| FOR '(' declaration expression_statement expression ')' statement {$$ = make_iteration_stmt($4, $7, $3, $5);}
+	| FOR '(' declaration expression_statement expression ')' statement {
+        $$ = make_iteration_stmt($4, $7, $3, $5);
+    }
 	;
 
 jump_statement

@@ -1,0 +1,21 @@
+int main() {
+    int x = 0;
+    // With Parentheses
+    while(x < 10) {
+        printf("Parens: %d\n", x);
+        x = x + 1;
+    }
+
+    printf("New Loop Without Parens!\n");
+    x = 0;
+    
+    // Without Parentheses
+    while x < 10 {
+        printf("W/o Parens: %d\n", x);
+        x = x + 1;
+    }
+
+    for(int i = 0; i < 10; i++) {
+        printf("We loop again\n");
+    }
+}

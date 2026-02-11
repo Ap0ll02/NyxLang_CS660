@@ -842,6 +842,10 @@ pub fn semantic_analyze_node(node_opt: ?*ast.Node) !void {
                 if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
                 return;
             };
+            semantic_analyze_node(while_stmt.post) catch |err| {
+                if (ast.debug_mode) std.debug.print("Semantic Failure: {any}\n", .{err});
+                return;
+            };
         },
         .IfStmt => {
             if (ast.debug_mode) std.debug.print("IfStmt node semantically analyzed!\n", .{});
