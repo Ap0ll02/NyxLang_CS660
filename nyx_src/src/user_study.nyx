@@ -1,21 +1,25 @@
 int main() {
+    printf("Test 1: While With Parens:\n");
     int x = 0;
-    // With Parentheses
     while(x < 10) {
         printf("Parens: %d\n", x);
         x = x + 1;
     }
 
-    printf("New Loop Without Parens!\n");
     x = 0;
-    
-    // Without Parentheses
+    printf("Test 2: While WithOUT Parens:\n");
     while x < 10 {
         printf("W/o Parens: %d\n", x);
         x = x + 1;
     }
 
+    printf("Test 3: For With Parens:\n");
     for(int i = 0; i < 10; i++) {
         printf("We loop again\n");
+    }
+
+    printf("Test 4: For WithOUT Parens:\n");
+    for int j = 0; j < 10; j++ {
+        printf("Printing The Unparend For Loop\n");
     }
 }
