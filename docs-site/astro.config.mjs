@@ -5,6 +5,7 @@ import starlight from '@astrojs/starlight';
 // https://astro.build/config
 // astro.config.mjs (snippet)
 export default defineConfig({
+  site:"https://nyx.jackrat.dev",
   integrations: [
     starlight({
       title: 'NyxLang',
